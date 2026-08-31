@@ -1,0 +1,14 @@
+{
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Spring Boot-SittermatchApplication<sittermatch>",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "mainClass": "com.sittermatch.sittermatch.SittermatchApplication",
+            "projectName": "sittermatch",
+            "args": "",
+            "envFile": "${workspaceFolder}/.env"
+        }
+    ]
+}
