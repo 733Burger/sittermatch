@@ -8,6 +8,6 @@ public class TestController {
     
     @GetMapping("/api/hello")
     public String hello() {
-        return "SitterMatch backend is working!";
+        return "SitterMatch backend";
     }
 }
