@@ -2,7 +2,6 @@ package com.sittermatch.sittermatch.model;
 
 public class Homeowner {
     private int ID;
-    private User user_ID;
     private Boolean is_verified;
     private String requirements;
     private String service_required;
@@ -11,9 +10,8 @@ public class Homeowner {
 
     public Homeowner() {}
 
-    public Homeowner(int ID, User user_ID, Boolean is_verified, String requirements, String service_required, double rating, int total_reviews) {
+    public Homeowner(int ID, Boolean is_verified, String requirements, String service_required, double rating, int total_reviews) {
         this.ID = ID;
-        this.user_ID = user_ID;
         this.is_verified = is_verified;
         this.requirements = requirements;
         this.service_required = service_required;
@@ -27,14 +25,6 @@ public class Homeowner {
     
     public void setId(int ID) {
         this.ID = ID;
-    }
-
-    public User getUser_ID() {
-        return user_ID;
-    }
-
-    public void setUser_ID(User user_ID) {
-        this.user_ID = user_ID;
     }
 
     public Boolean getIs_verified() {

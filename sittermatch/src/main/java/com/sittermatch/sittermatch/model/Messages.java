@@ -4,7 +4,6 @@ import java.time.LocalDateTime;
 
 public class Messages {
     private int ID;
-    private String booking_id;
     private User sender_id;
     private User receiver_id;
     private String message;
@@ -12,9 +11,8 @@ public class Messages {
 
     public Messages() {}
 
-    public Messages(int ID, String booking_id, User sender_id, User receiver_id, String message, LocalDateTime sent_at) {
+    public Messages(int ID, User sender_id, User receiver_id, String message, LocalDateTime sent_at) {
         this.ID = ID;
-        this.booking_id = booking_id;
         this.sender_id = sender_id;
         this.receiver_id = receiver_id;
         this.message = message;
@@ -27,14 +25,6 @@ public class Messages {
 
     public void setId(int ID) {
         this.ID = ID;
-    }
-
-    public String getBooking_id() {
-        return booking_id;
-    }
-
-    public void setBooking_id(String booking_id) {
-        this.booking_id = booking_id;
     }
 
     public User getSender_id() {

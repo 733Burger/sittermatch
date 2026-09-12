@@ -7,21 +7,19 @@ public class User {
     private String name;
     private String email;
     private String phone;
+    private String password;
     private String active_role;
-    private Boolean is_valid_homeowner;
-    private Boolean is_valid_sitter;
     private Date created_at;
 
     public User() {}
 
-    public User(int ID, String name, String email, String phone, String active_role, Boolean is_valid_homeowner, Boolean is_valid_sitter, Date created_at) {
+    public User(int ID, String name, String email, String phone, String password, String active_role, Date created_at) {
         this.ID = ID;
         this.name = name;
         this.email = email;
         this.phone = phone;
+        this.password = password;
         this.active_role = active_role;
-        this.is_valid_homeowner = is_valid_homeowner;
-        this.is_valid_sitter = is_valid_sitter;
         this.created_at = created_at;
     }
 
@@ -65,20 +63,12 @@ public class User {
         this.active_role = active_role;
     }
 
-    public Boolean getIs_valid_homeowner() {
-        return is_valid_homeowner;
+    public String getPassword() {
+        return password;
     }
 
-    public void setIs_valid_homeowner(Boolean is_valid_homeowner) {
-        this.is_valid_homeowner = is_valid_homeowner;
-    }
-
-    public Boolean getIs_valid_sitter() {
-        return is_valid_sitter;
-    }
-
-    public void setIs_valid_sitter(Boolean is_valid_sitter) {
-        this.is_valid_sitter = is_valid_sitter;
+    public void setPassword(String password) {
+        this.password = password;
     }
 
     public Date getCreated_at() {

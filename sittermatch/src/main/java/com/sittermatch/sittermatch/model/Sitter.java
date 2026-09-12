@@ -1,24 +1,28 @@
 package com.sittermatch.sittermatch.model;
 
+import java.util.Set;
+
 public class Sitter {
     private int ID;
-    private User user_ID;
     private Boolean is_verified;
-    private String pet_preferences;
+    private Set<PetType> pet_preferences;
     private String experience;
-    private String services;
+    private Set<ServiceType> services;
+    private double day_rate;
+    private double night_rate;
     private double rating;
     private int total_reviews;
 
     public Sitter() {}
 
-    public Sitter(int ID, User user_ID, Boolean is_verified, String pet_preferences, String experience, String services, double rating, int total_reviews) {
+    public Sitter(int ID, Boolean is_verified, Set<PetType> pet_preferences, String experience, Set<ServiceType> services, double day_rate, double night_rate, double rating, int total_reviews) {
         this.ID = ID;
-        this.user_ID = user_ID;
         this.is_verified = is_verified;
         this.pet_preferences = pet_preferences;
         this.experience = experience;
         this.services = services;
+        this.day_rate = day_rate;
+        this.night_rate = night_rate;
         this.rating = rating;
         this.total_reviews = total_reviews;
     }
@@ -31,14 +35,6 @@ public class Sitter {
         this.ID = ID;
     }
 
-    public User getUser_ID() {
-        return user_ID;
-    }
-
-    public void setUser_ID(User user_ID) {
-        this.user_ID = user_ID;
-    }
-
     public Boolean getIs_verified() {
         return is_verified;
     }
@@ -47,11 +43,11 @@ public class Sitter {
         this.is_verified = is_verified;
     }
 
-    public String getPet_preferences() {
+    public Set<PetType> getPet_preferences() {
         return pet_preferences;
     }
 
-    public void setPet_preferences(String pet_preferences) {
+    public void setPet_preferences(Set<PetType> pet_preferences) {
         this.pet_preferences = pet_preferences;
     }
 
@@ -63,12 +59,28 @@ public class Sitter {
         this.experience = experience;
     }
 
-    public String getServices() {
+    public Set<ServiceType> getServices() {
         return services;
     }
 
-    public void setServices(String services) {
+    public void setServices(Set<ServiceType> services) {
         this.services = services;
+    }
+
+    public double getDay_rate() {
+        return day_rate;
+    }
+
+    public void setDay_rate(double day_rate) {
+        this.day_rate = day_rate;
+    }
+
+    public double getNight_rate() {
+        return night_rate;
+    }
+
+    public void setNight_rate(double night_rate) {
+        this.night_rate = night_rate;
     }
 
     public double getRating() {
