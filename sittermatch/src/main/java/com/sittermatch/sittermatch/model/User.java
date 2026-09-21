@@ -1,34 +1,54 @@
 package com.sittermatch.sittermatch.model;
 
-import java.sql.Date;
 
+import java.time.LocalDateTime;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+
+
+@Entity
+@Table(name = "users")
 public class User {
-    private int ID;
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Integer id;
+
     private String name;
     private String email;
     private String phone;
     private String password;
-    private String active_role;
-    private Date created_at;
+
+    @Column(name = "active_role")
+    private String activeRole;
+
+    @Column(name = "created_at")
+    private LocalDateTime createdAt;
 
     public User() {}
 
-    public User(int ID, String name, String email, String phone, String password, String active_role, Date created_at) {
-        this.ID = ID;
+    public User(Integer id, String name, String email, String phone, String password, String activeRole,
+            LocalDateTime createdAt) {
+        this.id = id;
         this.name = name;
         this.email = email;
         this.phone = phone;
         this.password = password;
-        this.active_role = active_role;
-        this.created_at = created_at;
+        this.activeRole = activeRole;
+        this.createdAt = createdAt;
     }
 
-    public int getId() {
-        return ID;
+    public Integer getId() {
+        return id;
     }
 
-    public void setId(int ID) {
-        this.ID = ID;
+    public void setId(Integer id) {
+        this.id = id;
     }
 
     public String getName() {
@@ -55,14 +75,6 @@ public class User {
         this.phone = phone;
     }
 
-    public String getActive_role() {
-        return active_role;
-    }
-
-    public void setActive_role(String active_role) {
-        this.active_role = active_role;
-    }
-
     public String getPassword() {
         return password;
     }
@@ -71,11 +83,21 @@ public class User {
         this.password = password;
     }
 
-    public Date getCreated_at() {
-        return created_at;
+    public String getActiveRole() {
+        return activeRole;
     }
 
-    public void setCreated_at(Date created_at) {
-        this.created_at = created_at;
+    public void setActiveRole(String activeRole) {
+        this.activeRole = activeRole;
     }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    
 }
