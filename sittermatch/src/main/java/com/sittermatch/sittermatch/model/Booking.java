@@ -1,77 +1,109 @@
 package com.sittermatch.sittermatch.model;
-import java.time.LocalDate;
 
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
+import java.time.LocalDateTime;
+
+@Entity
+@Table(name = "bookings")
 public class Booking {
-    private int ID;
-    private Listing listing_ID;
-    private Sitter sitter_ID;
-    private String booking_type;
-    private LocalDate start_date;
-    private LocalDate end_date;
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Integer id;
+
+    @ManyToOne
+    @JoinColumn(name = "listing_id", nullable = false)
+    private Listing listing;
+
+    @ManyToOne
+    @JoinColumn(name = "sitter_id", nullable = false)
+    private Sitter sitter;
+
+    @Column(name = "booking_type", nullable = false)
+    private String bookingType;
+
+    @Column(name = "start_date", nullable = false)
+    private LocalDateTime startDate;
+
+    @Column(name = "end_date", nullable = false)
+    private LocalDateTime endDate;
+
     private String notes;
+
     private String status;
-    private LocalDate confirmed_at;
+
+    @Column(name = "confirmed_at")
+    private LocalDateTime confirmedAt;
 
     public Booking() {}
 
-    public Booking(int ID, Listing listing_ID, Sitter sitter_ID, String booking_type, LocalDate start_date, LocalDate end_date, String notes, String status, LocalDate confirmed_at) {
-        this.ID = ID;
-        this.listing_ID = listing_ID;
-        this.sitter_ID = sitter_ID;
-        this.booking_type = booking_type;
-        this.start_date = start_date;
-        this.end_date = end_date;
+    public Booking(Integer id, Listing listing, Sitter sitter, String bookingType, LocalDateTime startDate,
+            LocalDateTime endDate, String notes, String status, LocalDateTime confirmedAt) {
+        this.id = id;
+        this.listing = listing;
+        this.sitter = sitter;
+        this.bookingType = bookingType;
+        this.startDate = startDate;
+        this.endDate = endDate;
         this.notes = notes;
         this.status = status;
-        this.confirmed_at = confirmed_at;
+        this.confirmedAt = confirmedAt;
     }
 
-    public int getId() {
-        return ID;
+    public Integer getId() {
+        return id;
     }
 
-    public void setId(int ID) {
-        this.ID = ID;
+    public void setId(Integer id) {
+        this.id = id;
     }
 
-    public Listing getListing_ID() {
-        return listing_ID;
+    public Listing getListing() {
+        return listing;
     }
 
-    public void setListing_ID(Listing listing_ID) {
-        this.listing_ID = listing_ID;
+    public void setListing(Listing listing) {
+        this.listing = listing;
     }
 
-    public Sitter getSitter_ID() {
-        return sitter_ID;
+    public Sitter getSitter() {
+        return sitter;
     }
 
-    public void setSitter_ID(Sitter sitter_ID) {
-        this.sitter_ID = sitter_ID;
+    public void setSitter(Sitter sitter) {
+        this.sitter = sitter;
     }
 
-    public String getBooking_type() {
-        return booking_type;
+    public String getBookingType() {
+        return bookingType;
     }
 
-    public void setBooking_type(String booking_type) {
-        this.booking_type = booking_type;
+    public void setBookingType(String bookingType) {
+        this.bookingType = bookingType;
     }
 
-    public LocalDate getStart_date() {
-        return start_date;
+    public LocalDateTime getStartDate() {
+        return startDate;
     }
 
-    public void setStart_date(LocalDate start_date) {
-        this.start_date = start_date;
+    public void setStartDate(LocalDateTime startDate) {
+        this.startDate = startDate;
     }
 
-    public LocalDate getEnd_date() {
-        return end_date;
+    public LocalDateTime getEndDate() {
+        return endDate;
     }
 
-    public void setEnd_date(LocalDate end_date) {
-        this.end_date = end_date;
+    public void setEndDate(LocalDateTime endDate) {
+        this.endDate = endDate;
     }
 
     public String getNotes() {
@@ -90,11 +122,15 @@ public class Booking {
         this.status = status;
     }
 
-    public LocalDate getConfirmed_at() {
-        return confirmed_at;
+    public LocalDateTime getConfirmedAt() {
+        return confirmedAt;
     }
 
-    public void setConfirmed_at(LocalDate confirmed_at) {
-        this.confirmed_at = confirmed_at;
+    public void setConfirmedAt(LocalDateTime confirmedAt) {
+        this.confirmedAt = confirmedAt;
     }
+
+    
+
+    
 }

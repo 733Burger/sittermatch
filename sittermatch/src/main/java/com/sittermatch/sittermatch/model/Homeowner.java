@@ -1,38 +1,69 @@
 package com.sittermatch.sittermatch.model;
 
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.MapsId;
+import jakarta.persistence.OneToOne;
+import jakarta.persistence.Table;
+
+@Entity
+@Table(name = "homeowners")
 public class Homeowner {
-    private int ID;
-    private Boolean is_verified;
+
+    @Id
+    private Integer id;
+
+    @OneToOne
+    @MapsId
+    @JoinColumn(name = "id")
+    private User user;
+
+    @Column(name = "is_verified")
+    private Boolean isVerified = false;
+
     private String requirements;
-    private String service_required;
-    private double rating;
-    private int total_reviews;
+
+    private Double rating = 0.0;
+
+    @Column(name = "total_reviews")
+    private Integer totalReviews = 0;
 
     public Homeowner() {}
 
-    public Homeowner(int ID, Boolean is_verified, String requirements, String service_required, double rating, int total_reviews) {
-        this.ID = ID;
-        this.is_verified = is_verified;
+    public Homeowner(Integer id, User user, Boolean isVerified, String requirements, Double rating,
+            Integer totalReviews) {
+        this.id = id;
+        this.user = user;
+        this.isVerified = isVerified;
         this.requirements = requirements;
-        this.service_required = service_required;
         this.rating = rating;
-        this.total_reviews = total_reviews;
+        this.totalReviews = totalReviews;
     }
 
-    public int getId() {
-        return ID;
-    }
-    
-    public void setId(int ID) {
-        this.ID = ID;
+    public Integer getId() {
+        return id;
     }
 
-    public Boolean getIs_verified() {
-        return is_verified;
+    public void setId(Integer id) {
+        this.id = id;
     }
 
-    public void setIs_verified(Boolean is_verified) {
-        this.is_verified = is_verified;
+    public User getUser() {
+        return user;
+    }
+
+    public void setUser(User user) {
+        this.user = user;
+    }
+
+    public Boolean getIsVerified() {
+        return isVerified;
+    }
+
+    public void setIsVerified(Boolean isVerified) {
+        this.isVerified = isVerified;
     }
 
     public String getRequirements() {
@@ -43,27 +74,23 @@ public class Homeowner {
         this.requirements = requirements;
     }
 
-    public String getService_required() {
-        return service_required;
-    }
-
-    public void setService_required(String service_required) {
-        this.service_required = service_required;
-    }
-
-    public double getRating() {
+    public Double getRating() {
         return rating;
     }
 
-    public void setRating(double rating) {
+    public void setRating(Double rating) {
         this.rating = rating;
     }
 
-    public int getTotal_reviews() {
-        return total_reviews;
+    public Integer getTotalReviews() {
+        return totalReviews;
     }
 
-    public void setTotal_reviews(int total_reviews) {
-        this.total_reviews = total_reviews;
+    public void setTotalReviews(Integer totalReviews) {
+        this.totalReviews = totalReviews;
     }
+
+    
+
+    
 }

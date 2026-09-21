@@ -1,51 +1,71 @@
 package com.sittermatch.sittermatch.model;
 
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
+
+@Entity
+@Table(name = "pet_reviews")
 public class PetReview {
-    private int ID;
-    private Booking booking_ID;
-    private Pets pet_ID;
-    private int rating;
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Integer id;
+
+    @ManyToOne
+    @JoinColumn(name = "booking_id", nullable = false)
+    private Booking booking;
+
+    @ManyToOne
+    @JoinColumn(name = "pet_id", nullable = false)
+    private Pet pet;
+
+    private Integer rating;
     private String notes;
 
     public PetReview() {}
 
-    public PetReview(int ID, Booking booking_ID, Pets pet_ID, int rating, String notes) {
-        this.ID = ID;
-        this.booking_ID = booking_ID;
-        this.pet_ID = pet_ID;
+    public PetReview(Integer id, Booking booking, Pet pet, Integer rating, String notes) {
+        this.id = id;
+        this.booking = booking;
+        this.pet = pet;
         this.rating = rating;
         this.notes = notes;
     }
 
-    public int getId() {
-        return ID;
+    public Integer getId() {
+        return id;
     }
 
-    public void setId(int ID) {
-        this.ID = ID;
+    public void setId(Integer id) {
+        this.id = id;
     }
 
-    public Booking getBooking_ID() {
-        return booking_ID;
+    public Booking getBooking() {
+        return booking;
     }
 
-    public void setBooking_ID(Booking booking_ID) {
-        this.booking_ID = booking_ID;
+    public void setBooking(Booking booking) {
+        this.booking = booking;
     }
 
-    public Pets getPet_ID() {
-        return pet_ID;
+    public Pet getPet() {
+        return pet;
     }
 
-    public void setPet_ID(Pets pet_ID) {
-        this.pet_ID = pet_ID;
+    public void setPet(Pet pet) {
+        this.pet = pet;
     }
 
-    public int getRating() {
+    public Integer getRating() {
         return rating;
     }
 
-    public void setRating(int rating) {
+    public void setRating(Integer rating) {
         this.rating = rating;
     }
 
@@ -56,4 +76,8 @@ public class PetReview {
     public void setNotes(String notes) {
         this.notes = notes;
     }
+
+    
+
+    
 }

@@ -1,63 +1,88 @@
 package com.sittermatch.sittermatch.model;
 
+
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
+
+@Entity
+@Table(name = "reviews")
 public class Review {
-    private int ID;
-    private Booking booking_ID;
-    private Sitter sitter_ID;
-    private Homeowner homeowner_ID;
-    private int rating;
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Integer id;
+
+    @ManyToOne
+    @JoinColumn(name = "booking_id")
+    private Booking booking;
+
+    @ManyToOne
+    @JoinColumn(name = "sitter_id")
+    private Sitter sitter;
+
+    @ManyToOne
+    @JoinColumn(name = "homeowner_id")
+    private Homeowner homeowner;
+
+    private Integer rating;
     private String comments;
     private String status;
 
     public Review() {}
 
-    public Review(int ID, Booking booking_ID, Sitter sitter_ID, Homeowner homeowner_ID, int rating, String comments, String status) {
-        this.ID = ID;
-        this.booking_ID = booking_ID;
-        this.sitter_ID = sitter_ID;
-        this.homeowner_ID = homeowner_ID;
+    public Review(Integer id, Booking booking, Sitter sitter, Homeowner homeowner, Integer rating, String comments,
+            String status) {
+        this.id = id;
+        this.booking = booking;
+        this.sitter = sitter;
+        this.homeowner = homeowner;
         this.rating = rating;
         this.comments = comments;
         this.status = status;
     }
 
-    public int getId() {
-        return ID;
+    public Integer getId() {
+        return id;
     }
 
-    public void setId(int ID) {
-        this.ID = ID;
+    public void setId(Integer id) {
+        this.id = id;
     }
 
-    public Booking getBooking_ID() {
-        return booking_ID;
+    public Booking getBooking() {
+        return booking;
     }
 
-    public void setBooking_ID(Booking booking_ID) {
-        this.booking_ID = booking_ID;
+    public void setBooking(Booking booking) {
+        this.booking = booking;
     }
 
-    public Sitter getSitter_ID() {
-        return sitter_ID;
+    public Sitter getSitter() {
+        return sitter;
     }
 
-    public void setSitter_ID(Sitter sitter_ID) {
-        this.sitter_ID = sitter_ID;
+    public void setSitter(Sitter sitter) {
+        this.sitter = sitter;
     }
 
-    public Homeowner getHomeowner_ID() {
-        return homeowner_ID;
+    public Homeowner getHomeowner() {
+        return homeowner;
     }
 
-    public void setHomeowner_ID(Homeowner homeowner_ID) {
-        this.homeowner_ID = homeowner_ID;
+    public void setHomeowner(Homeowner homeowner) {
+        this.homeowner = homeowner;
     }
 
-    public int getRating() {
+    public Integer getRating() {
         return rating;
     }
 
-    public void setRating(int rating) {
+    public void setRating(Integer rating) {
         this.rating = rating;
     }
 
@@ -76,4 +101,8 @@ public class Review {
     public void setStatus(String status) {
         this.status = status;
     }
+
+    
+
+    
 }
