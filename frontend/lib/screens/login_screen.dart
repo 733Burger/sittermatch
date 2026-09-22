@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../services/auth_services.dart';
+import 'signup_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -17,6 +18,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   bool _loading = false;
   bool _hidePassword = true;
+  
   String? _error;
 
   @override
@@ -34,18 +36,31 @@ class _LoginScreenState extends State<LoginScreen> {
       _error = null;
     });
 
-    final result = await _authService.login(_emailController.text, _passwordController.text);
+    try {
+      final result = await _authService.login(
+        _emailController.text.trim(),
+        _passwordController.text.trim(),
+      );
 
-    if (!mounted) return;
-    setState(() => _loading = false);
+      if (!mounted) return;
+      setState(() => _loading = false);
 
-    // if (result.success) {
-    //   Navigator.of(context).pushReplacement(
-    //     MaterialPageRoute(builder: (_) => HomeScreen(fullName: result.fullName ?? '')),
-    //   );
-    // } else {
-    //   setState(() => _error = result.message);
-    // }
+      if (result.success) {
+        //login was successful
+        //Need to navigate to home screen
+      } else {
+        setState(() {
+          _error = result.message;
+        });
+      }
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        _loading = false;
+        _error = 'An unexpected error occurred. Please try again.';
+      });
+    }
   }
 
   @override
@@ -108,6 +123,20 @@ class _LoginScreenState extends State<LoginScreen> {
                               height: 20, width: 20,
                               child: CircularProgressIndicator(strokeWidth: 2))
                           : const Text('Log in'),
+                    ),
+                    const SizedBox(height: 12),
+                    OutlinedButton(
+                      onPressed: _loading ? null : () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const SignupScreen()
+                          ),
+                        );
+                      },
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size.fromHeight(48)
+                      ),
+                      child: const Text('Create an account'),
                     ),
                   ],
                 ),
