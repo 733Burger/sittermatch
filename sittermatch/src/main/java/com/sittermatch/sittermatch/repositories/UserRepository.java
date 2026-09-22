@@ -9,12 +9,9 @@ import java.util.List;
 
 public interface UserRepository extends JpaRepository<User, Integer> {
     
-    // Find user by unique email address (essential for authentication & login)
-    Optional<User> findByEmail(String email);
+   Optional<User> findByEmailIgnoreCase(String email);
 
-    // Check if an email already exists during registration
-    Boolean existsByEmail(String email);
+    Boolean existsByEmailIgnoreCase(String email);
 
-    // Find users by active role (e.g., "SITTER", "HOMEOWNER", "BOTH")
     List<User> findByActiveRole(String activeRole);
 }

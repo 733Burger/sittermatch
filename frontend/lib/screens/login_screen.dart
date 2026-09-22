@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
-
 import '../services/auth_services.dart';
+import 'home_screen.dart';
 import 'signup_screen.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  final String selectedRole;
+
+  const LoginScreen({super.key, required this.selectedRole});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -18,8 +20,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   bool _loading = false;
   bool _hidePassword = true;
-  
-  String? _error;
+  String? _errorMessage;
 
   @override
   void dispose() {
@@ -28,118 +29,103 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  Future<void> _submit() async {
+  Future<void> _handleLogin() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() {
       _loading = true;
-      _error = null;
+      _errorMessage = null;
     });
 
-    try {
-      final result = await _authService.login(
-        _emailController.text.trim(),
-        _passwordController.text.trim(),
+    final result = await _authService.login(
+      _emailController.text,
+      _passwordController.text,
+    );
+
+    if (!mounted) return;
+    setState(() => _loading = false);
+
+    if (result['success']) {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const HomeScreen()),
+        (route) => false,
       );
-
-      if (!mounted) return;
-      setState(() => _loading = false);
-
-      if (result.success) {
-        //login was successful
-        //Need to navigate to home screen
-      } else {
-        setState(() {
-          _error = result.message;
-        });
-      }
-    } catch (e) {
-      if (!mounted) return;
-
-      setState(() {
-        _loading = false;
-        _error = 'An unexpected error occurred. Please try again.';
-      });
+    } else {
+      setState(() => _errorMessage = result['message']);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Scaffold(
+      appBar: AppBar(title: Text('Login (${widget.selectedRole})')),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(24),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 400),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text('Log in to SitterMatch',
-                        style: theme.textTheme.headlineMedium
-                            ?.copyWith(fontWeight: FontWeight.w600)),
-                    const SizedBox(height: 32),
-                    TextFormField(
-                      controller: _emailController,
-                      keyboardType: TextInputType.emailAddress,
-                      decoration: const InputDecoration(
-                          labelText: 'Email', border: OutlineInputBorder()),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) return 'Email is required';
-                        if (!value.contains('@')) return 'Enter a valid email address';
-                        return null;
-                      },
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'Log In',
+                    style: Theme.of(context).textTheme.headlineMedium,
+                  ),
+                  const SizedBox(height: 24),
+                  TextFormField(
+                    controller: _emailController,
+                    keyboardType: TextInputType.emailAddress,
+                    decoration: const InputDecoration(
+                      labelText: 'Email',
+                      border: OutlineInputBorder(),
                     ),
+                    validator: (v) =>
+                        (v == null || !v.contains('@')) ? 'Enter a valid email' : null,
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _passwordController,
+                    obscureText: _hidePassword,
+                    decoration: InputDecoration(
+                      labelText: 'Password',
+                      border: const OutlineInputBorder(),
+                      suffixIcon: IconButton(
+                        icon: Icon(_hidePassword ? Icons.visibility : Icons.visibility_off),
+                        onPressed: () => setState(() => _hidePassword = !_hidePassword),
+                      ),
+                    ),
+                    validator: (v) =>
+                        (v == null || v.isEmpty) ? 'Password is required' : null,
+                  ),
+                  if (_errorMessage != null) ...[
                     const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _passwordController,
-                      obscureText: _hidePassword,
-                      onFieldSubmitted: (_) => _submit(),
-                      decoration: InputDecoration(
-                        labelText: 'Password',
-                        border: const OutlineInputBorder(),
-                        suffixIcon: IconButton(
-                          icon: Icon(_hidePassword ? Icons.visibility : Icons.visibility_off),
-                          onPressed: () => setState(() => _hidePassword = !_hidePassword),
-                        ),
-                      ),
-                      validator: (value) =>
-                          (value == null || value.isEmpty) ? 'Password is required' : null,
-                    ),
-                    if (_error != null) ...[
-                      const SizedBox(height: 16),
-                      Text(_error!, style: TextStyle(color: theme.colorScheme.error)),
-                    ],
-                    const SizedBox(height: 24),
-                    FilledButton(
-                      onPressed: _loading ? null : _submit,
-                      style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-                      child: _loading
-                          ? const SizedBox(
-                              height: 20, width: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2))
-                          : const Text('Log in'),
-                    ),
-                    const SizedBox(height: 12),
-                    OutlinedButton(
-                      onPressed: _loading ? null : () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => const SignupScreen()
-                          ),
-                        );
-                      },
-                      style: OutlinedButton.styleFrom(
-                        minimumSize: const Size.fromHeight(48)
-                      ),
-                      child: const Text('Create an account'),
-                    ),
+                    Text(_errorMessage!, style: const TextStyle(color: Colors.red)),
                   ],
-                ),
+                  const SizedBox(height: 24),
+                  FilledButton(
+                    onPressed: _loading ? null : _handleLogin,
+                    style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+                    child: _loading
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Text('Log In'),
+                  ),
+                  const SizedBox(height: 12),
+                  TextButton(
+                    onPressed: _loading
+                        ? null
+                        : () => Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) =>
+                                    SignupScreen(selectedRole: widget.selectedRole),
+                              ),
+                            ),
+                    child: const Text("Don't have an account? Sign Up"),
+                  ),
+                ],
               ),
             ),
           ),

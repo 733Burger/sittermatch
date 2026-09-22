@@ -1,23 +1,26 @@
 import 'package:flutter/material.dart';
-import 'screens/login_screen.dart';
+import 'screens/home_screen.dart';
+import 'screens/role_select_screen.dart';
+import 'services/auth_services.dart';
 
-void main() {
-  runApp(const SitterMatchApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final isLoggedIn = await AuthService().isLoggedIn();
+
+  runApp(SitterMatchApp(isLoggedIn: isLoggedIn));
 }
 
 class SitterMatchApp extends StatelessWidget {
-  const SitterMatchApp({super.key});
+  final bool isLoggedIn;
+
+  const SitterMatchApp({super.key, required this.isLoggedIn});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'SitterMatch',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF1B5E50)),
-        useMaterial3: true,
-      ),
-      home: const LoginScreen(),
+      theme: ThemeData(primarySwatch: Colors.blue, useMaterial3: true),
+      home: isLoggedIn ? const HomeScreen() : const RoleSelectScreen(),
     );
   }
 }

@@ -1,48 +1,42 @@
 package com.sittermatch.sittermatch.controller;
 
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-
 import com.sittermatch.sittermatch.dto.LoginRequest;
 import com.sittermatch.sittermatch.dto.LoginResponse;
-import com.sittermatch.sittermatch.model.User;
-import com.sittermatch.sittermatch.repository.UserRepository;
+import com.sittermatch.sittermatch.dto.SignupRequest;
+import com.sittermatch.sittermatch.dto.SignupResponse;
+import com.sittermatch.sittermatch.services.AuthService;
 
 import jakarta.validation.Valid;
 
-import java.util.Map;
-import java.util.Optional;
-
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.*;
 
 @RestController 
 @RequestMapping("/api/auth")
 public class AuthController {
-    
-    private final UserRepository users;
-    private final PasswordEncoder passwordEncoder;
 
-    public AuthController(UserRepository users, PasswordEncoder passwordEncoder) {
-        this.users = users;
-        this.passwordEncoder = passwordEncoder;
+    private final AuthService authService;
+
+    public AuthController(AuthService authService) {
+        this.authService = authService;
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@Valid @RequestBody LoginRequest request) {
-        Optional<User> found = users.findByEmailIgnoreCase(request.email().trim());
-
-        if (found.isEmpty() || !passwordEncoder.matches(request.password(), found.get().getPassword())) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("message", "Incorrect email or password"));
+    public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
+        LoginResponse response = authService.login(request);
+        if (!response.success()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
         }
-
-        User user = found.get();
-        return ResponseEntity.ok(new LoginResponse(
-                true, "Login successful. Welcome, " + user.getName() + "!"));
+        return ResponseEntity.ok(response);
     }
 
+    @PostMapping("/signup")
+    public ResponseEntity<SignupResponse> signup(@Valid @RequestBody SignupRequest request) {
+        SignupResponse response = authService.register(request);
+        if (!response.success()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+        }
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
 }

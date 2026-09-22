@@ -1,55 +1,80 @@
 import 'dart:convert';
-
-import 'package:flutter/foundation.dart';
-import 'package:frontend/models/login_request.dart';
-import 'package:frontend/models/login_response.dart';
-import 'package:frontend/models/signUp_response.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthService {
   static const String baseUrl = 'http://10.0.2.2:8080';
 
-  Future<LoginResponse> login(String email, String password) async {
-    try{
-      final response = await http.post(
-        Uri.parse('$baseUrl/api/auth/login'),
-        headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
-        body: jsonEncode({'email': email.trim(), 'password': password}),
-      ).timeout(const Duration(seconds: 10));
-
-      if (response.statusCode == 200) {
-        final jsonResponse = jsonDecode(response.body);
-        return LoginResponse.fromJson(jsonResponse);
-      }
-
-      return const LoginResponse(success: false, message: 'Invalid email or password.');
-
-    } catch (_) {
-      return const LoginResponse(success: false, message: 'Network error. Please try again later.');
-    }
+  Future<void> saveSession(String email, String role) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('isLoggedIn', true);
+    await prefs.setString('userEmail', email);
+    await prefs.setString('userRole', role);
   }
 
-  Future<SignupResponse> signup(String fullName, String email, String password) async {
+  Future<void> clearSession() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.clear();
+  }
+
+  Future<bool> isLoggedIn() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool('isLoggedIn') ?? false;
+  }
+
+  Future<Map<String, dynamic>> login(String email, String password) async {
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/api/auth/signup'),
-        headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
+        Uri.parse('$baseUrl/api/auth/login'),
+        headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
-          'fullName': fullName.trim(),
           'email': email.trim(),
           'password': password,
         }),
       ).timeout(const Duration(seconds: 10));
 
-      if (response.statusCode == 200) {
-        final jsonResponse = jsonDecode(response.body);
-        return SignupResponse.fromJson(jsonResponse);
+      final json = jsonDecode(response.body);
+
+      if (response.statusCode == 200 && json['success'] == true) {
+        await saveSession(email, json['role'] ?? '');
+        return {'success': true, 'message': json['message']};
+      } else {
+        return {'success': false, 'message': json['message'] ?? 'Login failed.'};
       }
-
-      return const SignupResponse(success: false, message: 'Failed to create account.');
-
     } catch (_) {
-      return const SignupResponse(success: false, message: 'Network error. Please try again later.');
+      return {'success': false, 'message': 'Network error. Please try again later.'};
+    }
+  }
+
+  Future<Map<String, dynamic>> signup({
+    required String fullName,
+    required String email,
+    required String phoneNumber,
+    required String password,
+    required String role,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/auth/signup'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'fullName': fullName.trim(),
+          'email': email.trim(),
+          'phoneNumber': phoneNumber.trim(),
+          'password': password,
+          'role': role,
+        }),
+      ).timeout(const Duration(seconds: 10));
+
+      final json = jsonDecode(response.body);
+
+      if (response.statusCode == 201 && json['success'] == true) {
+        return {'success': true, 'message': json['message']};
+      } else {
+        return {'success': false, 'message': json['message'] ?? 'Signup failed.'};
+      }
+    } catch (_) {
+      return {'success': false, 'message': 'Network error. Please try again later.'};
     }
   }
 }
