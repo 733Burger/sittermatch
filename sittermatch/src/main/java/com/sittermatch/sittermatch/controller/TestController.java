@@ -1,4 +1,4 @@
-package com.sittermatch.sittermatch;
+package com.sittermatch.sittermatch.controller;
 
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
