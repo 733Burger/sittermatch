@@ -57,73 +57,236 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Slate & Dark Charcoal Theme (Matches RoleSelectScreen)
+    const backgroundColor = Color(0xFFF8FAFC);
+    const cardColor = Colors.white;
+    const primaryDark = Color(0xFF0F172A);
+    const subtextColor = Color(0xFF64748B);
+    const inputFillColor = Color(0xFFF1F5F9);
+    const borderColor = Color(0xFFE2E8F0);
+
     return Scaffold(
-      appBar: AppBar(title: Text('Login (${widget.selectedRole})')),
+      backgroundColor: backgroundColor,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(24.0),
             child: Form(
               key: _formKey,
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text(
-                    'Log In',
-                    style: Theme.of(context).textTheme.headlineMedium,
-                  ),
-                  const SizedBox(height: 24),
-                  TextFormField(
-                    controller: _emailController,
-                    keyboardType: TextInputType.emailAddress,
-                    decoration: const InputDecoration(
-                      labelText: 'Email',
-                      border: OutlineInputBorder(),
-                    ),
-                    validator: (v) =>
-                        (v == null || !v.contains('@')) ? 'Enter a valid email' : null,
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _passwordController,
-                    obscureText: _hidePassword,
-                    decoration: InputDecoration(
-                      labelText: 'Password',
-                      border: const OutlineInputBorder(),
-                      suffixIcon: IconButton(
-                        icon: Icon(_hidePassword ? Icons.visibility : Icons.visibility_off),
-                        onPressed: () => setState(() => _hidePassword = !_hidePassword),
-                      ),
-                    ),
-                    validator: (v) =>
-                        (v == null || v.isEmpty) ? 'Password is required' : null,
-                  ),
-                  if (_errorMessage != null) ...[
-                    const SizedBox(height: 16),
-                    Text(_errorMessage!, style: const TextStyle(color: Colors.red)),
-                  ],
-                  const SizedBox(height: 24),
-                  FilledButton(
-                    onPressed: _loading ? null : _handleLogin,
-                    style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-                    child: _loading
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2))
-                        : const Text('Log In'),
+                  // Top Paw Icon
+                  const Icon(
+                    Icons.pets,
+                    size: 44,
+                    color: primaryDark,
                   ),
                   const SizedBox(height: 12),
+
+                  // Header Titles
+                  const Text(
+                    'SIT & STAY',
+                    style: TextStyle(
+                      fontSize: 26,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 1.2,
+                      color: primaryDark,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Please sign in with your account.',
+                    style: TextStyle(color: subtextColor, fontSize: 14),
+                  ),
+                  const SizedBox(height: 28),
+
+                  // Form Container
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: cardColor,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: borderColor),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.03),
+                          blurRadius: 8,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // Card Title
+                        const Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Log In:',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: primaryDark,
+                              ),
+                            ),
+                            Icon(Icons.lock_outline, size: 20, color: primaryDark),
+                          ],
+                        ),
+                        const SizedBox(height: 20),
+
+                        // Email Field
+                        const Text(
+                          'Email:',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                            color: primaryDark,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        TextFormField(
+                          controller: _emailController,
+                          keyboardType: TextInputType.emailAddress,
+                          decoration: InputDecoration(
+                            hintText: 'Enter your email address...',
+                            hintStyle: const TextStyle(color: subtextColor, fontSize: 14),
+                            fillColor: inputFillColor,
+                            filled: true,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide.none,
+                            ),
+                          ),
+                          validator: (v) => (v == null || !v.contains('@'))
+                              ? 'Enter a valid email'
+                              : null,
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Password Field Label + Forgot Link
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'Password:',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13,
+                                color: primaryDark,
+                              ),
+                            ),
+                            GestureDetector(
+                              onTap: () {},
+                              child: const Text(
+                                'Forgot password?',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: primaryDark,
+                                  fontWeight: FontWeight.w600,
+                                  decoration: TextDecoration.underline,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        TextFormField(
+                          controller: _passwordController,
+                          obscureText: _hidePassword,
+                          decoration: InputDecoration(
+                            hintText: 'Enter a password...',
+                            hintStyle: const TextStyle(color: subtextColor, fontSize: 14),
+                            fillColor: inputFillColor,
+                            filled: true,
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                _hidePassword
+                                    ? Icons.visibility
+                                    : Icons.visibility_off,
+                                color: subtextColor,
+                              ),
+                              onPressed: () =>
+                                  setState(() => _hidePassword = !_hidePassword),
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide.none,
+                            ),
+                          ),
+                          validator: (v) => (v == null || v.isEmpty)
+                              ? 'Password is required'
+                              : null,
+                        ),
+
+                        if (_errorMessage != null) ...[
+                          const SizedBox(height: 12),
+                          Text(
+                            _errorMessage!,
+                            style: const TextStyle(color: Colors.red, fontSize: 13),
+                          ),
+                        ],
+                        const SizedBox(height: 24),
+
+                        // Log In Button
+                        ElevatedButton(
+                          onPressed: _loading ? null : _handleLogin,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: primaryDark,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          child: _loading
+                              ? const SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      'Log In',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    SizedBox(width: 8),
+                                    Icon(Icons.arrow_forward, size: 18),
+                                  ],
+                                ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Bottom Link
                   TextButton(
                     onPressed: _loading
                         ? null
                         : () => Navigator.of(context).push(
                               MaterialPageRoute(
-                                builder: (_) =>
-                                    SignupScreen(selectedRole: widget.selectedRole),
+                                builder: (_) => SignupScreen(
+                                  selectedRole: widget.selectedRole,
+                                ),
                               ),
                             ),
-                    child: const Text("Don't have an account? Sign Up"),
+                    child: const Text(
+                      'Do not have an account? Sign up',
+                      style: TextStyle(
+                        color: primaryDark,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ),
                 ],
               ),
