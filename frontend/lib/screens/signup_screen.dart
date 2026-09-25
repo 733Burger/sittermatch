@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/auth_services.dart';
+import 'login_screen.dart';
 
 class SignupScreen extends StatefulWidget {
   final String selectedRole;
@@ -56,7 +57,11 @@ class _SignupScreenState extends State<SignupScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(result['message'])),
       );
-      Navigator.of(context).pop();
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => LoginScreen(),
+        ),
+      );
     } else {
       setState(() => _errorMessage = result['message']);
     }
@@ -97,8 +102,16 @@ class _SignupScreenState extends State<SignupScreen> {
                       labelText: 'Email',
                       border: OutlineInputBorder(),
                     ),
-                    validator: (v) =>
-                        (v == null || !v.contains('@')) ? 'Enter a valid email' : null,
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty) {
+                        return 'Email is required';
+                      }
+                      final emailRegex = RegExp(r'^[^@]+@[^@]+\.[^@]+');
+                      if (!emailRegex.hasMatch(v.trim())) {
+                        return 'Enter a valid email';
+                      }
+                      return null;
+                    },
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
@@ -132,8 +145,15 @@ class _SignupScreenState extends State<SignupScreen> {
                         onPressed: () => setState(() => _hidePassword = !_hidePassword),
                       ),
                     ),
-                    validator: (v) =>
-                        (v == null || v.length < 8) ? 'Password must be at least 8 characters' : null,
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty) {
+                        return 'Password is required';
+                      }
+                      if (v.trim().length < 8) {
+                        return 'Password must be at least 8 characters';
+                      }
+                      return null;
+                    },
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
