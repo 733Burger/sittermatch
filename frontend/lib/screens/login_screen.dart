@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/screens/role_select_screen.dart';
 import '../services/auth_services.dart';
 import 'home_screen.dart';
-import 'signup_screen.dart';
 
 class LoginScreen extends StatefulWidget {
-  final String selectedRole;
-
-  const LoginScreen({super.key, required this.selectedRole});
+  const LoginScreen({super.key});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -58,7 +56,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Login (${widget.selectedRole})')),
+      appBar: AppBar(title: Text('Login')),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -120,7 +118,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         : () => Navigator.of(context).push(
                               MaterialPageRoute(
                                 builder: (_) =>
-                                    SignupScreen(selectedRole: widget.selectedRole),
+                                    RoleSelectScreen(),
                               ),
                             ),
                     child: const Text("Don't have an account? Sign Up"),

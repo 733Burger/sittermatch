@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
-import 'login_screen.dart';
+import 'signup_screen.dart';
 
 class RoleSelectScreen extends StatelessWidget {
   const RoleSelectScreen({super.key});
 
-  void _navigateToLogin(BuildContext context, String role) {
+  void _navigateToSignup(BuildContext context, String role) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => LoginScreen(selectedRole: role),
+        builder: (_) => SignupScreen(selectedRole: role),
       ),
     );
   }
@@ -37,16 +37,16 @@ class RoleSelectScreen extends StatelessWidget {
                   ),
                   icon: const Icon(Icons.pets),
                   label: const Text('I am a Pet Sitter'),
-                  onPressed: () => _navigateToLogin(context, 'SITTER'),
+                  onPressed: () => _navigateToSignup(context, 'SITTER'),
                 ),
                 const SizedBox(height: 16),
-                OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
                     minimumSize: const Size.fromHeight(52),
                   ),
                   icon: const Icon(Icons.home),
                   label: const Text('I am a Homeowner'),
-                  onPressed: () => _navigateToLogin(context, 'HOMEOWNER'),
+                  onPressed: () => _navigateToSignup(context, 'HOMEOWNER'),
                 ),
               ],
             ),
