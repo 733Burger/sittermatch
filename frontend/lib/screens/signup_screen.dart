@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/auth_services.dart';
+import 'home_screen.dart'; 
 
 class SignupScreen extends StatefulWidget {
   final String selectedRole;
@@ -56,7 +57,11 @@ class _SignupScreenState extends State<SignupScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(result['message'])),
       );
-      Navigator.of(context).pop();
+      
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const HomeScreen()),
+        (route) => false,
+      );
     } else {
       setState(() => _errorMessage = result['message']);
     }
@@ -64,7 +69,6 @@ class _SignupScreenState extends State<SignupScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Slate & Dark Charcoal Theme (Matches RoleSelectScreen)
     const backgroundColor = Color(0xFFF8FAFC);
     const cardColor = Colors.white;
     const primaryDark = Color(0xFF0F172A);
@@ -184,7 +188,7 @@ class _SignupScreenState extends State<SignupScreen> {
                         ),
                         const SizedBox(height: 14),
 
-                        // Email
+                        // Email Label and hint
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: const [
@@ -224,13 +228,19 @@ class _SignupScreenState extends State<SignupScreen> {
                               borderSide: BorderSide.none,
                             ),
                           ),
-                          validator: (v) => (v == null || !v.contains('@'))
-                              ? 'Enter a valid email'
-                              : null,
+                          validator: (v) {
+                            if (v == null || v.trim().isEmpty) {
+                              return 'Email is required';
+                            }
+                            final emailRegex = RegExp(r'^[^@]+@[^@]+\.[^@]+');
+                            if (!emailRegex.hasMatch(v.trim())) {
+                              return 'Enter a valid email';
+                            }
+                            return null;
+                          },
                         ),
                         const SizedBox(height: 14),
 
-                        // Phone Number
                         const Text(
                           'Phone Number:',
                           style: TextStyle(
@@ -266,7 +276,6 @@ class _SignupScreenState extends State<SignupScreen> {
                         ),
                         const SizedBox(height: 14),
 
-                        // Password
                         const Text(
                           'Password:',
                           style: TextStyle(
@@ -299,13 +308,18 @@ class _SignupScreenState extends State<SignupScreen> {
                               borderSide: BorderSide.none,
                             ),
                           ),
-                          validator: (v) => (v == null || v.length < 8)
-                              ? 'Password must be at least 8 characters'
-                              : null,
+                          validator: (v) {
+                            if (v == null || v.trim().isEmpty) {
+                              return 'Password is required';
+                            }
+                            if (v.trim().length < 8) {
+                              return 'Password must be at least 8 characters';
+                            }
+                            return null;
+                          },
                         ),
                         const SizedBox(height: 14),
 
-                        // Confirm Password
                         const Text(
                           'Confirm Password:',
                           style: TextStyle(
@@ -342,7 +356,6 @@ class _SignupScreenState extends State<SignupScreen> {
                         ],
                         const SizedBox(height: 22),
 
-                        // Sign Up Button
                         ElevatedButton(
                           onPressed: _loading ? null : _handleSignup,
                           style: ElevatedButton.styleFrom(
@@ -383,7 +396,6 @@ class _SignupScreenState extends State<SignupScreen> {
                   ),
                   const SizedBox(height: 20),
 
-                  // Bottom Sign In Switch Link
                   TextButton(
                     onPressed: _loading ? null : () => Navigator.of(context).pop(),
                     child: const Text(

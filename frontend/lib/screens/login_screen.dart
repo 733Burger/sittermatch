@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import '../services/auth_services.dart';
 import 'home_screen.dart';
-import 'signup_screen.dart';
+import 'signup_screen.dart'; // Added missing import
 
 class LoginScreen extends StatefulWidget {
-  final String selectedRole;
+  // Added required selectedRole so widget.selectedRole works
+  final String selectedRole; 
 
   const LoginScreen({super.key, required this.selectedRole});
 
@@ -66,6 +67,7 @@ class _LoginScreenState extends State<LoginScreen> {
     const borderColor = Color(0xFFE2E8F0);
 
     return Scaffold(
+      // Resolved conflict: Kept background color, removed AppBar
       backgroundColor: backgroundColor,
       body: SafeArea(
         child: Center(
@@ -175,6 +177,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 fontWeight: FontWeight.w600,
                                 fontSize: 13,
                                 color: primaryDark,
+                                
                               ),
                             ),
                             GestureDetector(
@@ -275,6 +278,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         ? null
                         : () => Navigator.of(context).push(
                               MaterialPageRoute(
+                                // Resolved conflict: Navigates to Signup, passes selectedRole
                                 builder: (_) => SignupScreen(
                                   selectedRole: widget.selectedRole,
                                 ),

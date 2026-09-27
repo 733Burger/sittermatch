@@ -1,25 +1,39 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../storage/preference_keys.dart';
 
 class AuthService {
   static const String baseUrl = 'http://10.0.2.2:8080';
 
   Future<void> saveSession(String email, String role) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('isLoggedIn', true);
-    await prefs.setString('userEmail', email);
-    await prefs.setString('userRole', role);
+    await prefs.setBool(PreferenceKeys.isLoggedIn, true);
+    await prefs.setBool(PreferenceKeys.hasActiveAccount, true);
+    await prefs.setString(PreferenceKeys.userEmail, email);
+    await prefs.setString(PreferenceKeys.userRole, role);
   }
 
   Future<void> clearSession() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.clear();
+    await prefs.remove(PreferenceKeys.isLoggedIn);
+    await prefs.remove(PreferenceKeys.userEmail);
+    await prefs.remove(PreferenceKeys.userRole);
   }
 
   Future<bool> isLoggedIn() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool('isLoggedIn') ?? false;
+    return prefs.getBool(PreferenceKeys.isLoggedIn) ?? false;
+  }
+
+  Future<bool> hasActiveAccount() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(PreferenceKeys.hasActiveAccount) ?? false;
+  }
+
+  Future<void> logout() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(PreferenceKeys.isLoggedIn, false);
   }
 
   Future<Map<String, dynamic>> login(String email, String password) async {
@@ -41,18 +55,12 @@ class AuthService {
       } else {
         return {'success': false, 'message': json['message'] ?? 'Login failed.'};
       }
-    } catch (_) {
+    } catch (e) {
       return {'success': false, 'message': 'Network error. Please try again later.'};
     }
   }
 
-  Future<Map<String, dynamic>> signup({
-    required String fullName,
-    required String email,
-    required String phoneNumber,
-    required String password,
-    required String role,
-  }) async {
+  Future<Map<String, dynamic>> signup({required String fullName, required String email, required String phoneNumber, required String password, required String role}) async {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/api/auth/signup'),
@@ -73,7 +81,7 @@ class AuthService {
       } else {
         return {'success': false, 'message': json['message'] ?? 'Signup failed.'};
       }
-    } catch (_) {
+    } catch (e) {
       return {'success': false, 'message': 'Network error. Please try again later.'};
     }
   }

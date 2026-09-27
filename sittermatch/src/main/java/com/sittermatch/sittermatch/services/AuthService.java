@@ -13,13 +13,11 @@ import com.sittermatch.sittermatch.repositories.UserRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import java.time.LocalDateTime;
 import java.util.Optional;
 
 @Service
 public class AuthService {
-
     private final UserRepository userRepository;
     private final SitterRepository sitterRepository;
     private final HomeownerRepository homeownerRepository;
@@ -54,9 +52,14 @@ public class AuthService {
     @Transactional
     public SignupResponse register(SignupRequest request) {
         String cleanEmail = request.email().trim().toLowerCase();
+        String cleanRole = request.role().trim().toUpperCase();
 
         if (userRepository.existsByEmailIgnoreCase(cleanEmail)) {
             return new SignupResponse(false, "An account with this email already exists.");
+        }
+
+        if (!cleanRole.equals("SITTER") && !cleanRole.equals("HOMEOWNER")) {
+            return new SignupResponse(false, "Invalid role specified.");
         }
 
         User user = new User();
@@ -64,24 +67,28 @@ public class AuthService {
         user.setEmail(cleanEmail);
         user.setPhone(request.phoneNumber().trim());
         user.setPassword(passwordEncoder.encode(request.password()));
-        user.setActiveRole(request.role().toUpperCase());
+        user.setActiveRole(cleanRole);
         user.setCreatedAt(LocalDateTime.now());
 
-        User savedUser = userRepository.save(user);
+        try {
+            User savedUser = userRepository.save(user);
 
-        // Save profile record based on chosen role
-        if ("SITTER".equalsIgnoreCase(request.role())) {
-            Sitter sitter = new Sitter();
-            sitter.setUser(savedUser);
-            sitter.setIsVerified(false);
-            sitterRepository.save(sitter);
-        } else if ("HOMEOWNER".equalsIgnoreCase(request.role())) {
-            Homeowner homeowner = new Homeowner();
-            homeowner.setUser(savedUser);
-            homeowner.setIsVerified(false);
-            homeownerRepository.save(homeowner);
+            if (cleanRole.equals("SITTER")) {
+                Sitter sitter = new Sitter();
+                sitter.setUser(savedUser);
+                sitter.setIsVerified(false);
+                sitterRepository.save(sitter);
+            } else if (cleanRole.equals("HOMEOWNER")) {
+                Homeowner homeowner = new Homeowner();
+                homeowner.setUser(savedUser);
+                homeowner.setIsVerified(false);
+                homeownerRepository.save(homeowner);
+            }
+
+            return new SignupResponse(true, "Registration successful!");
+
+        } catch (Exception e) {
+            return new SignupResponse(false, "An error occurred during registration: " + e.getMessage());
         }
-
-        return new SignupResponse(true, "Registration successful!");
     }
 }

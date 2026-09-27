@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import 'login_screen.dart';
+import 'login_screen.dart'; // Imported required screen
 
 class RoleSelectScreen extends StatelessWidget {
   const RoleSelectScreen({super.key});
 
+  // Navigation function added to fix compile errors
   void _navigateToLogin(BuildContext context, String role) {
     Navigator.of(context).push(
       MaterialPageRoute(
@@ -14,7 +15,6 @@ class RoleSelectScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Theme Palette 1: Slate & Dark Charcoal
     const backgroundColor = Color(0xFFF8FAFC);
     const primaryDark = Color(0xFF0F172A);
     const cardBorderColor = Color(0xFFE2E8F0);
@@ -29,7 +29,6 @@ class RoleSelectScreen extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Top Paw Icon
                 const Icon(
                   Icons.pets,
                   size: 48,
@@ -37,7 +36,6 @@ class RoleSelectScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
                 
-                // Header Titles
                 const Text(
                   'SIT & STAY',
                   style: TextStyle(
@@ -59,7 +57,6 @@ class RoleSelectScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 36),
 
-                // Card 1: Homeowner (I need a Sitter)
                 _RoleCard(
                   borderColor: cardBorderColor,
                   icon: Icons.roofing_rounded,
@@ -69,7 +66,6 @@ class RoleSelectScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 20),
 
-                // Card 2: Pet Sitter (I want to Sit)
                 _RoleCard(
                   borderColor: cardBorderColor,
                   icon: Icons.accessibility_new_rounded,
@@ -79,7 +75,6 @@ class RoleSelectScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 32),
 
-                // Bottom Login Link
                 TextButton(
                   onPressed: () => _navigateToLogin(context, 'HOMEOWNER'),
                   child: const Text(
