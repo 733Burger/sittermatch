@@ -36,6 +36,16 @@ class AuthService {
     await prefs.setBool(PreferenceKeys.isLoggedIn, false);
   }
 
+  Future<String?> getUserEmail() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(PreferenceKeys.userEmail);
+  }
+
+  Future<String?> getUserRole() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(PreferenceKeys.userRole);
+  }
+
   Future<Map<String, dynamic>> login(String email, String password) async {
     try {
       final response = await http.post(
