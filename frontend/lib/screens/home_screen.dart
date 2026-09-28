@@ -16,7 +16,9 @@ class _HomeScreenState extends State<HomeScreen> {
   final _authService = AuthService();
 
   bool _loading = true;
+  bool _actionInProgress = false;
   String? _activeRole;
+  String? _email;
   bool _hasSitterProfile = false;
   bool _hasHomeownerProfile = false;
 
@@ -30,17 +32,66 @@ class _HomeScreenState extends State<HomeScreen> {
     final email = await _authService.getUserEmail();
     final currentRole = await _authService.getUserRole();
 
-    if (email == null) return;
+    if (email == null) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+      return;
+    }
 
     final associatedRoles = await _userService.getUserRoles(email);
     
     if (!mounted) return;
     setState(() {
       _loading = false;
+      _email = email;
       _activeRole = currentRole;
       _hasSitterProfile = associatedRoles?['hasSitterProfile'] ?? false;
       _hasHomeownerProfile = associatedRoles?['hasHomeownerProfile'] ?? false;
     });
+  }
+
+  Future<void> _handleSwitchRole(String targetRole) async {
+    if (_email == null) return;
+    setState(() => _actionInProgress = true);
+
+    final result = await _userService.switchActiveRole(_email!, targetRole);
+
+    if (!mounted) return;
+
+    if (result['success'] == true) {
+      await _authService.setUserRole(result['activeRole']);
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(result['message'])),
+    );
+
+    setState(() => _actionInProgress = false);
+    if (result['success'] == true) {
+      await _loadUserData();
+    }
+  }
+
+  Future<void> _addRole(String targetRole) async {
+    if (_email == null) return;
+    setState(() => _actionInProgress = true);
+
+    final result = await _userService.addRole(_email!, targetRole);
+
+    if (!mounted) return;
+
+    if (result['success'] == true) {
+      await _authService.setUserRole(result['activeRole']);
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(result['message'])),
+    );
+
+    setState(() => _actionInProgress = false);
+    if (result['success'] == true) {
+      await _loadUserData();
+    }
   }
 
   Future<void> _logout(BuildContext context) async {
@@ -71,13 +122,28 @@ class _HomeScreenState extends State<HomeScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text('Welcome! Active role: $_activeRole'),
-                  const SizedBox(height: 16),
-                  if (_hasSitterProfile && _hasHomeownerProfile)
-                    const Text('Switch role option goes here')
-                  else if (_activeRole == 'HOMEOWNER' && !_hasSitterProfile)
-                    const Text('Prompt: Set up Sitter account')
-                  else if (_activeRole == 'SITTER' && !_hasHomeownerProfile)
-                    const Text('Prompt: Set up Homeowner account'),
+                const SizedBox(height: 16),
+                if (_actionInProgress)
+                  const CircularProgressIndicator()
+                else if (_hasSitterProfile && _hasHomeownerProfile)
+                  FilledButton(
+                    onPressed: () => _handleSwitchRole(
+                      _activeRole == 'SITTER' ? 'HOMEOWNER' : 'SITTER',
+                    ),
+                    child: Text(
+                      'Switch to ${_activeRole == 'SITTER' ? 'Homeowner' : 'Sitter'}'
+                    ),
+                  )
+                else if (_activeRole == 'HOMEOWNER' && !_hasSitterProfile)
+                  FilledButton(
+                    onPressed: () => _addRole('SITTER'), 
+                    child: const Text('Set up Sitter account'),
+                  )
+                else if (_activeRole == 'SITTER' && !_hasHomeownerProfile)
+                  FilledButton(
+                    onPressed: () => _addRole('HOMEOWNER'), 
+                    child: const Text('Set up Homeowner account')
+                  ),
               ],
             ),)
     );
