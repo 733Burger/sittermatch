@@ -1,19 +1,8 @@
 package com.sittermatch.sittermatch.model;
 
+import jakarta.persistence.*;
+import java.util.HashSet;
 import java.util.Set;
-
-import jakarta.persistence.CollectionTable;
-import jakarta.persistence.Column;
-import jakarta.persistence.ElementCollection;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.MapsId;
-import jakarta.persistence.OneToOne;
-import jakarta.persistence.Table;
-
 
 @Entity
 @Table(name = "sitters")
@@ -27,22 +16,7 @@ public class Sitter {
     @JoinColumn(name = "id")
     private User user;
 
-    @Column(name = "is_verified")
-    private Boolean isVerified;
-
-    @ElementCollection(targetClass = PetType.class)
-    @CollectionTable(name = "sitter_pet_preferences", joinColumns = @JoinColumn(name = "sitter_id"))
-    @Enumerated(EnumType.STRING)
-    @Column(name = "pet_type")
-    private Set<PetType> petPreferences;
-
-    private String experience;
-
-    @ElementCollection(targetClass = ServiceType.class)
-    @CollectionTable(name = "sitter_services", joinColumns = @JoinColumn(name = "sitter_id"))
-    @Enumerated(EnumType.STRING)
-    @Column(name = "service_type")
-    private Set<ServiceType> services;
+    private Integer experience;
 
     @Column(name = "day_rate")
     private Double dayRate;
@@ -50,110 +24,65 @@ public class Sitter {
     @Column(name = "night_rate")
     private Double nightRate;
 
-    private Double rating;
+    private Double rating = 0.0;
 
-    @Column(name = "total_review")
-    private Integer totalReviews;
+    @Column(name = "total_reviews")
+    private Integer totalReviews = 0;
+
+    @Column(name = "is_verified")
+    private Boolean isVerified = false;
+
+    @ElementCollection
+    @CollectionTable(name = "sitter_service_types", joinColumns = @JoinColumn(name = "sitter_id"))
+    @Column(name = "service_type")
+    private Set<String> serviceTypes = new HashSet<>();
+
+    @ElementCollection
+    @CollectionTable(name = "sitter_pet_types", joinColumns = @JoinColumn(name = "sitter_id"))
+    @Column(name = "pet_type")
+    private Set<String> petTypes = new HashSet<>();
 
     public Sitter() {}
 
-    public Sitter(Integer id, User user, Boolean isVerified, Set<PetType> petPreferences, String experience,
-            Set<ServiceType> services, Double dayRate, Double nightRate, Double rating, Integer totalReviews) {
+    public Sitter(Integer id, User user, Integer experience, Double dayRate, Double nightRate, 
+                  Double rating, Integer totalReviews, Boolean isVerified) {
         this.id = id;
         this.user = user;
-        this.isVerified = isVerified;
-        this.petPreferences = petPreferences;
         this.experience = experience;
-        this.services = services;
         this.dayRate = dayRate;
         this.nightRate = nightRate;
         this.rating = rating;
         this.totalReviews = totalReviews;
-    }
-
-    public Integer getId() {
-        return id;
-    }
-
-    public void setId(Integer id) {
-        this.id = id;
-    }
-
-    public User getUser() {
-        return user;
-    }
-
-    public void setUser(User user) {
-        this.user = user;
-    }
-
-    public Boolean getIsVerified() {
-        return isVerified;
-    }
-
-    public void setIsVerified(Boolean isVerified) {
         this.isVerified = isVerified;
     }
 
-    public Set<PetType> getPetPreferences() {
-        return petPreferences;
-    }
+    public Integer getId() { return id; }
+    public void setId(Integer id) { this.id = id; }
 
-    public void setPetPreferences(Set<PetType> petPreferences) {
-        this.petPreferences = petPreferences;
-    }
+    public User getUser() { return user; }
+    public void setUser(User user) { this.user = user; }
 
-    public String getExperience() {
-        return experience;
-    }
+    public Integer getExperience() { return experience; }
+    public void setExperience(Integer experience) { this.experience = experience; }
 
-    public void setExperience(String experience) {
-        this.experience = experience;
-    }
+    public Double getDayRate() { return dayRate; }
+    public void setDayRate(Double dayRate) { this.dayRate = dayRate; }
 
-    public Set<ServiceType> getServices() {
-        return services;
-    }
+    public Double getNightRate() { return nightRate; }
+    public void setNightRate(Double nightRate) { this.nightRate = nightRate; }
 
-    public void setServices(Set<ServiceType> services) {
-        this.services = services;
-    }
+    public Double getRating() { return rating; }
+    public void setRating(Double rating) { this.rating = rating; }
 
-    public Double getDayRate() {
-        return dayRate;
-    }
+    public Integer getTotalReviews() { return totalReviews; }
+    public void setTotalReviews(Integer totalReviews) { this.totalReviews = totalReviews; }
 
-    public void setDayRate(Double dayRate) {
-        this.dayRate = dayRate;
-    }
+    public Boolean getIsVerified() { return isVerified; }
+    public void setIsVerified(Boolean isVerified) { this.isVerified = isVerified; }
 
-    public Double getNightRate() {
-        return nightRate;
-    }
+    public Set<String> getServiceTypes() { return serviceTypes; }
+    public void setServiceTypes(Set<String> serviceTypes) { this.serviceTypes = serviceTypes; }
 
-    public void setNightRate(Double nightRate) {
-        this.nightRate = nightRate;
-    }
-
-    public Double getRating() {
-        return rating;
-    }
-
-    public void setRating(Double rating) {
-        this.rating = rating;
-    }
-
-    public Integer getTotalReviews() {
-        return totalReviews;
-    }
-
-    public void setTotalReviews(Integer totalReviews) {
-        this.totalReviews = totalReviews;
-    }
-
-    
-
-    
+    public Set<String> getPetTypes() { return petTypes; }
+    public void setPetTypes(Set<String> petTypes) { this.petTypes = petTypes; }
 }
-
-

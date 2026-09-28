@@ -1,7 +1,5 @@
 package com.sittermatch.sittermatch.repositories;
 
-import com.sittermatch.sittermatch.model.PetType;
-import com.sittermatch.sittermatch.model.ServiceType;
 import com.sittermatch.sittermatch.model.Sitter;
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -16,11 +14,11 @@ public interface SitterRepository extends JpaRepository<Sitter, Integer> {
     // Find sitters who are verified
     List<Sitter> findByIsVerifiedTrue();
 
-    // Find sitters offering a specific service (searches inside the ElementCollection set)
-    List<Sitter> findByServicesContaining(ServiceType serviceType);
+    // Find sitters offering a specific service string
+    List<Sitter> findByServiceTypesContaining(String serviceType);
 
-    // Find sitters accommodating a specific pet type
-    List<Sitter> findByPetPreferencesContaining(PetType petType);
+    // Find sitters accommodating a specific pet type string
+    List<Sitter> findByPetTypesContaining(String petType);
 
     // Find sitters within a maximum day rate limit
     List<Sitter> findByDayRateLessThanEqual(Double maxDayRate);

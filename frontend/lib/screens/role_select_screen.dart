@@ -1,11 +1,19 @@
 import 'package:flutter/material.dart';
-import 'login_screen.dart'; // Imported required screen
+import 'signup_screen.dart';
+import 'login_screen.dart';
 
 class RoleSelectScreen extends StatelessWidget {
   const RoleSelectScreen({super.key});
 
-  // Navigation function added to fix compile errors
-  void _navigateToLogin(BuildContext context, String role) {
+  void _navigateToSignup(BuildContext context, String role) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => SignupScreen(selectedRole: role),
+      ),
+    );
+  }
+
+  void _navigateToLogin(BuildContext context, {String role = 'HOMEOWNER'}) {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => LoginScreen(selectedRole: role),
@@ -35,7 +43,6 @@ class RoleSelectScreen extends StatelessWidget {
                   color: primaryDark,
                 ),
                 const SizedBox(height: 12),
-                
                 const Text(
                   'SIT & STAY',
                   style: TextStyle(
@@ -62,7 +69,7 @@ class RoleSelectScreen extends StatelessWidget {
                   icon: Icons.roofing_rounded,
                   title: 'I need a\nSitter',
                   description: 'Find verified help for\nyour home and pets.',
-                  onTap: () => _navigateToLogin(context, 'HOMEOWNER'),
+                  onTap: () => _navigateToSignup(context, 'HOMEOWNER'),
                 ),
                 const SizedBox(height: 20),
 
@@ -71,12 +78,12 @@ class RoleSelectScreen extends StatelessWidget {
                   icon: Icons.accessibility_new_rounded,
                   title: 'I want to Sit',
                   description: 'Join our community of\ntrusted sitters.',
-                  onTap: () => _navigateToLogin(context, 'SITTER'),
+                  onTap: () => _navigateToSignup(context, 'SITTER'),
                 ),
                 const SizedBox(height: 32),
 
                 TextButton(
-                  onPressed: () => _navigateToLogin(context, 'HOMEOWNER'),
+                  onPressed: () => _navigateToLogin(context),
                   child: const Text(
                     'Already have an account? Sign in',
                     style: TextStyle(

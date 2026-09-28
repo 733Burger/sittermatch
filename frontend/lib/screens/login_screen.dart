@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import '../services/auth_services.dart';
-import 'home_screen.dart';
-import 'signup_screen.dart'; // Added missing import
+import 'owner_home_screen.dart';
+import 'sitter_home_screen.dart';
+import 'signup_screen.dart';
 
 class LoginScreen extends StatefulWidget {
-  // Added required selectedRole so widget.selectedRole works
-  final String selectedRole; 
+  final String selectedRole;
 
-  const LoginScreen({super.key, required this.selectedRole});
+  const LoginScreen({
+    super.key,
+    this.selectedRole = 'HOMEOWNER',
+  });
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -39,26 +42,33 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     final result = await _authService.login(
-      _emailController.text,
+      _emailController.text.trim(),
       _passwordController.text,
     );
 
     if (!mounted) return;
     setState(() => _loading = false);
 
-    if (result['success']) {
+    if (result['success'] == true) {
+      final userRole = (result['role'] ?? result['user']?['role'] ?? widget.selectedRole)
+          .toString()
+          .toUpperCase();
+
+      final Widget targetScreen = (userRole == 'SITTER')
+          ? const SitterHomeScreen()
+          : const OwnerHomeScreen();
+
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
+        MaterialPageRoute(builder: (_) => targetScreen),
         (route) => false,
       );
     } else {
-      setState(() => _errorMessage = result['message']);
+      setState(() => _errorMessage = result['message'] ?? 'Login failed');
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // Slate & Dark Charcoal Theme (Matches RoleSelectScreen)
     const backgroundColor = Color(0xFFF8FAFC);
     const cardColor = Colors.white;
     const primaryDark = Color(0xFF0F172A);
@@ -67,7 +77,6 @@ class _LoginScreenState extends State<LoginScreen> {
     const borderColor = Color(0xFFE2E8F0);
 
     return Scaffold(
-      // Resolved conflict: Kept background color, removed AppBar
       backgroundColor: backgroundColor,
       body: SafeArea(
         child: Center(
@@ -78,15 +87,16 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Top Paw Icon
-                  const Icon(
-                    Icons.pets,
-                    size: 44,
-                    color: primaryDark,
-                  ),
+                  if (Navigator.of(context).canPop())
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: IconButton(
+                        icon: const Icon(Icons.arrow_back, color: primaryDark),
+                        onPressed: () => Navigator.of(context).pop(),
+                      ),
+                    ),
+                  const Icon(Icons.pets, size: 44, color: primaryDark),
                   const SizedBox(height: 12),
-
-                  // Header Titles
                   const Text(
                     'SIT & STAY',
                     style: TextStyle(
@@ -97,13 +107,15 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  const Text(
-                    'Please sign in with your account.',
-                    style: TextStyle(color: subtextColor, fontSize: 14),
+                  Text(
+                    'Signing in as ${widget.selectedRole}',
+                    style: const TextStyle(
+                      color: subtextColor,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                   const SizedBox(height: 28),
-
-                  // Form Container
                   Container(
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
@@ -121,12 +133,11 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        // Card Title
                         const Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
-                              'Log In:',
+                              'Log In',
                               style: TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.bold,
@@ -137,8 +148,6 @@ class _LoginScreenState extends State<LoginScreen> {
                           ],
                         ),
                         const SizedBox(height: 20),
-
-                        // Email Field
                         const Text(
                           'Email:',
                           style: TextStyle(
@@ -151,6 +160,8 @@ class _LoginScreenState extends State<LoginScreen> {
                         TextFormField(
                           controller: _emailController,
                           keyboardType: TextInputType.emailAddress,
+                          textInputAction: TextInputAction.next,
+                          autofillHints: const [AutofillHints.email],
                           decoration: InputDecoration(
                             hintText: 'Enter your email address...',
                             hintStyle: const TextStyle(color: subtextColor, fontSize: 14),
@@ -162,12 +173,10 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ),
                           validator: (v) => (v == null || !v.contains('@'))
-                              ? 'Enter a valid email'
+                              ? 'Enter a valid email address'
                               : null,
                         ),
                         const SizedBox(height: 16),
-
-                        // Password Field Label + Forgot Link
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
@@ -177,7 +186,6 @@ class _LoginScreenState extends State<LoginScreen> {
                                 fontWeight: FontWeight.w600,
                                 fontSize: 13,
                                 color: primaryDark,
-                                
                               ),
                             ),
                             GestureDetector(
@@ -198,20 +206,20 @@ class _LoginScreenState extends State<LoginScreen> {
                         TextFormField(
                           controller: _passwordController,
                           obscureText: _hidePassword,
+                          textInputAction: TextInputAction.done,
+                          autofillHints: const [AutofillHints.password],
+                          onFieldSubmitted: (_) => _handleLogin(),
                           decoration: InputDecoration(
-                            hintText: 'Enter a password...',
+                            hintText: 'Enter your password...',
                             hintStyle: const TextStyle(color: subtextColor, fontSize: 14),
                             fillColor: inputFillColor,
                             filled: true,
                             suffixIcon: IconButton(
                               icon: Icon(
-                                _hidePassword
-                                    ? Icons.visibility
-                                    : Icons.visibility_off,
+                                _hidePassword ? Icons.visibility : Icons.visibility_off,
                                 color: subtextColor,
                               ),
-                              onPressed: () =>
-                                  setState(() => _hidePassword = !_hidePassword),
+                              onPressed: () => setState(() => _hidePassword = !_hidePassword),
                             ),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8),
@@ -222,7 +230,6 @@ class _LoginScreenState extends State<LoginScreen> {
                               ? 'Password is required'
                               : null,
                         ),
-
                         if (_errorMessage != null) ...[
                           const SizedBox(height: 12),
                           Text(
@@ -231,8 +238,6 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ],
                         const SizedBox(height: 24),
-
-                        // Log In Button
                         ElevatedButton(
                           onPressed: _loading ? null : _handleLogin,
                           style: ElevatedButton.styleFrom(
@@ -271,14 +276,11 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                   const SizedBox(height: 24),
-
-                  // Bottom Link
                   TextButton(
                     onPressed: _loading
                         ? null
                         : () => Navigator.of(context).push(
                               MaterialPageRoute(
-                                // Resolved conflict: Navigates to Signup, passes selectedRole
                                 builder: (_) => SignupScreen(
                                   selectedRole: widget.selectedRole,
                                 ),

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/auth_services.dart';
-import 'home_screen.dart'; 
+import 'login_screen.dart';
 
 class SignupScreen extends StatefulWidget {
   final String selectedRole;
@@ -22,6 +22,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
   bool _loading = false;
   bool _hidePassword = true;
+  bool _hideConfirmPassword = true;
   String? _errorMessage;
 
   @override
@@ -34,36 +35,63 @@ class _SignupScreenState extends State<SignupScreen> {
     super.dispose();
   }
 
+  /// Helper to convert UI display roles to exact backend string expected by Spring Boot
+  String _getBackendRole(String displayRole) {
+    final lower = displayRole.toLowerCase();
+    if (lower.contains('sitter')) {
+      return 'SITTER';
+    }
+    return 'HOMEOWNER';
+  }
+
   Future<void> _handleSignup() async {
     if (!_formKey.currentState!.validate()) return;
+
+    // Clear focus from keyboard
+    FocusScope.of(context).unfocus();
 
     setState(() {
       _loading = true;
       _errorMessage = null;
     });
 
-    final result = await _authService.signup(
-      fullName: _fullNameController.text,
-      email: _emailController.text,
-      phoneNumber: _phoneController.text,
-      password: _passwordController.text,
-      role: widget.selectedRole,
-    );
-
-    if (!mounted) return;
-    setState(() => _loading = false);
-
-    if (result['success']) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result['message'])),
+    try {
+      final result = await _authService.signup(
+        fullName: _fullNameController.text.trim(),
+        email: _emailController.text.trim(),
+        phoneNumber: _phoneController.text.trim(),
+        password: _passwordController.text,
+        role: _getBackendRole(widget.selectedRole),
       );
-      
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
-        (route) => false,
-      );
-    } else {
-      setState(() => _errorMessage = result['message']);
+
+      if (!mounted) return;
+      setState(() => _loading = false);
+
+      if (result != null && result['success'] == true) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['message'] ?? 'Account created successfully! Please log in.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(
+            builder: (_) => LoginScreen(selectedRole: widget.selectedRole),
+          ),
+          (route) => false,
+        );
+      } else {
+        setState(() {
+          _errorMessage = result?['message'] ?? 'Signup failed. Please try again.';
+        });
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _errorMessage = 'Could not connect to the server. Please check your network connection.';
+      });
     }
   }
 
@@ -87,11 +115,15 @@ class _SignupScreenState extends State<SignupScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Top Paw Icon
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: IconButton(
+                      icon: const Icon(Icons.arrow_back, color: primaryDark),
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                  ),
                   const Icon(Icons.pets, size: 44, color: primaryDark),
                   const SizedBox(height: 8),
-
-                  // Header Titles
                   const Text(
                     'SIT & STAY',
                     style: TextStyle(
@@ -103,12 +135,12 @@ class _SignupScreenState extends State<SignupScreen> {
                   ),
                   const SizedBox(height: 4),
                   const Text(
-                    'Please create an account.',
+                    'Create your account to get started.',
                     style: TextStyle(color: subtextColor, fontSize: 14),
                   ),
                   const SizedBox(height: 24),
 
-                  // Form Container
+                  // Card Form Container
                   Container(
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
@@ -126,12 +158,12 @@ class _SignupScreenState extends State<SignupScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        // Card Header
+                        // Header Title & Selected Role Tag
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             const Text(
-                              'Sign Up:',
+                              'Sign Up',
                               style: TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.bold,
@@ -146,12 +178,13 @@ class _SignupScreenState extends State<SignupScreen> {
                               decoration: BoxDecoration(
                                 color: inputFillColor,
                                 borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: borderColor),
                               ),
-                              child: const Text(
-                                'New Member',
-                                style: TextStyle(
+                              child: Text(
+                                widget.selectedRole,
+                                style: const TextStyle(
                                   fontSize: 11,
-                                  fontWeight: FontWeight.w600,
+                                  fontWeight: FontWeight.bold,
                                   color: primaryDark,
                                 ),
                               ),
@@ -172,6 +205,7 @@ class _SignupScreenState extends State<SignupScreen> {
                         const SizedBox(height: 6),
                         TextFormField(
                           controller: _fullNameController,
+                          textInputAction: TextInputAction.next,
                           decoration: InputDecoration(
                             hintText: 'Enter your full name...',
                             hintStyle: const TextStyle(color: subtextColor, fontSize: 14),
@@ -188,52 +222,33 @@ class _SignupScreenState extends State<SignupScreen> {
                         ),
                         const SizedBox(height: 14),
 
-                        // Email Label and hint
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: const [
-                            Text(
-                              'Email:',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 13,
-                                color: primaryDark,
-                              ),
-                            ),
-                            Text(
-                              'e.g. name@domain.co.za',
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: subtextColor,
-                              ),
-                            ),
-                          ],
+                        // Email
+                        const Text(
+                          'Email:',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                            color: primaryDark,
+                          ),
                         ),
                         const SizedBox(height: 6),
                         TextFormField(
                           controller: _emailController,
                           keyboardType: TextInputType.emailAddress,
+                          textInputAction: TextInputAction.next,
                           decoration: InputDecoration(
                             hintText: 'Enter your email address...',
                             hintStyle: const TextStyle(color: subtextColor, fontSize: 14),
                             fillColor: inputFillColor,
                             filled: true,
-                            suffixIcon: const Icon(
-                              Icons.email_outlined,
-                              size: 18,
-                              color: subtextColor,
-                            ),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8),
                               borderSide: BorderSide.none,
                             ),
                           ),
                           validator: (v) {
-                            if (v == null || v.trim().isEmpty) {
-                              return 'Email is required';
-                            }
-                            final emailRegex = RegExp(r'^[^@]+@[^@]+\.[^@]+');
-                            if (!emailRegex.hasMatch(v.trim())) {
+                            if (v == null || v.trim().isEmpty) return 'Email is required';
+                            if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(v.trim())) {
                               return 'Enter a valid email';
                             }
                             return null;
@@ -241,6 +256,7 @@ class _SignupScreenState extends State<SignupScreen> {
                         ),
                         const SizedBox(height: 14),
 
+                        // Phone Number
                         const Text(
                           'Phone Number:',
                           style: TextStyle(
@@ -253,6 +269,7 @@ class _SignupScreenState extends State<SignupScreen> {
                         TextFormField(
                           controller: _phoneController,
                           keyboardType: TextInputType.phone,
+                          textInputAction: TextInputAction.next,
                           decoration: InputDecoration(
                             hintText: 'Enter phone number...',
                             hintStyle: const TextStyle(color: subtextColor, fontSize: 14),
@@ -264,18 +281,16 @@ class _SignupScreenState extends State<SignupScreen> {
                             ),
                           ),
                           validator: (v) {
-                            if (v == null || v.trim().isEmpty) {
-                              return 'Phone number is required';
-                            }
-                            final phoneDigits = v.replaceAll(RegExp(r'\D'), '');
-                            if (phoneDigits.length < 7 || phoneDigits.length > 15) {
-                              return 'Enter a valid phone number (7-15 digits)';
+                            if (v == null || v.trim().isEmpty) return 'Phone number is required';
+                            if (!RegExp(r'^[0-9+\-\s()]{7,15}$').hasMatch(v.trim())) {
+                              return 'Enter a valid phone number (7 to 15 digits)';
                             }
                             return null;
                           },
                         ),
                         const SizedBox(height: 14),
 
+                        // Password
                         const Text(
                           'Password:',
                           style: TextStyle(
@@ -288,6 +303,7 @@ class _SignupScreenState extends State<SignupScreen> {
                         TextFormField(
                           controller: _passwordController,
                           obscureText: _hidePassword,
+                          textInputAction: TextInputAction.next,
                           decoration: InputDecoration(
                             hintText: 'Enter a password...',
                             hintStyle: const TextStyle(color: subtextColor, fontSize: 14),
@@ -295,31 +311,23 @@ class _SignupScreenState extends State<SignupScreen> {
                             filled: true,
                             suffixIcon: IconButton(
                               icon: Icon(
-                                _hidePassword
-                                    ? Icons.visibility
-                                    : Icons.visibility_off,
+                                _hidePassword ? Icons.visibility_off : Icons.visibility,
                                 color: subtextColor,
                               ),
-                              onPressed: () =>
-                                  setState(() => _hidePassword = !_hidePassword),
+                              onPressed: () => setState(() => _hidePassword = !_hidePassword),
                             ),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8),
                               borderSide: BorderSide.none,
                             ),
                           ),
-                          validator: (v) {
-                            if (v == null || v.trim().isEmpty) {
-                              return 'Password is required';
-                            }
-                            if (v.trim().length < 8) {
-                              return 'Password must be at least 8 characters';
-                            }
-                            return null;
-                          },
+                          validator: (v) => (v == null || v.length < 8)
+                              ? 'Password must be at least 8 characters'
+                              : null,
                         ),
                         const SizedBox(height: 14),
 
+                        // Confirm Password
                         const Text(
                           'Confirm Password:',
                           style: TextStyle(
@@ -331,31 +339,52 @@ class _SignupScreenState extends State<SignupScreen> {
                         const SizedBox(height: 6),
                         TextFormField(
                           controller: _confirmPasswordController,
-                          obscureText: _hidePassword,
+                          obscureText: _hideConfirmPassword,
+                          textInputAction: TextInputAction.done,
+                          onFieldSubmitted: (_) => _handleSignup(),
                           decoration: InputDecoration(
                             hintText: 'Re-enter your password...',
                             hintStyle: const TextStyle(color: subtextColor, fontSize: 14),
                             fillColor: inputFillColor,
                             filled: true,
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                _hideConfirmPassword ? Icons.visibility_off : Icons.visibility,
+                                color: subtextColor,
+                              ),
+                              onPressed: () =>
+                                  setState(() => _hideConfirmPassword = !_hideConfirmPassword),
+                            ),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8),
                               borderSide: BorderSide.none,
                             ),
                           ),
-                          validator: (v) => v != _passwordController.text
-                              ? 'Passwords do not match'
-                              : null,
+                          validator: (v) =>
+                              v != _passwordController.text ? 'Passwords do not match' : null,
                         ),
 
+                        // Error Banner
                         if (_errorMessage != null) ...[
-                          const SizedBox(height: 12),
-                          Text(
-                            _errorMessage!,
-                            style: const TextStyle(color: Colors.red, fontSize: 13),
+                          const SizedBox(height: 14),
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: Colors.red.shade50,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.red.shade200),
+                            ),
+                            child: Text(
+                              _errorMessage!,
+                              style: TextStyle(color: Colors.red.shade800, fontSize: 13),
+                              textAlign: TextAlign.center,
+                            ),
                           ),
                         ],
+
                         const SizedBox(height: 22),
 
+                        // Submit Button
                         ElevatedButton(
                           onPressed: _loading ? null : _handleSignup,
                           style: ElevatedButton.styleFrom(
@@ -394,10 +423,18 @@ class _SignupScreenState extends State<SignupScreen> {
                       ],
                     ),
                   ),
+
                   const SizedBox(height: 20),
 
+                  // Login Link
                   TextButton(
-                    onPressed: _loading ? null : () => Navigator.of(context).pop(),
+                    onPressed: _loading
+                        ? null
+                        : () => Navigator.of(context).pushReplacement(
+                              MaterialPageRoute(
+                                builder: (_) => LoginScreen(selectedRole: widget.selectedRole),
+                              ),
+                            ),
                     child: const Text(
                       'Already have an account? Sign in',
                       style: TextStyle(

@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'login_screen.dart';
-import 'home_screen.dart';
+import 'owner_home_screen.dart';
+import 'sitter_home_screen.dart';
 import 'role_select_screen.dart';
 import '../services/auth_services.dart';
 
-class SplashScreen extends StatefulWidget{
+class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
   @override
@@ -25,14 +26,24 @@ class _SplashScreenState extends State<SplashScreen> {
 
     try {
       final isLoggedIn = await _authService.isLoggedIn();
-      final hasAccount = await _authService.hasActiveAccount();
+      final savedRole = await _authService.getUserRole();
 
       if (isLoggedIn) {
-        onLoadDestination = const HomeScreen();
-      } else if (hasAccount) {
-        onLoadDestination = const LoginScreen();
+        if (savedRole?.toUpperCase() == 'SITTER') {
+          onLoadDestination = const SitterHomeScreen();
+        } else {
+          onLoadDestination = const OwnerHomeScreen();
+        }
       } else {
-        onLoadDestination = const RoleSelectScreen();
+        final hasAccount = await _authService.hasActiveAccount();
+
+        if (hasAccount) {
+          onLoadDestination = LoginScreen(
+            selectedRole: savedRole ?? 'HOMEOWNER',
+          );
+        } else {
+          onLoadDestination = const RoleSelectScreen();
+        }
       }
     } catch (e) {
       onLoadDestination = const RoleSelectScreen();
@@ -47,9 +58,20 @@ class _SplashScreenState extends State<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
+    const primaryDark = Color(0xFF0F172A);
+    const backgroundColor = Color(0xFFF8FAFC);
+
     return const Scaffold(
+      backgroundColor: backgroundColor,
       body: Center(
-        child: CircularProgressIndicator(),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.pets, size: 56, color: primaryDark),
+            SizedBox(height: 16),
+            CircularProgressIndicator(color: primaryDark),
+          ],
+        ),
       ),
     );
   }
