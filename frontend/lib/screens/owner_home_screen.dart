@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../services/auth_services.dart';
+import 'role_select_screen.dart';
 
 class Sitter {
   final int id;
@@ -30,6 +32,7 @@ class OwnerHomeScreen extends StatefulWidget {
 }
 
 class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   int _currentBottomNavIndex = 0;
   bool _isGuestBrowsing = false;
 
@@ -86,10 +89,26 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
     ),
   ];
 
-  void _navigateToPage(String title, String pageNum) {
-    if (Navigator.canPop(context)) Navigator.pop(context);
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _navigateToPage(String title) {
+    // Only close the drawer if it is actually open.
+    if (_scaffoldKey.currentState?.isDrawerOpen ?? false) Navigator.pop(context);
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Navigating to $title ($pageNum)...')),
+      SnackBar(content: Text('Navigating to $title...')),
+    );
+  }
+
+  Future<void> _signOut() async {
+    await AuthService().clearSession();
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const RoleSelectScreen()),
+      (route) => false,
     );
   }
 
@@ -238,7 +257,7 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Add an optional message or note for the Admin review team (Page A2):'),
+            const Text('Add an optional message or note for the Admin review team:'),
             const SizedBox(height: 12),
             TextField(
               controller: messageController,
@@ -259,7 +278,7 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
             style: ElevatedButton.styleFrom(backgroundColor: Colors.black),
             onPressed: () {
               Navigator.pop(ctx);
-              _navigateToPage('Admin Verification Review', 'Page A2');
+              _navigateToPage('Admin Verification Review');
             },
             child: const Text('Submit to Admin', style: TextStyle(color: Colors.white)),
           ),
@@ -271,6 +290,7 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: _scaffoldKey,
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
         backgroundColor: Colors.white,
@@ -288,8 +308,8 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.shield_outlined, color: Colors.black),
-            tooltip: 'Security & Trust (Page 7)',
-            onPressed: () => _navigateToPage('Security & Trust Screen', 'Page 7'),
+            tooltip: 'Security & Trust',
+            onPressed: () => _navigateToPage('Security & Trust Screen'),
           ),
         ],
       ),
@@ -308,33 +328,33 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
             ),
             ListTile(
               leading: const Icon(Icons.person_outline),
-              title: const Text('Profile (Page 12)'),
-              onTap: () => _navigateToPage('Homeowner Profile', 'Page 12'),
+              title: const Text('Profile'),
+              onTap: () => _navigateToPage('Homeowner Profile'),
             ),
             ListTile(
               leading: const Icon(Icons.calendar_today_outlined),
-              title: const Text('My Bookings (Page 8)'),
-              onTap: () => _navigateToPage('My Bookings', 'Page 8'),
+              title: const Text('My Bookings'),
+              onTap: () => _navigateToPage('My Bookings'),
             ),
             ListTile(
               leading: const Icon(Icons.bookmark_border_outlined),
-              title: const Text('Saved Sitters (Page 11)'),
+              title: const Text('Saved Sitters'),
               trailing: Badge(
                 label: Text('${_favoriteSitterIds.length}'),
                 backgroundColor: Colors.black,
               ),
-              onTap: () => _navigateToPage('Saved Sitters', 'Page 11'),
+              onTap: () => _navigateToPage('Saved Sitters'),
             ),
             ListTile(
               leading: const Icon(Icons.settings_outlined),
-              title: const Text('Settings (Page 15)'),
-              onTap: () => _navigateToPage('Settings', 'Page 15'),
+              title: const Text('Settings'),
+              onTap: () => _navigateToPage('Settings'),
             ),
             const Divider(),
             ListTile(
               leading: const Icon(Icons.logout, color: Colors.red),
-              title: const Text('Sign Out (Page 1)', style: TextStyle(color: Colors.red)),
-              onTap: () => _navigateToPage('Sign Out', 'Page 1'),
+              title: const Text('Sign Out', style: TextStyle(color: Colors.red)),
+              onTap: _signOut,
             ),
           ],
         ),
@@ -357,17 +377,21 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: const Color(0xFFE2E8F0)),
                 boxShadow: [
-                  BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6, offset: const Offset(0, 2)),
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
                 ],
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
+                  const Row(
                     children: [
-                      const Icon(Icons.warning_amber_rounded, color: Colors.amber, size: 22),
-                      const SizedBox(width: 8),
-                      const Expanded(
+                      Icon(Icons.warning_amber_rounded, color: Colors.amber, size: 22),
+                      SizedBox(width: 8),
+                      Expanded(
                         child: Text(
                           'Complete your outstanding checks to start booking sitters.',
                           style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black87),
@@ -462,7 +486,7 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 itemCount: _filterTags.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                separatorBuilder: (_, _) => const SizedBox(width: 8),
                 itemBuilder: (context, index) {
                   final tag = _filterTags[index];
                   final isSelected = _selectedFilter == tag;
@@ -499,13 +523,13 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: _sitters.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 12),
+              separatorBuilder: (_, _) => const SizedBox(height: 12),
               itemBuilder: (context, index) {
                 final sitter = _sitters[index];
                 final isFavorited = _favoriteSitterIds.contains(sitter.id);
 
                 return InkWell(
-                  onTap: () => _navigateToPage('Sitter Profile (${sitter.name})', 'Page 7'),
+                  onTap: () => _navigateToPage('Sitter Profile (${sitter.name})'),
                   borderRadius: BorderRadius.circular(12),
                   child: Container(
                     padding: const EdgeInsets.all(14),
@@ -514,7 +538,11 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: const Color(0xFFE2E8F0)),
                       boxShadow: [
-                        BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 4, offset: const Offset(0, 2)),
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.02),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
                       ],
                     ),
                     child: Column(
@@ -561,9 +589,9 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
                             IconButton(
                               icon: isFavorited
                                   ? const Icon(Icons.favorite, color: Colors.black)
-                                  : Stack(
+                                  : const Stack(
                                       alignment: Alignment.center,
-                                      children: const [
+                                      children: [
                                         Icon(Icons.favorite, color: Colors.black, size: 24),
                                         Icon(Icons.favorite, color: Colors.white, size: 20),
                                       ],
@@ -619,7 +647,7 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
                                     side: const BorderSide(color: Colors.black),
                                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                                   ),
-                                  onPressed: () => _navigateToPage('Messages List', 'Page 10'),
+                                  onPressed: () => _navigateToPage('Messages List'),
                                   icon: const Icon(Icons.chat_bubble_outline, size: 14, color: Colors.black),
                                   label: const Text('Message', style: TextStyle(color: Colors.black, fontSize: 12)),
                                 ),
@@ -635,7 +663,7 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
                                             const SnackBar(content: Text('Booking is disabled in Guest Mode. Complete verification to book!')),
                                           );
                                         }
-                                      : () => _navigateToPage('Bookings Dashboard', 'Page 8'),
+                                      : () => _navigateToPage('Bookings Dashboard'),
                                   icon: const Icon(Icons.calendar_month, size: 14, color: Colors.white),
                                   label: const Text('Book', style: TextStyle(color: Colors.white, fontSize: 12)),
                                 ),
@@ -658,16 +686,15 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
           setState(() => _currentBottomNavIndex = index);
           switch (index) {
             case 0:
-              _navigateToPage('Home', 'Page 6');
-              break;
+              break; // already on Home
             case 1:
-              _navigateToPage('Bookings Dashboard', 'Page 8');
+              _navigateToPage('Bookings Dashboard');
               break;
             case 2:
-              _navigateToPage('Messages List', 'Page 10');
+              _navigateToPage('Messages List');
               break;
             case 3:
-              _navigateToPage('Homeowner Profile', 'Page 12');
+              _navigateToPage('Homeowner Profile');
               break;
           }
         },
@@ -722,9 +749,9 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              color: statusColor.withOpacity(0.1),
+              color: statusColor.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: statusColor.withOpacity(0.3)),
+              border: Border.all(color: statusColor.withValues(alpha: 0.3)),
             ),
             child: Text(
               statusText,

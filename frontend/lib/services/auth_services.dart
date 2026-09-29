@@ -108,8 +108,8 @@ class AuthService {
         return {'success': false, 'message': json['message'] ?? 'Login failed.'};
       }
     } catch (e) {
-      print('LOGIN ERROR: $e');
-      return {'success': false, 'message': 'Network error. Please try again later.'};
+      debugPrint('Login error: $e');
+      return {'success': false, 'message': 'Error: $e'};
     }
   }
 
@@ -148,8 +148,8 @@ class AuthService {
         return {'success': false, 'message': json['message'] ?? 'Signup failed.'};
       }
     } catch (e) {
-      print('SIGNUP ERROR: $e');
-      return {'success': false, 'message': 'Network error. Please try again later.'};
+      debugPrint('Signup error: $e');
+      return {'success': false, 'message': 'Error: $e'};
     }
   }
 }

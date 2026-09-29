@@ -2,139 +2,400 @@ import 'package:flutter/material.dart';
 import '../services/auth_services.dart';
 import 'role_select_screen.dart';
 
-class SitterHomeScreen extends StatelessWidget {
+class SitterHomeScreen extends StatefulWidget {
   const SitterHomeScreen({super.key});
 
-  Future<void> _handleLogout(BuildContext context) async {
-    final authService = AuthService();
-    await authService.logout();
+  @override
+  State<SitterHomeScreen> createState() => _SitterHomeScreenState();
+}
 
-    if (!context.mounted) return;
+class _SitterHomeScreenState extends State<SitterHomeScreen> {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  int _currentBottomNavIndex = 0;
 
+  String? _idPhotoPath;
+  String? _sapsCertPath;
+  String _homeAddress = '';
+
+  // 'completed', 'pending' or 'incomplete'. Replace with DB checks later.
+  String _idCheckStatus = 'incomplete';
+  String _sapsCheckStatus = 'incomplete';
+  String _addressCheckStatus = 'incomplete';
+
+  void _navigateToPage(String title) {
+    if (_scaffoldKey.currentState?.isDrawerOpen ?? false) Navigator.pop(context);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Navigating to $title...')),
+    );
+  }
+
+  Future<void> _signOut() async {
+    await AuthService().clearSession();
+    if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const RoleSelectScreen()),
       (route) => false,
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    const primaryDark = Color(0xFF0F172A);
-    const backgroundColor = Color(0xFFF8FAFC);
-
-    return Scaffold(
-      backgroundColor: backgroundColor,
-      appBar: AppBar(
-        backgroundColor: primaryDark,
-        elevation: 0,
-        title: const Row(
+  void _openUploadDialog({
+    required String title,
+    required String description,
+    required bool alreadyUploaded,
+    required VoidCallback onUploaded,
+  }) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.pets, color: Colors.white, size: 24),
-            SizedBox(width: 8),
-            Text(
-              'Sitter Dashboard',
-              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+            Text(description),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: () {
+                setState(onUploaded);
+                Navigator.pop(ctx);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Uploaded successfully! Status set to Pending.')),
+                );
+              },
+              icon: const Icon(Icons.upload_file),
+              label: Text(alreadyUploaded ? 'Replace Upload' : 'Upload'),
             ),
           ],
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.logout, color: Colors.white),
-            tooltip: 'Log Out',
-            onPressed: () => _handleLogout(context),
-          ),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
         ],
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Welcome Back, Sitter!',
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: primaryDark,
-              ),
-            ),
-            const SizedBox(height: 6),
-            const Text(
-              'Manage your sitting jobs and view incoming booking requests.',
-              style: TextStyle(fontSize: 14, color: Color(0xFF64748B)),
-            ),
-            const SizedBox(height: 24),
-
-            // Quick Stats Row
-            Row(
-              children: [
-                _buildStatCard('Rating', '5.0 ★', Icons.star, Colors.amber),
-                const SizedBox(width: 12),
-                _buildStatCard('Jobs Done', '0', Icons.check_circle, Colors.green),
-              ],
-            ),
-            const SizedBox(height: 24),
-
-            const Text(
-              'Available Sitting Requests',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: primaryDark,
-              ),
-            ),
-            const SizedBox(height: 12),
-
-            // Placeholder for booking list
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
-              ),
-              child: const Center(
-                child: Text(
-                  'No active job requests available at the moment.',
-                  style: TextStyle(color: Color(0xFF64748B)),
-                ),
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
 
-  Widget _buildStatCard(String title, String value, IconData icon, Color iconColor) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFFE2E8F0)),
-        ),
-        child: Column(
+  void _openIdentityCheckDialog() {
+    _openUploadDialog(
+      title: 'Identity / SA ID Verification',
+      description: 'Upload a clear photo of your South African ID Document or Card.',
+      alreadyUploaded: _idPhotoPath != null,
+      onUploaded: () {
+        _idPhotoPath = 'uploads/id_card_sitter.png';
+        _idCheckStatus = 'pending';
+      },
+    );
+  }
+
+  void _openSapsCheckDialog() {
+    _openUploadDialog(
+      title: 'SAPS Police Clearance',
+      description: 'Upload your SAPS police clearance certificate (issued within the last 6 months).',
+      alreadyUploaded: _sapsCertPath != null,
+      onUploaded: () {
+        _sapsCertPath = 'uploads/saps_certificate.pdf';
+        _sapsCheckStatus = 'pending';
+      },
+    );
+  }
+
+  void _openAddressCheckDialog() {
+    final addressController = TextEditingController(text: _homeAddress);
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Home Address / Proof of Residence'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon, color: iconColor, size: 28),
-            const SizedBox(height: 8),
-            Text(
-              value,
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF0F172A),
+            const Text('Confirm or enter your home physical address:'),
+            const SizedBox(height: 12),
+            TextField(
+              controller: addressController,
+              decoration: const InputDecoration(
+                labelText: 'Home Address',
+                border: OutlineInputBorder(),
               ),
             ),
-            Text(
-              title,
-              style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () {
+              setState(() {
+                _homeAddress = addressController.text;
+                _addressCheckStatus = 'pending';
+              });
+              Navigator.pop(ctx);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Home address saved! Status set to Pending.')),
+              );
+            },
+            child: const Text('Save & Confirm'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _openSubmitDetailsModal() {
+    final messageController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Submit Verification Details'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Add an optional message or note for the Admin review team:'),
+            const SizedBox(height: 12),
+            TextField(
+              controller: messageController,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                hintText: 'e.g., Please check my updated proof of residence...',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.black),
+            onPressed: () {
+              Navigator.pop(ctx);
+              _navigateToPage('Admin Verification Review');
+            },
+            child: const Text('Submit to Admin', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      key: _scaffoldKey,
+      backgroundColor: const Color(0xFFF8FAFC),
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0.5,
+        iconTheme: const IconThemeData(color: Colors.black),
+        title: const Text(
+          'SIT & STAY',
+          style: TextStyle(
+            color: Colors.black,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 1.2,
+          ),
+        ),
+        centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.shield_outlined, color: Colors.black),
+            tooltip: 'Security & Trust',
+            onPressed: () => _navigateToPage('Security & Trust Screen'),
+          ),
+        ],
+      ),
+      drawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            const UserAccountsDrawerHeader(
+              decoration: BoxDecoration(color: Colors.black),
+              accountName: Text('Sitter Dashboard'),
+              accountEmail: Text('sitter@sitstay.co.za'),
+              currentAccountPicture: CircleAvatar(
+                backgroundColor: Colors.white,
+                child: Icon(Icons.person, color: Colors.black),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.person_outline),
+              title: const Text('Profile'),
+              onTap: () => _navigateToPage('Sitter Profile'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.calendar_today_outlined),
+              title: const Text('My Bookings'),
+              onTap: () => _navigateToPage('My Bookings'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.settings_outlined),
+              title: const Text('Settings'),
+              onTap: () => _navigateToPage('Settings'),
+            ),
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.logout, color: Colors.red),
+              title: const Text('Sign Out', style: TextStyle(color: Colors.red)),
+              onTap: _signOut,
             ),
           ],
         ),
       ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Complete Your Sitter Profile',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+                boxShadow: [
+                  BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6, offset: const Offset(0, 2)),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.warning_amber_rounded, color: Colors.amber, size: 22),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Complete your outstanding checks to start receiving bookings.',
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black87),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  const Divider(height: 1),
+                  const SizedBox(height: 12),
+                  _buildCheckTile(
+                    title: 'Identity / SA ID Verification',
+                    subtitle: _idPhotoPath == null ? 'No ID uploaded' : 'ID uploaded',
+                    status: _idCheckStatus,
+                    onTap: _openIdentityCheckDialog,
+                  ),
+                  _buildCheckTile(
+                    title: 'SAPS Police Clearance',
+                    subtitle: _sapsCertPath == null ? 'No certificate uploaded' : 'Certificate uploaded',
+                    status: _sapsCheckStatus,
+                    onTap: _openSapsCheckDialog,
+                  ),
+                  _buildCheckTile(
+                    title: 'Home Address / Proof of Residence',
+                    subtitle: _homeAddress.isEmpty ? 'No address added' : _homeAddress,
+                    status: _addressCheckStatus,
+                    onTap: _openAddressCheckDialog,
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.black,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      onPressed: _openSubmitDetailsModal,
+                      child: const Text(
+                        'Submit Documents / Details',
+                        style: TextStyle(color: Colors.white, fontSize: 11),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _currentBottomNavIndex,
+        onTap: (index) {
+          setState(() => _currentBottomNavIndex = index);
+          switch (index) {
+            case 0:
+              break;
+            case 1:
+              _navigateToPage('Bookings Dashboard');
+              break;
+            case 2:
+              _navigateToPage('Messages List');
+              break;
+            case 3:
+              _navigateToPage('Sitter Profile');
+              break;
+          }
+        },
+        type: BottomNavigationBarType.fixed,
+        selectedItemColor: Colors.black,
+        unselectedItemColor: Colors.grey,
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+          BottomNavigationBarItem(icon: Icon(Icons.calendar_today), label: 'Bookings'),
+          BottomNavigationBarItem(icon: Icon(Icons.chat_bubble_outline), label: 'Messages'),
+          BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: 'Profile'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCheckTile({
+    required String title,
+    required String subtitle,
+    required String status,
+    required VoidCallback onTap,
+  }) {
+    Color statusColor;
+    String statusText;
+
+    switch (status) {
+      case 'completed':
+        statusColor = Colors.green;
+        statusText = 'Completed';
+        break;
+      case 'pending':
+        statusColor = Colors.amber.shade800;
+        statusText = 'Pending Review';
+        break;
+      case 'incomplete':
+      default:
+        statusColor = Colors.red;
+        statusText = 'Incomplete';
+        break;
+    }
+
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      title: Text(title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+      subtitle: Text(subtitle, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: statusColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: statusColor.withOpacity(0.3)),
+            ),
+            child: Text(
+              statusText,
+              style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: statusColor),
+            ),
+          ),
+          const SizedBox(width: 4),
+          const Icon(Icons.chevron_right, size: 18, color: Colors.grey),
+        ],
+      ),
+      onTap: onTap,
     );
   }
 }

@@ -88,9 +88,5 @@ public class Homeowner {
 
     public void setTotalReviews(Integer totalReviews) {
         this.totalReviews = totalReviews;
-    }
-
-    
-
-    
+    } 
 }

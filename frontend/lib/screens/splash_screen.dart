@@ -28,13 +28,16 @@ class _SplashScreenState extends State<SplashScreen> {
       final isLoggedIn = await _authService.isLoggedIn();
       final savedRole = await _authService.getUserRole();
 
-      if (isLoggedIn) {
-        if (savedRole?.toUpperCase() == 'SITTER') {
+            if (isLoggedIn) {
+        final role = await _authService.getUserRole();
+        if (role == 'SITTER') {
           onLoadDestination = const SitterHomeScreen();
-        } else {
+        } else if (role == 'HOMEOWNER') {
           onLoadDestination = const OwnerHomeScreen();
+        } else {
+          onLoadDestination = const LoginScreen();
         }
-      } else {
+      } else{
         final hasAccount = await _authService.hasActiveAccount();
 
         if (hasAccount) {

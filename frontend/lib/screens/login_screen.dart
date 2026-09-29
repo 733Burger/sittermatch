@@ -50,11 +50,16 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _loading = false);
 
     if (result['success'] == true) {
-      final userRole = (result['role'] ?? result['user']?['role'] ?? widget.selectedRole)
-          .toString()
-          .toUpperCase();
+      // AuthService.login saved the role the backend returned.
+      final userRole = ((await _authService.getUserRole()) ?? '').toUpperCase();
+      if (!mounted) return;
 
-      final Widget targetScreen = (userRole == 'SITTER')
+      if (userRole != 'SITTER' && userRole != 'HOMEOWNER') {
+        setState(() => _errorMessage = 'Your account has no role assigned.');
+        return;
+      }
+
+      final Widget targetScreen = userRole == 'SITTER'
           ? const SitterHomeScreen()
           : const OwnerHomeScreen();
 
