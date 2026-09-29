@@ -68,8 +68,8 @@ class RoleSelectScreen extends StatelessWidget {
                 _RoleCard(
                   borderColor: cardBorderColor,
                   icon: Icons.roofing_rounded,
-                  title: 'I need a\nSitter',
-                  description: 'Find verified help for\nyour home and pets.',
+                  title: 'I am a\nHomeowner',
+                  description: 'Find verified sitters for\nyour home and pets.',
                   onTap: () => _navigateToSignup(context, 'HOMEOWNER'),
                 ),
                 const SizedBox(height: 20),
@@ -77,10 +77,11 @@ class RoleSelectScreen extends StatelessWidget {
                 _RoleCard(
                   borderColor: cardBorderColor,
                   icon: Icons.accessibility_new_rounded,
-                  title: 'I want to Sit',
+                  title: 'I am a\nHouse Sitter',
                   description: 'Join our community of\ntrusted sitters.',
                   onTap: () => _navigateToSignup(context, 'SITTER'),
                 ),
+
                 const SizedBox(height: 32),
 
                 TextButton(
