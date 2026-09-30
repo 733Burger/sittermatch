@@ -2,20 +2,16 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../storage/preference_keys.dart';
-import 'dart:io';
+import '../config/api_config.dart';
 import 'package:flutter/foundation.dart';
 
 class AuthService {
-  static String get baseUrl {
-    if (kIsWeb) return 'http://localhost:8080';
-    if (Platform.isAndroid) return 'http://10.0.2.2:8080'; 
-    return 'http://localhost:8080';
-  }
+  final String _baseUrl = ApiConfig.baseUrl;
 
   Future<void> saveSession(String email, String role) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(PreferenceKeys.isLoggedIn, true);
-    await prefs.setBool(PreferenceKeys.hasActiveAccount, true);
+    await prefs.setBool(PreferenceKeys.isActiveUser, true);
     await prefs.setString(PreferenceKeys.userEmail, email);
     await prefs.setString(PreferenceKeys.userRole, role);
   }
@@ -32,9 +28,9 @@ class AuthService {
     return prefs.getBool(PreferenceKeys.isLoggedIn) ?? false;
   }
 
-  Future<bool> hasActiveAccount() async {
+  Future<bool> isActiveUser() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(PreferenceKeys.hasActiveAccount) ?? false;
+    return prefs.getBool(PreferenceKeys.isActiveUser) ?? false;
   }
 
   Future<void> logout() async {
@@ -54,6 +50,11 @@ class AuthService {
     return prefs.getString(PreferenceKeys.userRole);
   }
 
+  Future<void> setUserRole(String role) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(PreferenceKeys.userRole, role);
+  }
+
   Future<bool> validateSession() async {
     final loggedIn = await isLoggedIn();
     final email = await getUserEmail();
@@ -62,47 +63,39 @@ class AuthService {
       return false;
     }
 
-    try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/api/auth/validate?email=${Uri.encodeComponent(email)}'),
-        headers: {'Content-Type': 'application/json'},
-      ).timeout(const Duration(seconds: 5));
+    return true;
 
-      if (response.statusCode == 200) {
-        final json = jsonDecode(response.body);
-        if (json['valid'] == true) {
-          return true;
-        }
-      }
+    // commented out because I couldn't find the api it was calling and it was causing a delay on flutter frames
+    // try {
+    //   final response = await http.get(
+    //     Uri.parse('$_baseUrl/api/auth/validate?email=${Uri.encodeComponent(email)}'),
+    //     headers: {'Content-Type': 'application/json'},
+    //   ).timeout(const Duration(seconds: 5));
 
-      await logout();
-      return false;
-    } catch (e) {
-      return loggedIn;
-    }
+    //   if (response.statusCode == 200) {
+    //     final json = jsonDecode(response.body);
+    //     if (json['valid'] == true) {
+    //       return true;
+    //     }
+    //   }
+
+    //   await logout();
+    //   return false;
+    // } catch (e) {
+    //   return loggedIn;
+    // }
   }
 
-  Future<void> setUserRole(String role) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(PreferenceKeys.userRole, role);
-  }
-
-  Future<Map<String, dynamic>> login(String email, String password) async {
+  Future<Map<String, dynamic>> login({required String email, required String password}) async {
     try {
-      final url = '$baseUrl/api/auth/login';
-      print('--- CONNECTING TO LOGIN: $url ---');
-
       final response = await http.post(
-        Uri.parse(url),
+        Uri.parse('$_baseUrl/api/auth/login'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'email': email.trim(),
           'password': password,
         }),
       ).timeout(const Duration(seconds: 10));
-
-      print('LOGIN STATUS: ${response.statusCode}');
-      print('LOGIN RESPONSE: ${response.body}');
 
       final json = jsonDecode(response.body);
 
@@ -118,19 +111,11 @@ class AuthService {
     }
   }
 
-  Future<Map<String, dynamic>> signup({
-    required String fullName,
-    required String email,
-    required String phoneNumber,
-    required String password,
-    required String role,
+  Future<Map<String, dynamic>> signup({required String fullName, required String email, required String phoneNumber, required String password,required String role,
   }) async {
     try {
-      final url = '$baseUrl/api/auth/signup';
-      print('--- CONNECTING TO SIGNUP: $url ---');
-
       final response = await http.post(
-        Uri.parse(url),
+        Uri.parse('$_baseUrl/api/auth/signup'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'fullName': fullName.trim(),
@@ -141,12 +126,8 @@ class AuthService {
         }),
       ).timeout(const Duration(seconds: 10));
 
-      print('SIGNUP STATUS: ${response.statusCode}');
-      print('SIGNUP RESPONSE: ${response.body}');
-
       final json = jsonDecode(response.body);
 
-      // Accepts both 200 OK and 201 Created
       if ((response.statusCode == 200 || response.statusCode == 201) && json['success'] == true) {
         return {'success': true, 'message': json['message']};
       } else {

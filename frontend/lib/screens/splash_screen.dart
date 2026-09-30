@@ -25,10 +25,9 @@ class _SplashScreenState extends State<SplashScreen> {
     Widget onLoadDestination;
 
     try {
-      final isLoggedIn = await _authService.isLoggedIn();
-      final savedRole = await _authService.getUserRole();
+      final isValidSession = await _authService.validateSession();
 
-            if (isLoggedIn) {
+      if (isValidSession) {
         final role = await _authService.getUserRole();
         if (role == 'SITTER') {
           onLoadDestination = const SitterHomeScreen();
@@ -37,13 +36,11 @@ class _SplashScreenState extends State<SplashScreen> {
         } else {
           onLoadDestination = const LoginScreen();
         }
-      } else{
-        final hasAccount = await _authService.hasActiveAccount();
+      } else {
+        final hasAccount = await _authService.isActiveUser();
 
         if (hasAccount) {
-          onLoadDestination = LoginScreen(
-            selectedRole: savedRole ?? 'HOMEOWNER',
-          );
+          onLoadDestination = LoginScreen();
         } else {
           onLoadDestination = const RoleSelectScreen();
         }
@@ -53,7 +50,6 @@ class _SplashScreenState extends State<SplashScreen> {
     }
 
     if (!mounted) return;
-
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(builder: (_) => onLoadDestination),
     );

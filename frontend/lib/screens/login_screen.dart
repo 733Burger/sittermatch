@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/auth_services.dart';
 import 'owner_home_screen.dart';
 import 'sitter_home_screen.dart';
-import 'signup_screen.dart';
+import 'role_select_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   final String selectedRole;
@@ -42,8 +42,8 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     final result = await _authService.login(
-      _emailController.text.trim(),
-      _passwordController.text,
+      email: _emailController.text.trim(),
+      password: _passwordController.text,
     );
 
     if (!mounted) return;
@@ -286,9 +286,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         ? null
                         : () => Navigator.of(context).push(
                               MaterialPageRoute(
-                                builder: (_) => SignupScreen(
-                                  selectedRole: widget.selectedRole,
-                                ),
+                                builder: (_) => const RoleSelectScreen(),
                               ),
                             ),
                     child: const Text(

@@ -10,14 +10,14 @@ class RoleSelectScreen extends StatelessWidget {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => SignupScreen(selectedRole: role),
-      ),
+      )
     );
   }
 
-  void _navigateToLogin(BuildContext context, {String role = 'HOMEOWNER'}) {
+  void _navigateToLogin(BuildContext context) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => LoginScreen(selectedRole: role),
+        builder: (_) => LoginScreen()
       ),
     );
   }
@@ -87,7 +87,7 @@ class RoleSelectScreen extends StatelessWidget {
                 TextButton(
                   onPressed: () => _navigateToLogin(context),
                   child: const Text(
-                    'Already have an account? Sign in',
+                    'Already have an account? Log in',
                     style: TextStyle(
                       color: primaryDark,
                       fontWeight: FontWeight.w600,
