@@ -25,25 +25,4 @@ class SitterMatchApp extends StatelessWidget {
       home: const SplashScreen(),
     );
   }
-  
 }
-
-// import 'package:flutter/material.dart';
-// import 'screens/splash_screen.dart';
-
-// void main() {
-//   runApp(const SitterMatchApp());
-// }
-
-// class SitterMatchApp extends StatelessWidget {
-//   const SitterMatchApp({super.key});
-
-//   @override
-//   Widget build(BuildContext context) {
-//     return MaterialApp(
-//       title: 'SitterMatch',
-//       theme: ThemeData(primarySwatch: Colors.blue, useMaterial3: true),
-//       home: const SplashScreen(),
-//     );
-//   }
-// }

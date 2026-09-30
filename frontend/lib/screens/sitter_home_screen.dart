@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/screens/login_screen.dart';
 import '../services/auth_services.dart';
+import '../theme/app_colors.dart';
 import 'role_select_screen.dart';
+import 'bookings_dashboard_screen.dart';
+import 'direct_chat_screen.dart';
 
 class SitterHomeScreen extends StatefulWidget {
   const SitterHomeScreen({super.key});
@@ -11,7 +15,7 @@ class SitterHomeScreen extends StatefulWidget {
 
 class _SitterHomeScreenState extends State<SitterHomeScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
-  int _currentBottomNavIndex = 0;
+  String _email = '';
 
   String? _idPhotoPath;
   String? _sapsCertPath;
@@ -22,21 +26,48 @@ class _SitterHomeScreenState extends State<SitterHomeScreen> {
   String _sapsCheckStatus = 'incomplete';
   String _addressCheckStatus = 'incomplete';
 
-  void _navigateToPage(String title) {
+  @override
+  void initState() {
+    super.initState();
+    _loadEmail();
+  }
+
+  Future<void> _loadEmail() async {
+    final email = await AuthService().getUserEmail();
+    if (!mounted) return;
+    setState(() => _email = email ?? '');
+  }
+
+  void _closeDrawerIfOpen() {
     if (_scaffoldKey.currentState?.isDrawerOpen ?? false) Navigator.pop(context);
+  }
+
+  void _open(Widget screen) {
+    _closeDrawerIfOpen();
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
+  }
+
+  void _comingSoon(String title) {
+    _closeDrawerIfOpen();
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Navigating to $title...')),
+      SnackBar(content: Text('$title is coming soon')),
     );
+  }
+
+  void _showSnack(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _signOut() async {
     await AuthService().clearSession();
     if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const RoleSelectScreen()),
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
       (route) => false,
     );
   }
+
+  // ---------- Dialogs ----------
 
   void _openUploadDialog({
     required String title,
@@ -57,9 +88,7 @@ class _SitterHomeScreenState extends State<SitterHomeScreen> {
               onPressed: () {
                 setState(onUploaded);
                 Navigator.pop(ctx);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Uploaded successfully! Status set to Pending.')),
-                );
+                _showSnack('Uploaded successfully! Status set to Pending.');
               },
               icon: const Icon(Icons.upload_file),
               label: Text(alreadyUploaded ? 'Replace Upload' : 'Upload'),
@@ -98,7 +127,7 @@ class _SitterHomeScreenState extends State<SitterHomeScreen> {
   }
 
   void _openAddressCheckDialog() {
-    final addressController = TextEditingController(text: _homeAddress);
+    final controller = TextEditingController(text: _homeAddress);
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -110,7 +139,7 @@ class _SitterHomeScreenState extends State<SitterHomeScreen> {
             const Text('Confirm or enter your home physical address:'),
             const SizedBox(height: 12),
             TextField(
-              controller: addressController,
+              controller: controller,
               decoration: const InputDecoration(
                 labelText: 'Home Address',
                 border: OutlineInputBorder(),
@@ -121,15 +150,17 @@ class _SitterHomeScreenState extends State<SitterHomeScreen> {
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.black87,
+              foregroundColor: Colors.white,
+            ),
             onPressed: () {
               setState(() {
-                _homeAddress = addressController.text;
+                _homeAddress = controller.text;
                 _addressCheckStatus = 'pending';
               });
               Navigator.pop(ctx);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Home address saved! Status set to Pending.')),
-              );
+              _showSnack('Home address saved! Status set to Pending.');
             },
             child: const Text('Save & Confirm'),
           ),
@@ -163,112 +194,118 @@ class _SitterHomeScreenState extends State<SitterHomeScreen> {
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.black),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.black87,
+              foregroundColor: Colors.white,
+            ),
             onPressed: () {
               Navigator.pop(ctx);
-              _navigateToPage('Admin Verification Review');
+              _comingSoon('Admin Verification Review');
             },
-            child: const Text('Submit to Admin', style: TextStyle(color: Colors.white)),
+            child: const Text('Submit to Admin'),
           ),
         ],
       ),
     );
   }
 
+  // ---------- Build ----------
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       key: _scaffoldKey,
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0.5,
+        backgroundColor: AppColors.background,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
         iconTheme: const IconThemeData(color: Colors.black),
-        title: const Text(
-          'SIT & STAY',
-          style: TextStyle(
-            color: Colors.black,
-            fontWeight: FontWeight.w900,
-            letterSpacing: 1.2,
-          ),
+        title: const Row(
+          children: [
+            Icon(Icons.pets, color: AppColors.primaryRust),
+            SizedBox(width: 8),
+            Text(
+              'Sit & Stay',
+              style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 22),
+            ),
+          ],
         ),
-        centerTitle: true,
         actions: [
           IconButton(
             icon: const Icon(Icons.shield_outlined, color: Colors.black),
             tooltip: 'Security & Trust',
-            onPressed: () => _navigateToPage('Security & Trust Screen'),
+            onPressed: () => _comingSoon('Security & Trust'),
           ),
         ],
       ),
       drawer: Drawer(
+        backgroundColor: AppColors.background,
         child: ListView(
           padding: EdgeInsets.zero,
           children: [
-            const UserAccountsDrawerHeader(
-              decoration: BoxDecoration(color: Colors.black),
-              accountName: Text('Sitter Dashboard'),
-              accountEmail: Text('sitter@sitstay.co.za'),
-              currentAccountPicture: CircleAvatar(
+            UserAccountsDrawerHeader(
+              decoration: const BoxDecoration(color: AppColors.primaryRust),
+              accountName: const Text('Sitter'),
+              accountEmail: Text(_email),
+              currentAccountPicture: const CircleAvatar(
                 backgroundColor: Colors.white,
-                child: Icon(Icons.person, color: Colors.black),
+                child: Icon(Icons.person, color: AppColors.primaryRust),
               ),
             ),
             ListTile(
               leading: const Icon(Icons.person_outline),
               title: const Text('Profile'),
-              onTap: () => _navigateToPage('Sitter Profile'),
+              onTap: () => _comingSoon('Profile'),
             ),
             ListTile(
               leading: const Icon(Icons.calendar_today_outlined),
               title: const Text('My Bookings'),
-              onTap: () => _navigateToPage('My Bookings'),
+              onTap: () => _open(const BookingsDashboardScreen()),
             ),
             ListTile(
               leading: const Icon(Icons.settings_outlined),
               title: const Text('Settings'),
-              onTap: () => _navigateToPage('Settings'),
+              onTap: () => _comingSoon('Settings'),
             ),
             const Divider(),
             ListTile(
               leading: const Icon(Icons.logout, color: Colors.red),
-              title: const Text('Sign Out', style: TextStyle(color: Colors.red)),
+              title: const Text('Log Out', style: TextStyle(color: Colors.red)),
               onTap: _signOut,
             ),
           ],
         ),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Complete Your Sitter Profile',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black),
+              'Complete Your\nSitter Profile',
+              style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, height: 1.1),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 16),
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
-                boxShadow: [
-                  BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6, offset: const Offset(0, 2)),
-                ],
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.grey.shade200),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Row(
                     children: [
-                      Icon(Icons.warning_amber_rounded, color: Colors.amber, size: 22),
+                      Icon(Icons.warning_amber_rounded, color: AppColors.primaryRust, size: 22),
                       SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           'Complete your outstanding checks to start receiving bookings.',
-                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black87),
+                          style: TextStyle(
+                              fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black87),
                         ),
                       ),
                     ],
@@ -299,7 +336,7 @@ class _SitterHomeScreenState extends State<SitterHomeScreen> {
                     width: double.infinity,
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.black,
+                        backgroundColor: Colors.black87,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                         padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
@@ -317,31 +354,32 @@ class _SitterHomeScreenState extends State<SitterHomeScreen> {
         ),
       ),
       bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentBottomNavIndex,
+        type: BottomNavigationBarType.fixed,
+        backgroundColor: Colors.white,
+        elevation: 0,
+        currentIndex: 0,
+        selectedItemColor: AppColors.primaryRust,
+        unselectedItemColor: Colors.grey,
+        selectedFontSize: 12,
+        unselectedFontSize: 12,
         onTap: (index) {
-          setState(() => _currentBottomNavIndex = index);
           switch (index) {
-            case 0:
-              break;
             case 1:
-              _navigateToPage('Bookings Dashboard');
+              _open(const BookingsDashboardScreen());
               break;
             case 2:
-              _navigateToPage('Messages List');
+              _open(const DirectChatScreen());
               break;
             case 3:
-              _navigateToPage('Sitter Profile');
+              _comingSoon('Profile');
               break;
           }
         },
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: Colors.black,
-        unselectedItemColor: Colors.grey,
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.calendar_today), label: 'Bookings'),
-          BottomNavigationBarItem(icon: Icon(Icons.chat_bubble_outline), label: 'Messages'),
-          BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: 'Profile'),
+          BottomNavigationBarItem(icon: Icon(Icons.home_outlined), label: 'HOME'),
+          BottomNavigationBarItem(icon: Icon(Icons.calendar_today), label: 'BOOKINGS'),
+          BottomNavigationBarItem(icon: Icon(Icons.chat_bubble_outline), label: 'MESSAGES'),
+          BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: 'PROFILE'),
         ],
       ),
     );
@@ -382,9 +420,9 @@ class _SitterHomeScreenState extends State<SitterHomeScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              color: statusColor.withOpacity(0.1),
+              color: statusColor.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: statusColor.withOpacity(0.3)),
+              border: Border.all(color: statusColor.withValues(alpha: 0.3)),
             ),
             child: Text(
               statusText,

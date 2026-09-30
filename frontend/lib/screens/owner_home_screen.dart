@@ -1,8 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/screens/login_screen.dart';
 import '../services/auth_services.dart';
+import '../theme/app_colors.dart';
 import 'role_select_screen.dart';
+import 'bookings_dashboard_screen.dart';
+import 'saved_sitters_screen.dart';
+import 'direct_chat_screen.dart';
+import 'sitter_detail_screen.dart';
+import 'booking_flow_screen.dart';
 
-class Sitter {
+class SitterListing {
   final int id;
   final String name;
   final String suburb;
@@ -12,7 +19,7 @@ class Sitter {
   final String? imageUrl;
   final List<String> completedChecks;
 
-  Sitter({
+  SitterListing({
     required this.id,
     required this.name,
     required this.suburb,
@@ -33,13 +40,14 @@ class OwnerHomeScreen extends StatefulWidget {
 
 class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
-  int _currentBottomNavIndex = 0;
   bool _isGuestBrowsing = false;
+  String _email = '';
 
   String _homeownerAddress = '12 Main Road, Rondebosch';
   String _emergencyContact = '+27 82 123 4567';
   String? _idPhotoPath;
 
+  // 'completed', 'pending' or 'incomplete'. Replace with DB checks later.
   String _idCheckStatus = 'incomplete';
   String _addressCheckStatus = 'completed';
   String _emergencyCheckStatus = 'pending';
@@ -56,8 +64,8 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
     'Medication Admin',
   ];
 
-  final List<Sitter> _sitters = [
-    Sitter(
+  final List<SitterListing> _sitters = [
+    SitterListing(
       id: 101,
       name: 'Sarah Jenkins',
       suburb: 'Sea Point, Cape Town',
@@ -67,7 +75,7 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
       imageUrl: 'https://i.pravatar.cc/150?img=5',
       completedChecks: ['SA ID Verified', 'SAPS Clearance'],
     ),
-    Sitter(
+    SitterListing(
       id: 102,
       name: 'Michael Tau',
       suburb: 'Sandton, Johannesburg',
@@ -77,7 +85,7 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
       imageUrl: 'https://i.pravatar.cc/150?img=12',
       completedChecks: ['SA ID Verified', 'Proof of Address', 'Reference Check'],
     ),
-    Sitter(
+    SitterListing(
       id: 103,
       name: 'Jessica Daniels',
       suburb: 'Claremont, Cape Town',
@@ -90,16 +98,36 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _loadEmail();
+  }
+
+  Future<void> _loadEmail() async {
+    final email = await AuthService().getUserEmail();
+    if (!mounted) return;
+    setState(() => _email = email ?? '');
+  }
+
+  @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
   }
 
-  void _navigateToPage(String title) {
-    // Only close the drawer if it is actually open.
+  void _closeDrawerIfOpen() {
     if (_scaffoldKey.currentState?.isDrawerOpen ?? false) Navigator.pop(context);
+  }
+
+  void _open(Widget screen) {
+    _closeDrawerIfOpen();
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
+  }
+
+  void _comingSoon(String title) {
+    _closeDrawerIfOpen();
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Navigating to $title...')),
+      SnackBar(content: Text('$title is coming soon')),
     );
   }
 
@@ -107,20 +135,24 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
     await AuthService().clearSession();
     if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const RoleSelectScreen()),
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
       (route) => false,
     );
   }
 
   void _toggleFavorite(int sitterId) {
     setState(() {
-      if (_favoriteSitterIds.contains(sitterId)) {
-        _favoriteSitterIds.remove(sitterId);
-      } else {
+      if (!_favoriteSitterIds.remove(sitterId)) {
         _favoriteSitterIds.add(sitterId);
       }
     });
   }
+
+  void _showSnack(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  // ---------- Dialogs ----------
 
   void _openIdentityCheckDialog() {
     showDialog(
@@ -139,9 +171,7 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
                   _idCheckStatus = 'pending';
                 });
                 Navigator.pop(ctx);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('ID Photo uploaded successfully! Status set to Pending.')),
-                );
+                _showSnack('ID Photo uploaded successfully! Status set to Pending.');
               },
               icon: const Icon(Icons.upload_file),
               label: Text(_idPhotoPath == null ? 'Upload ID Photo' : 'Replace ID Photo'),
@@ -149,9 +179,56 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
           ],
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+        ],
+      ),
+    );
+  }
+
+  void _openTextEntryDialog({
+    required String title,
+    required String prompt,
+    required String label,
+    required String initialValue,
+    required String saveLabel,
+    required String savedMessage,
+    required void Function(String value) onSave,
+    TextInputType keyboardType = TextInputType.text,
+  }) {
+    final controller = TextEditingController(text: initialValue);
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(prompt),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              keyboardType: keyboardType,
+              decoration: InputDecoration(
+                labelText: label,
+                border: const OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.black87,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () {
+              setState(() => onSave(controller.text));
+              Navigator.pop(ctx);
+              _showSnack(savedMessage);
+            },
+            child: Text(saveLabel),
           ),
         ],
       ),
@@ -159,96 +236,38 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
   }
 
   void _openAddressCheckDialog() {
-    final TextEditingController addressController = TextEditingController(text: _homeownerAddress);
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Home Address Verification'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Confirm or enter your home physical address:'),
-            const SizedBox(height: 12),
-            TextField(
-              controller: addressController,
-              decoration: const InputDecoration(
-                labelText: 'Home Address',
-                border: OutlineInputBorder(),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              setState(() {
-                _homeownerAddress = addressController.text;
-                _addressCheckStatus = 'pending';
-              });
-              Navigator.pop(ctx);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Home address saved! Status set to Pending.')),
-              );
-            },
-            child: const Text('Save & Confirm'),
-          ),
-        ],
-      ),
+    _openTextEntryDialog(
+      title: 'Home Address Verification',
+      prompt: 'Confirm or enter your home physical address:',
+      label: 'Home Address',
+      initialValue: _homeownerAddress,
+      saveLabel: 'Save & Confirm',
+      savedMessage: 'Home address saved! Status set to Pending.',
+      onSave: (v) {
+        _homeownerAddress = v;
+        _addressCheckStatus = 'pending';
+      },
     );
   }
 
   void _openEmergencyContactDialog() {
-    final TextEditingController contactController = TextEditingController(text: _emergencyContact);
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Emergency Contact Details'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Enter contact number for emergencies while away:'),
-            const SizedBox(height: 12),
-            TextField(
-              controller: contactController,
-              keyboardType: TextInputType.phone,
-              decoration: const InputDecoration(
-                labelText: 'Phone Number',
-                border: OutlineInputBorder(),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              setState(() {
-                _emergencyContact = contactController.text;
-                _emergencyCheckStatus = 'pending';
-              });
-              Navigator.pop(ctx);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Emergency contact saved! Status set to Pending.')),
-              );
-            },
-            child: const Text('Save Contact'),
-          ),
-        ],
-      ),
+    _openTextEntryDialog(
+      title: 'Emergency Contact Details',
+      prompt: 'Enter contact number for emergencies while away:',
+      label: 'Phone Number',
+      initialValue: _emergencyContact,
+      saveLabel: 'Save Contact',
+      savedMessage: 'Emergency contact saved! Status set to Pending.',
+      keyboardType: TextInputType.phone,
+      onSave: (v) {
+        _emergencyContact = v;
+        _emergencyCheckStatus = 'pending';
+      },
     );
   }
 
   void _openSubmitDetailsModal() {
-    final TextEditingController messageController = TextEditingController();
+    final messageController = TextEditingController();
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -270,446 +289,500 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
           ],
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.black),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.black87,
+              foregroundColor: Colors.white,
+            ),
             onPressed: () {
               Navigator.pop(ctx);
-              _navigateToPage('Admin Verification Review');
+              _comingSoon('Admin Verification Review');
             },
-            child: const Text('Submit to Admin', style: TextStyle(color: Colors.white)),
+            child: const Text('Submit to Admin'),
           ),
         ],
       ),
     );
   }
 
+  // ---------- Build ----------
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       key: _scaffoldKey,
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0.5,
+        backgroundColor: AppColors.background,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
         iconTheme: const IconThemeData(color: Colors.black),
-        title: const Text(
-          'SIT & STAY',
-          style: TextStyle(
-            color: Colors.black,
-            fontWeight: FontWeight.w900,
-            letterSpacing: 1.2,
-          ),
+        title: const Row(
+          children: [
+            Icon(Icons.pets, color: AppColors.primaryRust),
+            SizedBox(width: 8),
+            Text(
+              'Sit & Stay',
+              style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 22),
+            ),
+          ],
         ),
-        centerTitle: true,
         actions: [
           IconButton(
             icon: const Icon(Icons.shield_outlined, color: Colors.black),
             tooltip: 'Security & Trust',
-            onPressed: () => _navigateToPage('Security & Trust Screen'),
+            onPressed: () => _comingSoon('Security & Trust'),
           ),
         ],
       ),
       drawer: Drawer(
+        backgroundColor: AppColors.background,
         child: ListView(
           padding: EdgeInsets.zero,
           children: [
-            const UserAccountsDrawerHeader(
-              decoration: BoxDecoration(color: Colors.black),
-              accountName: Text('Homeowner Dashboard'),
-              accountEmail: Text('owner@sitstay.co.za'),
-              currentAccountPicture: CircleAvatar(
+            UserAccountsDrawerHeader(
+              decoration: const BoxDecoration(color: AppColors.primaryRust),
+              accountName: const Text('Homeowner'),
+              accountEmail: Text(_email),
+              currentAccountPicture: const CircleAvatar(
                 backgroundColor: Colors.white,
-                child: Icon(Icons.person, color: Colors.black),
+                child: Icon(Icons.person, color: AppColors.primaryRust),
               ),
             ),
             ListTile(
               leading: const Icon(Icons.person_outline),
               title: const Text('Profile'),
-              onTap: () => _navigateToPage('Homeowner Profile'),
+              onTap: () => _comingSoon('Profile'),
             ),
             ListTile(
               leading: const Icon(Icons.calendar_today_outlined),
               title: const Text('My Bookings'),
-              onTap: () => _navigateToPage('My Bookings'),
+              onTap: () => _open(const BookingsDashboardScreen()),
             ),
             ListTile(
               leading: const Icon(Icons.bookmark_border_outlined),
               title: const Text('Saved Sitters'),
               trailing: Badge(
                 label: Text('${_favoriteSitterIds.length}'),
-                backgroundColor: Colors.black,
+                backgroundColor: AppColors.primaryRust,
               ),
-              onTap: () => _navigateToPage('Saved Sitters'),
+              onTap: () => _open(const SavedSittersScreen()),
             ),
             ListTile(
               leading: const Icon(Icons.settings_outlined),
               title: const Text('Settings'),
-              onTap: () => _navigateToPage('Settings'),
+              onTap: () => _comingSoon('Settings'),
             ),
             const Divider(),
             ListTile(
               leading: const Icon(Icons.logout, color: Colors.red),
-              title: const Text('Sign Out', style: TextStyle(color: Colors.red)),
+              title: const Text('Log Out', style: TextStyle(color: Colors.red)),
               onTap: _signOut,
             ),
           ],
         ),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Complete Your Homeowner Profile',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black),
+              'Complete Your\nHomeowner Profile',
+              style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, height: 1.1),
             ),
-            const SizedBox(height: 8),
-
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.04),
-                    blurRadius: 6,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Row(
-                    children: [
-                      Icon(Icons.warning_amber_rounded, color: Colors.amber, size: 22),
-                      SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Complete your outstanding checks to start booking sitters.',
-                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black87),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  const Divider(height: 1),
-                  const SizedBox(height: 12),
-
-                  _buildCheckTile(
-                    title: 'Identity / SA ID Verification',
-                    subtitle: _idPhotoPath == null ? 'No ID uploaded' : 'ID uploaded',
-                    status: _idCheckStatus,
-                    onTap: _openIdentityCheckDialog,
-                  ),
-                  _buildCheckTile(
-                    title: 'Home Address / Proof of Residence',
-                    subtitle: _homeownerAddress,
-                    status: _addressCheckStatus,
-                    onTap: _openAddressCheckDialog,
-                  ),
-                  _buildCheckTile(
-                    title: 'Emergency Contact Details',
-                    subtitle: _emergencyContact,
-                    status: _emergencyCheckStatus,
-                    onTap: _openEmergencyContactDialog,
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.black,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                          ),
-                          onPressed: _openSubmitDetailsModal,
-                          child: const Text('Submit Documents / Details', style: TextStyle(color: Colors.white, fontSize: 11)),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      OutlinedButton(
-                        style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: Colors.black),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
-                        ),
-                        onPressed: () {
-                          setState(() => _isGuestBrowsing = true);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Guest Browsing Active: Booking functions disabled until verified.')),
-                          );
-                        },
-                        child: const Text('Browse as Guest', style: TextStyle(color: Colors.black, fontSize: 11)),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-
+            const SizedBox(height: 16),
+            _buildChecksCard(),
             const SizedBox(height: 24),
-
-            TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: 'Search suburb or location...',
-                hintStyle: const TextStyle(fontSize: 14, color: Colors.grey),
-                prefixIcon: const Icon(Icons.location_on_outlined, color: Colors.black),
-                fillColor: Colors.white,
-                filled: true,
-                contentPadding: const EdgeInsets.symmetric(vertical: 14),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Colors.black, width: 1.5),
-                ),
-              ),
-            ),
+            _buildSearchField(),
             const SizedBox(height: 12),
-
-            SizedBox(
-              height: 36,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: _filterTags.length,
-                separatorBuilder: (_, _) => const SizedBox(width: 8),
-                itemBuilder: (context, index) {
-                  final tag = _filterTags[index];
-                  final isSelected = _selectedFilter == tag;
-                  return FilterChip(
-                    label: Text(tag),
-                    selected: isSelected,
-                    onSelected: (selected) => setState(() => _selectedFilter = tag),
-                    selectedColor: Colors.grey.shade300,
-                    backgroundColor: Colors.white,
-                    labelStyle: TextStyle(
-                      color: Colors.black,
-                      fontSize: 12,
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
-                      side: BorderSide(color: isSelected ? Colors.black : const Color(0xFFCBD5E1)),
-                    ),
-                    showCheckmark: false,
-                  );
-                },
-              ),
-            ),
-
+            _buildFilters(),
             const SizedBox(height: 20),
-
             const Text(
               'Available Sitters Nearby',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
-
-            ListView.separated(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: _sitters.length,
-              separatorBuilder: (_, _) => const SizedBox(height: 12),
-              itemBuilder: (context, index) {
-                final sitter = _sitters[index];
-                final isFavorited = _favoriteSitterIds.contains(sitter.id);
-
-                return InkWell(
-                  onTap: () => _navigateToPage('Sitter Profile (${sitter.name})'),
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFFE2E8F0)),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.02),
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            CircleAvatar(
-                              radius: 26,
-                              backgroundImage: sitter.imageUrl != null ? NetworkImage(sitter.imageUrl!) : null,
-                              child: sitter.imageUrl == null ? const Icon(Icons.person) : null,
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    sitter.name,
-                                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-                                  ),
-                                  Text(
-                                    sitter.suburb,
-                                    style: const TextStyle(fontSize: 12, color: Colors.grey),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Row(
-                                    children: [
-                                      const Icon(Icons.star_rounded, color: Colors.amber, size: 16),
-                                      Text(
-                                        ' ${sitter.rating} ',
-                                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                                      ),
-                                      Text(
-                                        '(${sitter.totalReviews} reviews)',
-                                        style: const TextStyle(fontSize: 12, color: Colors.grey),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                            IconButton(
-                              icon: isFavorited
-                                  ? const Icon(Icons.favorite, color: Colors.black)
-                                  : const Stack(
-                                      alignment: Alignment.center,
-                                      children: [
-                                        Icon(Icons.favorite, color: Colors.black, size: 24),
-                                        Icon(Icons.favorite, color: Colors.white, size: 20),
-                                      ],
-                                    ),
-                              onPressed: () => _toggleFavorite(sitter.id),
-                            ),
-                          ],
-                        ),
-
-                        const SizedBox(height: 10),
-
-                        Wrap(
-                          spacing: 6,
-                          runSpacing: 4,
-                          children: sitter.completedChecks.map((checkLabel) {
-                            return Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFF1F5F9),
-                                borderRadius: BorderRadius.circular(6),
-                                border: Border.all(color: const Color(0xFFCBD5E1)),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(Icons.check_circle, size: 12, color: Colors.black),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    checkLabel,
-                                    style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Colors.black),
-                                  ),
-                                ],
-                              ),
-                            );
-                          }).toList(),
-                        ),
-
-                        const SizedBox(height: 12),
-                        const Divider(height: 1),
-                        const SizedBox(height: 10),
-
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'R${sitter.nightRate.toStringAsFixed(0)}/night',
-                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Colors.black),
-                            ),
-                            Row(
-                              children: [
-                                OutlinedButton.icon(
-                                  style: OutlinedButton.styleFrom(
-                                    side: const BorderSide(color: Colors.black),
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                                  ),
-                                  onPressed: () => _navigateToPage('Messages List'),
-                                  icon: const Icon(Icons.chat_bubble_outline, size: 14, color: Colors.black),
-                                  label: const Text('Message', style: TextStyle(color: Colors.black, fontSize: 12)),
-                                ),
-                                const SizedBox(width: 8),
-                                ElevatedButton.icon(
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.black,
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                                  ),
-                                  onPressed: _isGuestBrowsing
-                                      ? () {
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            const SnackBar(content: Text('Booking is disabled in Guest Mode. Complete verification to book!')),
-                                          );
-                                        }
-                                      : () => _navigateToPage('Bookings Dashboard'),
-                                  icon: const Icon(Icons.calendar_month, size: 14, color: Colors.white),
-                                  label: const Text('Book', style: TextStyle(color: Colors.white, fontSize: 12)),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
+            ..._sitters.map(_buildSitterCard),
           ],
         ),
       ),
       bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentBottomNavIndex,
+        type: BottomNavigationBarType.fixed,
+        backgroundColor: Colors.white,
+        elevation: 0,
+        currentIndex: 0,
+        selectedItemColor: AppColors.primaryRust,
+        unselectedItemColor: Colors.grey,
+        selectedFontSize: 12,
+        unselectedFontSize: 12,
         onTap: (index) {
-          setState(() => _currentBottomNavIndex = index);
           switch (index) {
-            case 0:
-              break; // already on Home
             case 1:
-              _navigateToPage('Bookings Dashboard');
+              _open(const BookingsDashboardScreen());
               break;
             case 2:
-              _navigateToPage('Messages List');
+              _open(const DirectChatScreen());
               break;
             case 3:
-              _navigateToPage('Homeowner Profile');
+              _comingSoon('Profile');
               break;
           }
         },
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: Colors.black,
-        unselectedItemColor: Colors.grey,
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.calendar_today), label: 'Bookings'),
+          BottomNavigationBarItem(icon: Icon(Icons.home_outlined), label: 'HOME'),
+          BottomNavigationBarItem(icon: Icon(Icons.calendar_today), label: 'BOOKINGS'),
           BottomNavigationBarItem(
-            icon: Badge(label: Text('3'), backgroundColor: Colors.black, child: Icon(Icons.chat_bubble_outline)),
-            label: 'Messages',
+            icon: Badge(
+              label: Text('3'),
+              backgroundColor: AppColors.primaryRust,
+              child: Icon(Icons.chat_bubble_outline),
+            ),
+            label: 'MESSAGES',
           ),
-          BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: 'Profile'),
+          BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: 'PROFILE'),
         ],
+      ),
+    );
+  }
+
+  Widget _buildChecksCard() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, color: AppColors.primaryRust, size: 22),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Complete your outstanding checks to start booking sitters.',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black87),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          const Divider(height: 1),
+          const SizedBox(height: 12),
+          _buildCheckTile(
+            title: 'Identity / SA ID Verification',
+            subtitle: _idPhotoPath == null ? 'No ID uploaded' : 'ID uploaded',
+            status: _idCheckStatus,
+            onTap: _openIdentityCheckDialog,
+          ),
+          _buildCheckTile(
+            title: 'Home Address / Proof of Residence',
+            subtitle: _homeownerAddress,
+            status: _addressCheckStatus,
+            onTap: _openAddressCheckDialog,
+          ),
+          _buildCheckTile(
+            title: 'Emergency Contact Details',
+            subtitle: _emergencyContact,
+            status: _emergencyCheckStatus,
+            onTap: _openEmergencyContactDialog,
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.black87,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  onPressed: _openSubmitDetailsModal,
+                  child: const Text(
+                    'Submit Documents / Details',
+                    style: TextStyle(color: Colors.white, fontSize: 11),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              OutlinedButton(
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: Colors.black87),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
+                ),
+                onPressed: () {
+                  setState(() => _isGuestBrowsing = true);
+                  _showSnack('Guest Browsing Active: Booking functions disabled until verified.');
+                },
+                child: const Text(
+                  'Browse as Guest',
+                  style: TextStyle(color: Colors.black87, fontSize: 11),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSearchField() {
+    return TextField(
+      controller: _searchController,
+      decoration: InputDecoration(
+        hintText: 'Search suburb or location...',
+        hintStyle: const TextStyle(fontSize: 14, color: Colors.grey),
+        prefixIcon: const Icon(Icons.location_on_outlined, color: AppColors.primaryRust),
+        fillColor: Colors.white,
+        filled: true,
+        contentPadding: const EdgeInsets.symmetric(vertical: 14),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey.shade300),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.primaryRust, width: 1.5),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFilters() {
+    return SizedBox(
+      height: 36,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: _filterTags.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          final tag = _filterTags[index];
+          final isSelected = _selectedFilter == tag;
+          return GestureDetector(
+            onTap: () => setState(() => _selectedFilter = tag),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: isSelected ? Colors.black87 : Colors.grey.shade200,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                tag,
+                style: TextStyle(
+                  color: isSelected ? Colors.white : Colors.black87,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _avatarPlaceholder() {
+    return Container(
+      color: Colors.grey.shade300,
+      child: const Icon(Icons.person, color: Colors.grey, size: 36),
+    );
+  }
+
+  Widget _buildSitterCard(SitterListing sitter) {
+    final isSaved = _favoriteSitterIds.contains(sitter.id);
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: InkWell(
+        onTap: () => _open(const SitterDetailScreen()),
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.grey.shade200),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: SizedBox(
+                          width: 60,
+                          height: 60,
+                          child: sitter.imageUrl != null
+                              ? Image.network(
+                                  sitter.imageUrl!,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, _, _) => _avatarPlaceholder(),
+                                )
+                              : _avatarPlaceholder(),
+                        ),
+                      ),
+                      const Positioned(
+                        bottom: -4,
+                        right: -4,
+                        child: CircleAvatar(
+                          radius: 10,
+                          backgroundColor: AppColors.primaryRust,
+                          child: Icon(Icons.check, color: Colors.white, size: 12),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Flexible(
+                              child: Text(
+                                sitter.name,
+                                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            RichText(
+                              text: TextSpan(
+                                children: [
+                                  TextSpan(
+                                    text: 'R${sitter.nightRate.toStringAsFixed(0)}',
+                                    style: const TextStyle(
+                                        color: Colors.black, fontSize: 16, fontWeight: FontWeight.bold),
+                                  ),
+                                  const TextSpan(
+                                    text: ' / nt',
+                                    style: TextStyle(color: Colors.black54, fontSize: 12),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            const Icon(Icons.location_on_outlined,
+                                color: AppColors.primaryRust, size: 14),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                sitter.suburb,
+                                style: const TextStyle(color: Colors.black54, fontSize: 12),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            const Icon(Icons.star_rounded, color: AppColors.primaryRust, size: 14),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${sitter.rating} (${sitter.totalReviews})',
+                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: sitter.completedChecks.map((label) {
+                  return Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.lightRustBg,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.shield_outlined, color: AppColors.primaryRust, size: 12),
+                        const SizedBox(width: 4),
+                        Text(
+                          label,
+                          style: const TextStyle(
+                            color: AppColors.primaryRust,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () => _open(const DirectChatScreen()),
+                      icon: const Icon(Icons.chat_bubble_outline, color: Colors.white, size: 16),
+                      label: const Text('Message', style: TextStyle(color: Colors.white, fontSize: 13)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.black87,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: _isGuestBrowsing
+                          ? () => _showSnack(
+                              'Booking is disabled in Guest Mode. Complete verification to book!')
+                          : () => _open(const BookingFlowScreen()),
+                      icon: const Icon(Icons.calendar_month, color: Colors.white, size: 16),
+                      label: const Text('Book', style: TextStyle(color: Colors.white, fontSize: 13)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primaryRust,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: IconButton(
+                      icon: Icon(
+                        isSaved ? Icons.favorite : Icons.favorite_border,
+                        color: isSaved ? AppColors.primaryRust : Colors.black87,
+                      ),
+                      onPressed: () => _toggleFavorite(sitter.id),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
