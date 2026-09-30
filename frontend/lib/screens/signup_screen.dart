@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/auth_services.dart';
 import 'login_screen.dart';
+import '../theme/app_colors.dart';
 
 class SignupScreen extends StatefulWidget {
   final String selectedRole;
@@ -97,12 +98,12 @@ class _SignupScreenState extends State<SignupScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const backgroundColor = Color(0xFFF8FAFC);
+    const backgroundColor = AppColors.background;
     const cardColor = Colors.white;
-    const primaryDark = Color(0xFF0F172A);
-    const subtextColor = Color(0xFF64748B);
-    const inputFillColor = Color(0xFFF1F5F9);
-    const borderColor = Color(0xFFE2E8F0);
+    const primaryDark = AppColors.darkText;
+    const subtextColor = Colors.black54;
+    const inputFillColor = AppColors.expandButtonBg;
+    const borderColor = Color(0xFFEEEEEE);
 
     return Scaffold(
       backgroundColor: backgroundColor,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'signup_screen.dart';
 import 'login_screen.dart';
+import '../theme/app_colors.dart';
 
 
 class RoleSelectScreen extends StatelessWidget {
@@ -24,10 +25,10 @@ class RoleSelectScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const backgroundColor = Color(0xFFF8FAFC);
-    const primaryDark = Color(0xFF0F172A);
-    const cardBorderColor = Color(0xFFE2E8F0);
-    const subtextColor = Color(0xFF64748B);
+    const backgroundColor = AppColors.background;
+    const primaryDark = AppColors.darkText;
+    const cardBorderColor = Color(0xFFEEEEEE);
+    const subtextColor = Colors.black54;
 
     return Scaffold(
       backgroundColor: backgroundColor,
