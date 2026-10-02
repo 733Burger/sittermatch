@@ -14,7 +14,8 @@ class SignupScreen extends StatefulWidget {
 
 class _SignupScreenState extends State<SignupScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _fullNameController = TextEditingController();
+  final _firstNameController = TextEditingController();
+  final _lastNameController = TextEditingController();
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -28,7 +29,8 @@ class _SignupScreenState extends State<SignupScreen> {
 
   @override
   void dispose() {
-    _fullNameController.dispose();
+    _firstNameController.dispose();
+    _lastNameController.dispose();
     _emailController.dispose();
     _phoneController.dispose();
     _passwordController.dispose();
@@ -36,19 +38,15 @@ class _SignupScreenState extends State<SignupScreen> {
     super.dispose();
   }
 
-  /// Helper to convert UI display roles to exact backend string expected by Spring Boot
+  /// Helper class to ensure the role selected by the user is correctly formatted for backend API calls.
   String _getBackendRole(String displayRole) {
-    final lower = displayRole.toLowerCase();
-    if (lower.contains('sitter')) {
-      return 'SITTER';
-    }
-    return 'HOMEOWNER';
+    return displayRole.toUpperCase() == 'SITTER' ? 'SITTER' : 'HOMEOWNER';
   }
 
   Future<void> _handleSignup() async {
     if (!_formKey.currentState!.validate()) return;
 
-    // Clear focus from keyboard
+    // Clear focus from keyboard 
     FocusScope.of(context).unfocus();
 
     setState(() {
@@ -58,7 +56,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
     try {
       final result = await _authService.signup(
-        fullName: _fullNameController.text.trim(),
+        fullName: '${_firstNameController.text.trim()} ${_lastNameController.text.trim()}',
         email: _emailController.text.trim(),
         phoneNumber: _phoneController.text.trim(),
         password: _passwordController.text,
@@ -78,7 +76,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(
-            builder: (_) => LoginScreen(selectedRole: widget.selectedRole),
+            builder: (_) => LoginScreen(),
           ),
           (route) => false,
         );
@@ -194,32 +192,77 @@ class _SignupScreenState extends State<SignupScreen> {
                         ),
                         const SizedBox(height: 18),
 
-                        // Full Name
-                        const Text(
-                          'Full Name:',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 13,
-                            color: primaryDark,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        TextFormField(
-                          controller: _fullNameController,
-                          textInputAction: TextInputAction.next,
-                          decoration: InputDecoration(
-                            hintText: 'Enter your full name...',
-                            hintStyle: const TextStyle(color: subtextColor, fontSize: 14),
-                            fillColor: inputFillColor,
-                            filled: true,
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide: BorderSide.none,
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'First Name:',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 13,
+                                      color: primaryDark,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  TextFormField(
+                                    controller: _firstNameController,
+                                    textInputAction: TextInputAction.next,
+                                    decoration: InputDecoration(
+                                      hintText: 'First name...',
+                                      hintStyle: const TextStyle(color: subtextColor, fontSize: 14),
+                                      fillColor: inputFillColor,
+                                      filled: true,
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                        borderSide: BorderSide.none,
+                                      ),
+                                    ),
+                                    validator: (v) => (v == null || v.trim().isEmpty)
+                                        ? 'First name is required'
+                                        : null,
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                          validator: (v) => (v == null || v.trim().isEmpty)
-                              ? 'Full name is required'
-                              : null,
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Last Name:',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 13,
+                                      color: primaryDark,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  TextFormField(
+                                    controller: _lastNameController,
+                                    textInputAction: TextInputAction.next,
+                                    decoration: InputDecoration(
+                                      hintText: 'Last name...',
+                                      hintStyle: const TextStyle(color: subtextColor, fontSize: 14),
+                                      fillColor: inputFillColor,
+                                      filled: true,
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                        borderSide: BorderSide.none,
+                                      ),
+                                    ),
+                                    validator: (v) => (v == null || v.trim().isEmpty)
+                                        ? 'Second name is required'
+                                        : null,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
                         const SizedBox(height: 14),
 
@@ -433,7 +476,7 @@ class _SignupScreenState extends State<SignupScreen> {
                         ? null
                         : () => Navigator.of(context).pushReplacement(
                               MaterialPageRoute(
-                                builder: (_) => LoginScreen(selectedRole: widget.selectedRole),
+                                builder: (_) => LoginScreen(),
                               ),
                             ),
                     child: const Text(
