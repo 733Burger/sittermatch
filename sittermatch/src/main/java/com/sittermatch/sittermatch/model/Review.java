@@ -1,6 +1,7 @@
 package com.sittermatch.sittermatch.model;
 
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -29,22 +30,30 @@ public class Review {
     @JoinColumn(name = "homeowner_id")
     private Homeowner homeowner;
 
+    @Column(name = "reviewed_by", nullable = false)
+    private String reviewedBy; // Added mapping for reviewed_by column
+
     private Integer rating;
     private String comments;
     private String status;
 
     public Review() {}
 
-    public Review(Integer id, Booking booking, Sitter sitter, Homeowner homeowner, Integer rating, String comments,
-            String status) {
+    
+
+    public Review(Integer id, Booking booking, Sitter sitter, Homeowner homeowner, String reviewedBy, Integer rating,
+            String comments, String status) {
         this.id = id;
         this.booking = booking;
         this.sitter = sitter;
         this.homeowner = homeowner;
+        this.reviewedBy = reviewedBy;
         this.rating = rating;
         this.comments = comments;
         this.status = status;
     }
+
+
 
     public Integer getId() {
         return id;
@@ -100,6 +109,14 @@ public class Review {
 
     public void setStatus(String status) {
         this.status = status;
+    }
+
+    public String getReviewedBy() {
+        return reviewedBy;
+    }
+
+    public void setReviewedBy(String reviewedBy) {
+        this.reviewedBy = reviewedBy;
     }
 
     

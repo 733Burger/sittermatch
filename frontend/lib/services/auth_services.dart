@@ -107,8 +107,17 @@ class AuthService {
 
       if (response.statusCode == 200 && json['success'] == true) {
         await saveSession(email, json['role'] ?? '');
+  
+        // Save user/sitter ID to SharedPreferences so SitterHomeScreen can read it
+        final prefs = await SharedPreferences.getInstance();
+        if (json['userId'] != null) {
+          await prefs.setInt('userId', json['userId']);
+        } else if (json['id'] != null) {
+          await prefs.setInt('userId', json['id']);
+        }
+
         return {'success': true, 'message': json['message'], 'role': json['role']};
-      } else {
+      }else {
         return {'success': false, 'message': json['message'] ?? 'Login failed.'};
       }
     } catch (e) {
