@@ -14,9 +14,7 @@ import com.sittermatch.sittermatch.model.Listing;
 import com.sittermatch.sittermatch.model.Message;
 import com.sittermatch.sittermatch.model.Pet;
 import com.sittermatch.sittermatch.model.PetReview;
-import com.sittermatch.sittermatch.model.PetType;
 import com.sittermatch.sittermatch.model.Review;
-import com.sittermatch.sittermatch.model.ServiceType;
 import com.sittermatch.sittermatch.model.Sitter;
 import com.sittermatch.sittermatch.model.User;
 import com.sittermatch.sittermatch.repositories.BookingRepository;
@@ -123,7 +121,7 @@ public ResponseEntity<String> seedDatabase() {
     bookingRepository.save(booking);
 
     // 7. Create Review
-    Review review = new Review(null, booking, sitter, homeowner, 5, "Good experience", "PUBLISHED");
+    Review review = new Review(null, booking, sitter, homeowner, "sitter", 5, "Good experience", "PUBLISHED");
     reviewRepository.save(review);
 
     // 8. Create Pet Review

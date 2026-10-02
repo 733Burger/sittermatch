@@ -16,7 +16,8 @@ public class SitterCheck {
     @Column(nullable = false, length = 50)
     private String type;
 
-    @Column(name = "references", columnDefinition = "TEXT")
+    // ESCAPED RESERVED WORD WITH BACKTICKS
+    @Column(name = "`references`", columnDefinition = "TEXT")
     private String references;
 
     @Column(name = "id_photo", length = 500)

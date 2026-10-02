@@ -41,7 +41,7 @@ public class AuthService {
         Optional<User> found = userRepository.findByEmailIgnoreCase(request.email().trim());
 
         if (found.isEmpty() || !passwordEncoder.matches(request.password(), found.get().getPassword())) {
-            return new LoginResponse(false, "Incorrect email or password", null, null);
+            return new LoginResponse(false, "Incorrect email or password", null, null, null);
         }
 
         User user = found.get();
@@ -49,7 +49,8 @@ public class AuthService {
             true, 
             "Login successful. Welcome, " + user.getName() + "!", 
             user.getActiveRole(), 
-            user.getEmail()
+            user.getEmail(),
+            user.getId() 
         );
     }
 
