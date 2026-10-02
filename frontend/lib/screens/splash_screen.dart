@@ -28,7 +28,7 @@ class _SplashScreenState extends State<SplashScreen> {
       final isValidSession = await _authService.validateSession();
 
       if (isValidSession) {
-        final role = await _authService.getUserRole();
+        final role = (await _authService.getUserRole() ?? '').toUpperCase();
         if (role == 'SITTER') {
           onLoadDestination = const SitterHomeScreen();
         } else if (role == 'HOMEOWNER') {

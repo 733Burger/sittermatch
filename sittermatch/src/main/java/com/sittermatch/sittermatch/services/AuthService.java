@@ -10,9 +10,13 @@ import com.sittermatch.sittermatch.model.User;
 import com.sittermatch.sittermatch.repositories.HomeownerRepository;
 import com.sittermatch.sittermatch.repositories.SitterRepository;
 import com.sittermatch.sittermatch.repositories.UserRepository;
+
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.interceptor.TransactionAspectSupport;
+
 import java.time.LocalDateTime;
 import java.util.Optional;
 
@@ -85,9 +89,14 @@ public class AuthService {
                 homeownerRepository.save(homeowner);
             }
 
-            return new SignupResponse(true, "Registration successful!");
+            userRepository.flush();
 
+            return new SignupResponse(true, "Registration successful!");
+        } catch (DuplicateKeyException e) {
+            TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
+            return new SignupResponse(false, "An account with this email already exists.");
         } catch (Exception e) {
+            TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
             return new SignupResponse(false, "An error occurred during registration: " + e.getMessage());
         }
     }
