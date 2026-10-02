@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:frontend/screens/login_screen.dart';
 import '../services/auth_services.dart';
 import '../theme/app_colors.dart';
-import 'role_select_screen.dart';
 import 'bookings_dashboard_screen.dart';
 import 'direct_chat_screen.dart';
 

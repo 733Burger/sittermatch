@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:frontend/screens/login_screen.dart';
 import '../services/auth_services.dart';
 import '../theme/app_colors.dart';
-import 'role_select_screen.dart';
 import 'bookings_dashboard_screen.dart';
 import 'saved_sitters_screen.dart';
 import 'direct_chat_screen.dart';
 import 'sitter_detail_screen.dart';
 import 'booking_flow_screen.dart';
+import '../services/home_services.dart';
 
 class SitterListing {
   final int id;
@@ -41,11 +41,13 @@ class OwnerHomeScreen extends StatefulWidget {
 class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   bool _isGuestBrowsing = false;
-  String _email = '';
 
-  String _homeownerAddress = '12 Main Road, Rondebosch';
-  String _emergencyContact = '+27 82 123 4567';
+  bool _loading = false;
+  String _email = '';
+  String _homeownerAddress = '';
+  String _emergencyContact = '';
   String? _idPhotoPath;
+  String _selectedFilter = 'All';
 
   // 'completed', 'pending' or 'incomplete'. Replace with DB checks later.
   String _idCheckStatus = 'incomplete';
@@ -54,7 +56,6 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
 
   final Set<int> _favoriteSitterIds = {101};
   final TextEditingController _searchController = TextEditingController();
-  String _selectedFilter = 'All';
 
   final List<String> _filterTags = [
     'All',
@@ -100,13 +101,27 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
   @override
   void initState() {
     super.initState();
-    _loadEmail();
+    _loadData();
   }
 
-  Future<void> _loadEmail() async {
-    final email = await AuthService().getUserEmail();
-    if (!mounted) return;
-    setState(() => _email = email ?? '');
+  Future<void> _loadData() async {
+      final email = await HomeService().getUserEmail();
+      if (!mounted) return;
+
+      if (email == null || email.isEmpty) {
+        setState(() {
+          _email = '';
+          //_clearChecks();
+        });
+        return;
+      }
+
+      setState(() {
+        _email = email;
+      });
+
+      // final result = await HomeService().fetchChecks(email: email);
+      // if (!mounted) return;
   }
 
   @override

@@ -7,7 +7,6 @@ import java.util.List;
 import java.util.Optional;
 
 public interface HomeownerRepository extends JpaRepository<Homeowner, Integer> {
-
     // Find homeowner by the underlying User's email
     Optional<Homeowner> findByUserEmail(String email);
 
