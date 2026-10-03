@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:frontend/screens/login_screen.dart';
 import '../services/auth_services.dart';
 import '../theme/app_colors.dart';
-import 'role_select_screen.dart';
+import 'owner_home_screen.dart';
 import 'bookings_dashboard_screen.dart';
-import 'direct_chat_screen.dart';
+import 'jobs_dashboard_screen.dart';
+import 'messages_screen.dart';
+import 'owner_profile_screen.dart';
+import 'sitter_profile_screen.dart';
 
 class SitterHomeScreen extends StatefulWidget {
   const SitterHomeScreen({super.key});
@@ -15,13 +18,15 @@ class SitterHomeScreen extends StatefulWidget {
 
 class _SitterHomeScreenState extends State<SitterHomeScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  final AuthService _authService = AuthService();
+
   String _email = '';
+  String _userRole = 'SITTER'; // Default fallback
 
   String? _idPhotoPath;
   String? _sapsCertPath;
   String _homeAddress = '';
 
-  // 'completed', 'pending' or 'incomplete'. Replace with DB checks later.
   String _idCheckStatus = 'incomplete';
   String _sapsCheckStatus = 'incomplete';
   String _addressCheckStatus = 'incomplete';
@@ -29,13 +34,17 @@ class _SitterHomeScreenState extends State<SitterHomeScreen> {
   @override
   void initState() {
     super.initState();
-    _loadEmail();
+    _loadUserData();
   }
 
-  Future<void> _loadEmail() async {
-    final email = await AuthService().getUserEmail();
+  Future<void> _loadUserData() async {
+    final email = await _authService.getUserEmail();
+    final role = await _authService.getUserRole();
     if (!mounted) return;
-    setState(() => _email = email ?? '');
+    setState(() {
+      _email = email ?? '';
+      _userRole = (role ?? 'SITTER').toUpperCase();
+    });
   }
 
   void _closeDrawerIfOpen() {
@@ -59,7 +68,7 @@ class _SitterHomeScreenState extends State<SitterHomeScreen> {
   }
 
   Future<void> _signOut() async {
-    await AuthService().clearSession();
+    await _authService.clearSession();
     if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const LoginScreen()),
@@ -209,10 +218,49 @@ class _SitterHomeScreenState extends State<SitterHomeScreen> {
     );
   }
 
+  // ---------- Navigation Routing ----------
+
+  void _handleBottomNavTap(int index) {
+    final isSitter = _userRole == 'SITTER';
+
+    switch (index) {
+      case 0:
+        // HOME
+        if (isSitter) {
+          // Already on Sitter Home Screen
+        } else {
+          _open(const OwnerHomeScreen());
+        }
+        break;
+      case 1:
+        // BOOKINGS / JOBS
+        if (isSitter) {
+          _open(const JobsDashboardScreen());
+        } else {
+          _open(const BookingsDashboardScreen());
+        }
+        break;
+      case 2:
+        // MESSAGES
+        _open(const MessagesScreen());
+        break;
+      case 3:
+        // PROFILE
+        if (isSitter) {
+          _open(const SitterProfileScreen());
+        } else {
+          _open(const OwnerProfileScreen());
+        }
+        break;
+    }
+  }
+
   // ---------- Build ----------
 
   @override
   Widget build(BuildContext context) {
+    final bool isSitter = _userRole == 'SITTER';
+
     return Scaffold(
       key: _scaffoldKey,
       backgroundColor: AppColors.background,
@@ -246,7 +294,7 @@ class _SitterHomeScreenState extends State<SitterHomeScreen> {
           children: [
             UserAccountsDrawerHeader(
               decoration: const BoxDecoration(color: AppColors.primaryRust),
-              accountName: const Text('Sitter'),
+              accountName: Text(isSitter ? 'Sitter' : 'Homeowner'),
               accountEmail: Text(_email),
               currentAccountPicture: const CircleAvatar(
                 backgroundColor: Colors.white,
@@ -256,12 +304,12 @@ class _SitterHomeScreenState extends State<SitterHomeScreen> {
             ListTile(
               leading: const Icon(Icons.person_outline),
               title: const Text('Profile'),
-              onTap: () => _comingSoon('Profile'),
+              onTap: () => _open(isSitter ? const SitterProfileScreen() : const OwnerProfileScreen()),
             ),
             ListTile(
               leading: const Icon(Icons.calendar_today_outlined),
-              title: const Text('My Bookings'),
-              onTap: () => _open(const BookingsDashboardScreen()),
+              title: Text(isSitter ? 'My Jobs' : 'My Bookings'),
+              onTap: () => _open(isSitter ? const JobsDashboardScreen() : const BookingsDashboardScreen()),
             ),
             ListTile(
               leading: const Icon(Icons.settings_outlined),
@@ -362,24 +410,15 @@ class _SitterHomeScreenState extends State<SitterHomeScreen> {
         unselectedItemColor: Colors.grey,
         selectedFontSize: 12,
         unselectedFontSize: 12,
-        onTap: (index) {
-          switch (index) {
-            case 1:
-              _open(const BookingsDashboardScreen());
-              break;
-            case 2:
-              _open(const DirectChatScreen());
-              break;
-            case 3:
-              _comingSoon('Profile');
-              break;
-          }
-        },
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home_outlined), label: 'HOME'),
-          BottomNavigationBarItem(icon: Icon(Icons.calendar_today), label: 'BOOKINGS'),
-          BottomNavigationBarItem(icon: Icon(Icons.chat_bubble_outline), label: 'MESSAGES'),
-          BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: 'PROFILE'),
+        onTap: _handleBottomNavTap,
+        items: [
+          const BottomNavigationBarItem(icon: Icon(Icons.home_outlined), label: 'HOME'),
+          BottomNavigationBarItem(
+            icon: Icon(isSitter ? Icons.work_outline : Icons.calendar_today),
+            label: isSitter ? 'JOBS' : 'BOOKINGS',
+          ),
+          const BottomNavigationBarItem(icon: Icon(Icons.chat_bubble_outline), label: 'MESSAGES'),
+          const BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: 'PROFILE'),
         ],
       ),
     );

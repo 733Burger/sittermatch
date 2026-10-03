@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../models/saved_sitter_model.dart';
 import '../services/saved_sitter_service.dart';
-import 'direct_chat_screen.dart';
+import 'messages_screen.dart';
 import 'bookings_dashboard_screen.dart';
+import 'owner_home_screen.dart';
+import 'owner_profile_screen.dart';
+import 'direct_chat_screen.dart';
 
 class SavedSittersScreen extends StatefulWidget {
   const SavedSittersScreen({super.key});
@@ -199,7 +202,7 @@ class _SavedSittersScreenState extends State<SavedSittersScreen> {
                         children: [
                           const Icon(Icons.shield_outlined, color: AppColors.primaryRust, size: 12),
                           const SizedBox(width: 4),
-                          Text(sitter.verficationBadge, style: const TextStyle(color: AppColors.primaryRust, fontSize: 10, fontWeight: FontWeight.bold)),
+                          Text(sitter.verificationBadge, style: const TextStyle(color: AppColors.primaryRust, fontSize: 10, fontWeight: FontWeight.bold)),
                         ],
                       ),
                     ),
@@ -289,7 +292,9 @@ class _SavedSittersScreenState extends State<SavedSittersScreen> {
         if (index == 1) {
           Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const BookingsDashboardScreen()));
         } else if (index == 2) {
-          Navigator.push(context, MaterialPageRoute(builder: (context) => const DirectChatScreen()));
+          Navigator.push(context, MaterialPageRoute(builder: (context) => const MessagesScreen()));
+        }else if (index == 3) {
+          Navigator.push(context, MaterialPageRoute(builder: (context) => const OwnerProfileScreen()));
         }
       },
       items: const [
