@@ -2,7 +2,7 @@ class SavedSitterModel {
   final String id;
   final String name;
   final String location;
-  final String verficationBadge;
+  final String verificationBadge;
   final int price;
   final double rating;
   final String bioSnippet;
@@ -15,7 +15,7 @@ SavedSitterModel({
     required this.name,
     required this.price,
     required this.location,
-    required this.verficationBadge,
+    required this.verificationBadge,
     required this.rating,
     required this.reviewCount,
     required this.bioSnippet,

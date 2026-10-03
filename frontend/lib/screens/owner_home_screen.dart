@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/screens/login_screen.dart';
 import '../services/auth_services.dart';
+import '../services/home_services.dart';
 import '../theme/app_colors.dart';
 import 'bookings_dashboard_screen.dart';
 import 'saved_sitters_screen.dart';
 import 'direct_chat_screen.dart';
 import 'sitter_detail_screen.dart';
 import 'booking_flow_screen.dart';
-import '../services/home_services.dart';
+import 'messages_screen.dart';
+import 'owner_profile_screen.dart';
 
 class SitterListing {
   final int id;
@@ -41,18 +43,25 @@ class OwnerHomeScreen extends StatefulWidget {
 class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   bool _isGuestBrowsing = false;
-
+  bool _checksExpanded = false; // checks dropdown starts closed
   bool _loading = false;
   String _email = '';
-  String _homeownerAddress = '';
-  String _emergencyContact = '';
+
+  String _homeownerAddress = '12 Main Road, Rondebosch';
+  String _emergencyContact = '+27 82 123 4567';
   String? _idPhotoPath;
   String _selectedFilter = 'All';
 
-  // 'completed', 'pending' or 'incomplete'. Replace with DB checks later.
+  // 'completed', 'pending' or 'incomplete' statuses
   String _idCheckStatus = 'incomplete';
   String _addressCheckStatus = 'completed';
   String _emergencyCheckStatus = 'pending';
+
+  int get _completedChecks => [
+        _idCheckStatus,
+        _addressCheckStatus,
+        _emergencyCheckStatus,
+      ].where((s) => s == 'completed').length;
 
   final Set<int> _favoriteSitterIds = {101};
   final TextEditingController _searchController = TextEditingController();
@@ -105,23 +114,22 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
   }
 
   Future<void> _loadData() async {
-      final email = await HomeService().getUserEmail();
-      if (!mounted) return;
+    setState(() => _loading = true);
+    final email = await HomeService().getUserEmail();
+    if (!mounted) return;
 
-      if (email == null || email.isEmpty) {
-        setState(() {
-          _email = '';
-          //_clearChecks();
-        });
-        return;
-      }
-
+    if (email == null || email.isEmpty) {
       setState(() {
-        _email = email;
+        _email = '';
+        _loading = false;
       });
+      return;
+    }
 
-      // final result = await HomeService().fetchChecks(email: email);
-      // if (!mounted) return;
+    setState(() {
+      _email = email;
+      _loading = false;
+    });
   }
 
   @override
@@ -165,6 +173,25 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
 
   void _showSnack(String message) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  // ---------- Footer navigation ----------
+
+  void _handleBottomNavTap(int index) {
+    switch (index) {
+      case 0:
+        // Already on Home
+        break;
+      case 1:
+        _open(const BookingsDashboardScreen());
+        break;
+      case 2:
+        _open(const MessagesScreen());
+        break;
+      case 3:
+        _open(const OwnerProfileScreen());
+        break;
+    }
   }
 
   // ---------- Dialogs ----------
@@ -333,6 +360,10 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.black),
+        leading: IconButton(
+          icon: const Icon(Icons.menu, color: Colors.black),
+          onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+        ),
         title: const Row(
           children: [
             Icon(Icons.pets, color: AppColors.primaryRust),
@@ -368,7 +399,7 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
             ListTile(
               leading: const Icon(Icons.person_outline),
               title: const Text('Profile'),
-              onTap: () => _comingSoon('Profile'),
+              onTap: () => _open(const OwnerProfileScreen()),
             ),
             ListTile(
               leading: const Icon(Icons.calendar_today_outlined),
@@ -403,11 +434,6 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Complete Your\nHomeowner Profile',
-              style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, height: 1.1),
-            ),
-            const SizedBox(height: 16),
             _buildChecksCard(),
             const SizedBox(height: 24),
             _buildSearchField(),
@@ -432,19 +458,7 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
         unselectedItemColor: Colors.grey,
         selectedFontSize: 12,
         unselectedFontSize: 12,
-        onTap: (index) {
-          switch (index) {
-            case 1:
-              _open(const BookingsDashboardScreen());
-              break;
-            case 2:
-              _open(const DirectChatScreen());
-              break;
-            case 3:
-              _comingSoon('Profile');
-              break;
-          }
-        },
+        onTap: _handleBottomNavTap,
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home_outlined), label: 'HOME'),
           BottomNavigationBarItem(icon: Icon(Icons.calendar_today), label: 'BOOKINGS'),
@@ -463,83 +477,129 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
   }
 
   Widget _buildChecksCard() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
+    return Material(
+      color: Colors.white,
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
+        side: BorderSide(color: Colors.grey.shade200),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
-            children: [
-              Icon(Icons.warning_amber_rounded, color: AppColors.primaryRust, size: 22),
-              SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Complete your outstanding checks to start booking sitters.',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black87),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          const Divider(height: 1),
-          const SizedBox(height: 12),
-          _buildCheckTile(
-            title: 'Identity / SA ID Verification',
-            subtitle: _idPhotoPath == null ? 'No ID uploaded' : 'ID uploaded',
-            status: _idCheckStatus,
-            onTap: _openIdentityCheckDialog,
-          ),
-          _buildCheckTile(
-            title: 'Home Address / Proof of Residence',
-            subtitle: _homeownerAddress,
-            status: _addressCheckStatus,
-            onTap: _openAddressCheckDialog,
-          ),
-          _buildCheckTile(
-            title: 'Emergency Contact Details',
-            subtitle: _emergencyContact,
-            status: _emergencyCheckStatus,
-            onTap: _openEmergencyContactDialog,
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.black87,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
+          InkWell(
+            onTap: () => setState(() => _checksExpanded = !_checksExpanded),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  const Icon(Icons.warning_amber_rounded,
+                      color: AppColors.primaryRust, size: 22),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Complete your profile',
+                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '$_completedChecks of 3 checks complete',
+                          style: const TextStyle(fontSize: 12, color: Colors.black54),
+                        ),
+                      ],
+                    ),
                   ),
-                  onPressed: _openSubmitDetailsModal,
-                  child: const Text(
-                    'Submit Documents / Details',
-                    style: TextStyle(color: Colors.white, fontSize: 11),
+                  AnimatedRotation(
+                    turns: _checksExpanded ? 0.5 : 0,
+                    duration: const Duration(milliseconds: 200),
+                    child: const Icon(Icons.keyboard_arrow_down, color: Colors.black54),
                   ),
-                ),
+                ],
               ),
-              const SizedBox(width: 8),
-              OutlinedButton(
-                style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: Colors.black87),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
-                ),
-                onPressed: () {
-                  setState(() => _isGuestBrowsing = true);
-                  _showSnack('Guest Browsing Active: Booking functions disabled until verified.');
-                },
-                child: const Text(
-                  'Browse as Guest',
-                  style: TextStyle(color: Colors.black87, fontSize: 11),
-                ),
-              ),
-            ],
+            ),
+          ),
+          AnimatedSize(
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeInOut,
+            alignment: Alignment.topCenter,
+            child: _checksExpanded
+                ? Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Divider(height: 1),
+                        const SizedBox(height: 12),
+                        const Text(
+                          'Complete your outstanding checks to start booking sitters.',
+                          style: TextStyle(
+                              fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black87),
+                        ),
+                        const SizedBox(height: 8),
+                        _buildCheckTile(
+                          title: 'Identity / SA ID Verification',
+                          subtitle: _idPhotoPath == null ? 'No ID uploaded' : 'ID uploaded',
+                          status: _idCheckStatus,
+                          onTap: _openIdentityCheckDialog,
+                        ),
+                        _buildCheckTile(
+                          title: 'Home Address / Proof of Residence',
+                          subtitle: _homeownerAddress,
+                          status: _addressCheckStatus,
+                          onTap: _openAddressCheckDialog,
+                        ),
+                        _buildCheckTile(
+                          title: 'Emergency Contact Details',
+                          subtitle: _emergencyContact,
+                          status: _emergencyCheckStatus,
+                          onTap: _openEmergencyContactDialog,
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.black87,
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8)),
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                ),
+                                onPressed: _openSubmitDetailsModal,
+                                child: const Text(
+                                  'Submit Documents / Details',
+                                  style: TextStyle(color: Colors.white, fontSize: 11),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            OutlinedButton(
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(color: Colors.black87),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8)),
+                                padding: const EdgeInsets.symmetric(
+                                    vertical: 12, horizontal: 10),
+                              ),
+                              onPressed: () {
+                                setState(() => _isGuestBrowsing = true);
+                                _showSnack(
+                                    'Guest Browsing Active: Booking functions disabled until verified.');
+                              },
+                              child: const Text(
+                                'Browse as Guest',
+                                style: TextStyle(color: Colors.black87, fontSize: 11),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  )
+                : const SizedBox(width: double.infinity),
           ),
         ],
       ),
@@ -678,7 +738,9 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
                                   TextSpan(
                                     text: 'R${sitter.nightRate.toStringAsFixed(0)}',
                                     style: const TextStyle(
-                                        color: Colors.black, fontSize: 16, fontWeight: FontWeight.bold),
+                                        color: Colors.black,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold),
                                   ),
                                   const TextSpan(
                                     text: ' / nt',
@@ -706,7 +768,8 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
                         const SizedBox(height: 4),
                         Row(
                           children: [
-                            const Icon(Icons.star_rounded, color: AppColors.primaryRust, size: 14),
+                            const Icon(Icons.star_rounded,
+                                color: AppColors.primaryRust, size: 14),
                             const SizedBox(width: 4),
                             Text(
                               '${sitter.rating} (${sitter.totalReviews})',
@@ -720,42 +783,14 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
                 ],
               ),
               const SizedBox(height: 12),
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: sitter.completedChecks.map((label) {
-                  return Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppColors.lightRustBg,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.shield_outlined, color: AppColors.primaryRust, size: 12),
-                        const SizedBox(width: 4),
-                        Text(
-                          label,
-                          style: const TextStyle(
-                            color: AppColors.primaryRust,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 12),
               Row(
                 children: [
                   Expanded(
                     child: ElevatedButton.icon(
                       onPressed: () => _open(const DirectChatScreen()),
                       icon: const Icon(Icons.chat_bubble_outline, color: Colors.white, size: 16),
-                      label: const Text('Message', style: TextStyle(color: Colors.white, fontSize: 13)),
+                      label: const Text('Message',
+                          style: TextStyle(color: Colors.white, fontSize: 13)),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.black87,
                         padding: const EdgeInsets.symmetric(vertical: 12),
@@ -771,7 +806,8 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
                               'Booking is disabled in Guest Mode. Complete verification to book!')
                           : () => _open(const BookingFlowScreen()),
                       icon: const Icon(Icons.calendar_month, color: Colors.white, size: 16),
-                      label: const Text('Book', style: TextStyle(color: Colors.white, fontSize: 13)),
+                      label: const Text('Book',
+                          style: TextStyle(color: Colors.white, fontSize: 13)),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primaryRust,
                         padding: const EdgeInsets.symmetric(vertical: 12),

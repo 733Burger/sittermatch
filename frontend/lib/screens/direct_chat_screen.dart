@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../models/chat_model.dart';
 import '../services/chat_service.dart';
+import 'sitter_detail_screen.dart';
 
 class DirectChatScreen extends StatefulWidget {
   const DirectChatScreen({super.key});
@@ -13,10 +14,23 @@ class DirectChatScreen extends StatefulWidget {
 class _DirectChatScreenState extends State<DirectChatScreen> {
   late Future<List<ChatMessage>> _chatFuture;
 
+  // Sample quote details: (requested service, sitter price).
+  // TODO: replace with the real quote once it comes from the backend.
+  static const List<(String, String)> _requestedServices = [
+    ('Stay over night', 'R320 / night'),
+  ];
+
   @override
   void initState() {
     super.initState();
     _chatFuture = ChatService.getChatThread();
+  }
+
+  void _openSitterDetails() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const SitterDetailScreen()),
+    );
   }
 
   @override
@@ -69,49 +83,58 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
     );
   }
 
+  // The whole profile bar opens the sitter's details.
   Widget _buildContactHeader() {
-    return Container(
+    return Material(
       color: Colors.white,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Row(
-        children: [
-          Stack(
+      child: InkWell(
+        onTap: _openSitterDetails,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
             children: [
-              const CircleAvatar(radius: 24, backgroundImage: NetworkImage('https://i.pravatar.cc/150?img=44')),
-              Positioned(bottom: 0, right: 0, child: Container(width: 12, height: 12, decoration: BoxDecoration(color: AppColors.primaryRust, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 2)))),
-            ],
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Row(
+              Stack(
+                children: [
+                  const CircleAvatar(
+                    radius: 20,
+                    backgroundImage: NetworkImage('https://i.pravatar.cc/150?img=44'),
+                  ),
+                  Positioned(
+                    bottom: 0,
+                    right: 0,
+                    child: Container(
+                      width: 10,
+                      height: 10,
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryRust,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 1.5),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Lerato Khumalo', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                    SizedBox(width: 4),
-                    Icon(Icons.verified_outlined, color: AppColors.primaryRust, size: 16),
+                    const Row(
+                      children: [
+                        Text('Lerato Khumalo', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                        SizedBox(width: 4),
+                        Icon(Icons.verified_outlined, color: AppColors.primaryRust, size: 14),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Text('Active Sitter • Camps Bay', style: TextStyle(color: Colors.grey.shade600, fontSize: 11)),
                   ],
                 ),
-                const SizedBox(height: 4),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(color: AppColors.lightRustBg, borderRadius: BorderRadius.circular(12)),
-                  child: const Text('• SITTER: IN PROGRESS (OCT 12 – 18)', style: TextStyle(color: AppColors.primaryRust, fontSize: 10, fontWeight: FontWeight.bold)),
-                ),
-              ],
-            ),
+              ),
+              const Icon(Icons.chevron_right, color: Colors.black38),
+            ],
           ),
-          Container(
-            decoration: BoxDecoration(color: AppColors.background, shape: BoxShape.circle),
-            child: IconButton(icon: const Icon(Icons.phone_outlined, size: 20), onPressed: () {}),
-          ),
-          const SizedBox(width: 8),
-          Container(
-            decoration: BoxDecoration(color: AppColors.background, shape: BoxShape.circle),
-            child: IconButton(icon: const Icon(Icons.info_outline, size: 20), onPressed: () {}),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -127,7 +150,7 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
       case ChatMessageType.sent:
         return _buildSentMessage(msg);
       case ChatMessageType.oversight:
-        return _buildOversightWarning();
+        return const SizedBox.shrink(); // oversight block removed
     }
   }
 
@@ -200,31 +223,7 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
             ],
           ),
           const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(8)),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Row(
-                  children: [
-                    Icon(Icons.shield_outlined, color: AppColors.primaryRust, size: 16),
-                    SizedBox(width: 8),
-                    Text('Armed Response Protocol Confirmed', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                const Text('Perimeter beam check scheduled twice daily (06:30 & 19:00). Direct VHF channel with District 4 Watch activated upon agreement.', style: TextStyle(fontSize: 11, color: Colors.black87)),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(child: _buildCheckItem('Daily Vet\nAdministration')),
-                    Expanded(child: _buildCheckItem('Clean Key\nExchange')),
-                  ],
-                )
-              ],
-            ),
-          ),
+          _buildServicesBlock(),
           const SizedBox(height: 16),
           Row(
             children: [
@@ -258,14 +257,59 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
     );
   }
 
-  Widget _buildCheckItem(String text) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Icon(Icons.check_circle_outline, color: AppColors.primaryRust, size: 14),
-        const SizedBox(width: 4),
-        Text(text, style: const TextStyle(fontSize: 11)),
-      ],
+  // Requested services on the left, the sitter's price for each on the right.
+  Widget _buildServicesBlock() {
+    const labelStyle = TextStyle(
+      fontSize: 10,
+      fontWeight: FontWeight.bold,
+      letterSpacing: 0.5,
+      color: Colors.black54,
+    );
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(8)),
+      child: Column(
+        children: [
+          const Row(
+            children: [
+              Expanded(child: Text('REQUESTED SERVICES', style: labelStyle)),
+              Text('SITTER PRICE', style: labelStyle),
+            ],
+          ),
+          const SizedBox(height: 8),
+          const Divider(height: 1),
+          ..._requestedServices.map((item) {
+            return Padding(
+              padding: const EdgeInsets.only(top: 10),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Row(
+                      children: [
+                        const Icon(Icons.check_circle_outline, color: AppColors.primaryRust, size: 14),
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            item.$1,
+                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    item.$2,
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primaryRust),
+                  ),
+                ],
+              ),
+            );
+          }),
+        ],
+      ),
     );
   }
 
@@ -291,7 +335,7 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
                   child: Text(msg.text ?? '', style: const TextStyle(fontSize: 13)),
                 ),
               ),
-              const SizedBox(width: 40), 
+              const SizedBox(width: 40),
             ],
           ),
         ],
@@ -343,38 +387,10 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
     );
   }
 
-  Widget _buildOversightWarning() {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey.shade300)),
-      child: Column(
-        children: [
-          const Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.verified_outlined, color: AppColors.primaryRust, size: 16),
-              SizedBox(width: 8),
-              Text('CONCIERGE PROTOCOL OVERSIGHT', style: TextStyle(color: AppColors.primaryRust, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
-            ],
-          ),
-          const SizedBox(height: 8),
-          const Text('Requires double-agreement and permanent timestamp log on Western Cape Trust Ledger.', textAlign: TextAlign.center, style: TextStyle(fontSize: 11, color: Colors.black87)),
-          const SizedBox(height: 12),
-          TextButton.icon(
-            onPressed: () {},
-            icon: const Icon(Icons.handshake_outlined, color: AppColors.primaryRust, size: 16),
-            label: const Text('Cancel Booking (Mutual Agreement)', style: TextStyle(color: AppColors.primaryRust, fontSize: 12, fontWeight: FontWeight.bold)),
-          )
-        ],
-      ),
-    );
-  }
-
   Widget _buildTag(IconData icon, String label) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(8)),
+      decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(8)),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -391,67 +407,36 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
       color: Colors.white,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       child: SafeArea(
-        child: Column(
+        child: Row(
           children: [
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  _buildActionChip(Icons.link, 'Attach Saved / Search\nBooking'),
-                  const SizedBox(width: 8),
-                  _buildActionChip(Icons.medical_services_outlined, 'Vet\nDossier'),
-                  const SizedBox(width: 8),
-                  _buildActionChip(Icons.lock_outline, 'Alarm\nPINs'),
-                ],
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(color: AppColors.background, shape: BoxShape.circle),
+              child: const Icon(Icons.add, color: Colors.black87, size: 20),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(24), border: Border.all(color: Colors.grey.shade300)),
+                child: const Row(
+                  children: [
+                    Expanded(
+                      child: TextField(decoration: InputDecoration(hintText: 'Type a message...', hintStyle: TextStyle(fontSize: 14), border: InputBorder.none)),
+                    ),
+                    Icon(Icons.mic_none, color: Colors.black54, size: 20),
+                  ],
+                ),
               ),
             ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(color: AppColors.background, shape: BoxShape.circle),
-                  child: const Icon(Icons.add, color: Colors.black87, size: 20),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(24), border: Border.all(color: Colors.grey.shade300)),
-                    child: const Row(
-                      children: [
-                        Expanded(
-                          child: TextField(decoration: InputDecoration(hintText: 'Type a message...', hintStyle: TextStyle(fontSize: 14), border: InputBorder.none)),
-                        ),
-                        Icon(Icons.mic_none, color: Colors.black54, size: 20),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: const BoxDecoration(color: AppColors.primaryRust, shape: BoxShape.circle),
-                  child: const Icon(Icons.send, color: Colors.white, size: 18),
-                ),
-              ],
-            )
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: const BoxDecoration(color: AppColors.primaryRust, shape: BoxShape.circle),
+              child: const Icon(Icons.send, color: Colors.white, size: 18),
+            ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildActionChip(IconData icon, String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(16)),
-      child: Row(
-        children: [
-          Icon(icon, color: AppColors.primaryRust, size: 14),
-          const SizedBox(width: 6),
-          Text(label, textAlign: TextAlign.center, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
-        ],
       ),
     );
   }

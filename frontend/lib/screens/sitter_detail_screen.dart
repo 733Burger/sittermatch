@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../services/sitter_service.dart';
 import 'direct_chat_screen.dart';
+import 'messages_screen.dart';
+import 'owner_profile_screen.dart';
+import 'owner_home_screen.dart';
+import 'bookings_dashboard_screen.dart';
 
 // DATA MODEL
-
 class SitterProfile {
   final String name;
   final String location;
@@ -34,15 +37,105 @@ class SitterDetailScreen extends StatefulWidget {
 }
 
 class _SitterDetailScreenState extends State<SitterDetailScreen> {
+  bool isFavorite = false;
+  bool isReviewsExpanded = false;
+
+  // Detail screen isn't a root tab page, so selected tab state starts unselected (-1)
+  int currentNavIndex = -1;
+
   final SitterProfile sitter = SitterProfile(
     name: 'Lerato Khumalo',
     location: 'Camps Bay, Cape Town',
     rating: 4.95,
     reviewCount: 38,
-    avatarUrl: 'https://i.pravatar.cc/150?img=44', 
+    avatarUrl: 'https://i.pravatar.cc/150?img=44',
     companions: ['Dogs (All Sizes)', 'Cats', 'Senior Dogs', 'Birds & Parrots'],
     yearsExperience: 8,
   );
+
+  void _onBottomNavTapped(int index) {
+    setState(() => currentNavIndex = index);
+
+    Widget targetScreen;
+    switch (index) {
+      case 0:
+        targetScreen = const OwnerHomeScreen();
+        break;
+      case 1:
+        targetScreen = const BookingsDashboardScreen();
+        break;
+      case 2:
+        targetScreen = const MessagesScreen();
+        break;
+      case 3:
+        targetScreen = const OwnerProfileScreen();
+        break;
+      default:
+        return;
+    }
+
+    // Clear detail screen stack and navigate directly to root destination view
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (context) => targetScreen),
+      (route) => false,
+    );
+  }
+
+  void _showMoreOptions() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Wrap(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.share, color: AppColors.darkText),
+                title: const Text('Share Profile'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _shareProfile();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.report_outlined, color: Colors.red),
+                title: const Text('Report Sitter', style: TextStyle(color: Colors.red)),
+                onTap: () {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Report submitted for review.')),
+                  );
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _shareProfile() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Sharing profile for ${sitter.name}...')),
+    );
+  }
+
+  void _toggleFavorite() {
+    setState(() {
+      isFavorite = !isFavorite;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          isFavorite ? 'Added to saved sitters' : 'Removed from saved sitters',
+        ),
+        duration: const Duration(seconds: 1),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -53,20 +146,31 @@ class _SitterDetailScreenState extends State<SitterDetailScreen> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: AppColors.darkText),
-          onPressed: () => Navigator.pop(context), // Interactive Routing
+          onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
           'Sitter Detail',
           style: TextStyle(color: AppColors.darkText, fontWeight: FontWeight.w600),
         ),
         actions: [
-          IconButton(icon: const Icon(Icons.more_vert, color: AppColors.darkText), onPressed: () {}),
-          const Padding(
-            padding: EdgeInsets.only(right: 16.0),
-            child: CircleAvatar(
-              radius: 16,
-              backgroundColor: Color(0xFF8B4513),
-              child: Icon(Icons.person, color: Colors.white, size: 20),
+          IconButton(
+            icon: const Icon(Icons.more_vert, color: AppColors.darkText),
+            onPressed: _showMoreOptions,
+          ),
+          Padding(
+            padding: const EdgeInsets.only(right: 16.0),
+            child: GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const OwnerProfileScreen()),
+                );
+              },
+              child: const CircleAvatar(
+                radius: 16,
+                backgroundColor: Color(0xFF8B4513),
+                child: Icon(Icons.person, color: Colors.white, size: 20),
+              ),
             ),
           ),
         ],
@@ -78,7 +182,7 @@ class _SitterDetailScreenState extends State<SitterDetailScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 10),
-              //  Header Tags
+              // Header Tags
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -94,23 +198,37 @@ class _SitterDetailScreenState extends State<SitterDetailScreen> {
                         SizedBox(width: 4),
                         Text(
                           'VERIFIED ESTATE CARETAKER',
-                          style: TextStyle(color: AppColors.primaryRust, fontSize: 10, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                            color: AppColors.primaryRust,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ],
                     ),
                   ),
-                  const Row(
+                  Row(
                     children: [
-                      CircleAvatar(
-                        backgroundColor: Colors.white,
-                        radius: 18,
-                        child: Icon(Icons.share, color: AppColors.darkText, size: 18),
+                      GestureDetector(
+                        onTap: _shareProfile,
+                        child: const CircleAvatar(
+                          backgroundColor: Colors.white,
+                          radius: 18,
+                          child: Icon(Icons.share, color: AppColors.darkText, size: 18),
+                        ),
                       ),
-                      SizedBox(width: 8),
-                      CircleAvatar(
-                        backgroundColor: Colors.white,
-                        radius: 18,
-                        child: Icon(Icons.favorite_border, color: AppColors.darkText, size: 18),
+                      const SizedBox(width: 8),
+                      GestureDetector(
+                        onTap: _toggleFavorite,
+                        child: CircleAvatar(
+                          backgroundColor: Colors.white,
+                          radius: 18,
+                          child: Icon(
+                            isFavorite ? Icons.favorite : Icons.favorite_border,
+                            color: isFavorite ? Colors.red : AppColors.darkText,
+                            size: 18,
+                          ),
+                        ),
                       ),
                     ],
                   )
@@ -118,7 +236,7 @@ class _SitterDetailScreenState extends State<SitterDetailScreen> {
               ),
               const SizedBox(height: 20),
 
-              //Profile Info
+              // Profile Info
               Row(
                 children: [
                   Stack(
@@ -143,7 +261,14 @@ class _SitterDetailScreenState extends State<SitterDetailScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(sitter.name, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.darkText)),
+                        Text(
+                          sitter.name,
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.darkText,
+                          ),
+                        ),
                         const SizedBox(height: 4),
                         Row(
                           children: [
@@ -159,7 +284,10 @@ class _SitterDetailScreenState extends State<SitterDetailScreen> {
                             const SizedBox(width: 4),
                             Text(
                               '${sitter.rating}  (${sitter.reviewCount} verified reviews)',
-                              style: TextStyle(color: AppColors.darkText.withValues(alpha: 0.7), fontSize: 13),
+                              style: TextStyle(
+                                color: AppColors.darkText.withValues(alpha: 0.7),
+                                fontSize: 13,
+                              ),
                             ),
                           ],
                         )
@@ -180,8 +308,16 @@ class _SitterDetailScreenState extends State<SitterDetailScreen> {
               ),
               const SizedBox(height: 30),
 
-              // Companion
-              Text('ACCEPTED COMPANIONS', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.darkText.withValues(alpha: 0.6), letterSpacing: 1.1)),
+              // Companions
+              Text(
+                'ACCEPTED COMPANIONS',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.darkText.withValues(alpha: 0.6),
+                  letterSpacing: 1.1,
+                ),
+              ),
               const SizedBox(height: 12),
               Wrap(
                 spacing: 8,
@@ -190,7 +326,7 @@ class _SitterDetailScreenState extends State<SitterDetailScreen> {
               ),
               const SizedBox(height: 30),
 
-              //Security & Mastery
+              // Security & Mastery
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
@@ -206,15 +342,25 @@ class _SitterDetailScreenState extends State<SitterDetailScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text('Security & High-Care Mastery', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.darkText)),
-                              Text('Cape Town Residential Protocols', style: TextStyle(fontSize: 13, color: AppColors.darkText.withValues(alpha: 0.6))),
+                              const Text(
+                                'Security & High-Care Mastery',
+                                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.darkText),
+                              ),
+                              Text(
+                                'Cape Town Residential Protocols',
+                                style: TextStyle(fontSize: 13, color: AppColors.darkText.withValues(alpha: 0.6)),
+                              ),
                             ],
                           ),
                         ),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(color: AppColors.primaryRust, borderRadius: BorderRadius.circular(4)),
-                          child: Text('${sitter.yearsExperience}+ YRS\nEXP', textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                          child: Text(
+                            '${sitter.yearsExperience}+ YRS\nEXP',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                          ),
                         )
                       ],
                     ),
@@ -254,12 +400,12 @@ class _SitterDetailScreenState extends State<SitterDetailScreen> {
               ),
               const SizedBox(height: 16),
               _buildServiceRow(Icons.home_outlined, 'Overnight House & Pet Sitting', 'Continuous overnight care & perim...', 'R320', '/ night'),
-              _buildServiceRow(Icons.access_time, 'Drop-In & Feeding Visits', 'Fresh water, medication, meal routi...', 'R160', '/ visit'),
+              _buildServiceRow(Icons.access_time, 'Drop-In & Feeding Visits', 'Fresh water, medication, meal routines...', 'R160', '/ visit'),
               _buildServiceRow(Icons.directions_walk, 'Dog Walking (Beach & Mountain)', 'Camps Bay tidal runs & Pipe Track tr...', 'R120', '/ hour'),
               _buildServiceRow(Icons.local_florist_outlined, 'Plant Care & House Managem...', 'Mail, pool check, potted plants ...', 'Included', 'with sitting'),
               const SizedBox(height: 30),
-              
-              //Reviews
+
+              // Reviews
               const Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -282,7 +428,10 @@ class _SitterDetailScreenState extends State<SitterDetailScreen> {
                   children: [
                     Row(
                       children: [
-                        const CircleAvatar(backgroundColor: AppColors.lightRustBg, child: Text('MS', style: TextStyle(color: AppColors.primaryRust, fontWeight: FontWeight.bold))),
+                        const CircleAvatar(
+                          backgroundColor: AppColors.lightRustBg,
+                          child: Text('MS', style: TextStyle(color: AppColors.primaryRust, fontWeight: FontWeight.bold)),
+                        ),
                         const SizedBox(width: 12),
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -292,7 +441,7 @@ class _SitterDetailScreenState extends State<SitterDetailScreen> {
                           ],
                         ),
                         const Spacer(),
-                        Row(children: List.generate(5, (index) => const Icon(Icons.star_border, color: AppColors.primaryRust, size: 16))),
+                        Row(children: List.generate(5, (index) => const Icon(Icons.star, color: AppColors.primaryRust, size: 16))),
                       ],
                     ),
                     const SizedBox(height: 16),
@@ -320,20 +469,33 @@ class _SitterDetailScreenState extends State<SitterDetailScreen> {
               SizedBox(
                 width: double.infinity,
                 child: TextButton(
-                  style: TextButton.styleFrom(backgroundColor: AppColors.expandButtonBg, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
-                  onPressed: () {},
-                  child: const Row(
+                  style: TextButton.styleFrom(
+                    backgroundColor: AppColors.expandButtonBg,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      isReviewsExpanded = !isReviewsExpanded;
+                    });
+                  },
+                  child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text('Expand All 38 Reviews', style: TextStyle(color: AppColors.darkText, fontWeight: FontWeight.w600)),
-                      Icon(Icons.keyboard_arrow_down, color: AppColors.darkText),
+                      Text(
+                        isReviewsExpanded ? 'Collapse Reviews' : 'Expand All 38 Reviews',
+                        style: const TextStyle(color: AppColors.darkText, fontWeight: FontWeight.w600),
+                      ),
+                      Icon(
+                        isReviewsExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                        color: AppColors.darkText,
+                      ),
                     ],
                   ),
                 ),
               ),
               const SizedBox(height: 30),
 
-              //Heritage Bond Footer Card
+              // Heritage Bond Footer Card
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(color: AppColors.heritageFooterBg, borderRadius: BorderRadius.circular(16)),
@@ -363,7 +525,6 @@ class _SitterDetailScreenState extends State<SitterDetailScreen> {
           ),
         ),
       ),
-      //Stacked Bottom Action & Navigation Bar
       bottomNavigationBar: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -375,19 +536,23 @@ class _SitterDetailScreenState extends State<SitterDetailScreen> {
             ),
             child: Row(
               children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(12)),
-                  child: const Icon(Icons.favorite_border, color: AppColors.darkText),
+                InkWell(
+                  onTap: _toggleFavorite,
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(12)),
+                    child: Icon(
+                      isFavorite ? Icons.favorite : Icons.favorite_border,
+                      color: isFavorite ? Colors.red : AppColors.darkText,
+                    ),
+                  ),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
                   child: ElevatedButton(
                     onPressed: () async {
-                      // TALK TO BACKEND
                       await SitterService.initiateChat('lerato_123');
-                      
-                      //JS/DART INTERACTIVITY this will  navigate to Page 10
                       if (context.mounted) {
                         Navigator.push(
                           context,
@@ -420,8 +585,9 @@ class _SitterDetailScreenState extends State<SitterDetailScreen> {
             type: BottomNavigationBarType.fixed,
             backgroundColor: Colors.white,
             elevation: 0,
-            currentIndex: 2, 
-            selectedItemColor: AppColors.primaryRust,
+            currentIndex: currentNavIndex == -1 ? 0 : currentNavIndex,
+            onTap: _onBottomNavTapped,
+            selectedItemColor: currentNavIndex == -1 ? Colors.grey : AppColors.primaryRust,
             unselectedItemColor: Colors.grey,
             selectedFontSize: 12,
             unselectedFontSize: 12,
@@ -437,7 +603,7 @@ class _SitterDetailScreenState extends State<SitterDetailScreen> {
     );
   }
 
-  // Helper Widgets referencing AppColors
+  // Helper Widgets
   Widget _buildCertCard(IconData icon, String title, String subtitle) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),

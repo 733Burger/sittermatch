@@ -9,5 +9,4 @@ public class SittermatchApplication {
 	public static void main(String[] args) {
 		SpringApplication.run(SittermatchApplication.class, args);
 	}
-
 }
