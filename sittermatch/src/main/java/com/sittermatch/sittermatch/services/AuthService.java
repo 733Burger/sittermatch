@@ -10,9 +10,13 @@ import com.sittermatch.sittermatch.model.User;
 import com.sittermatch.sittermatch.repositories.HomeownerRepository;
 import com.sittermatch.sittermatch.repositories.SitterRepository;
 import com.sittermatch.sittermatch.repositories.UserRepository;
+
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.interceptor.TransactionAspectSupport;
+
 import java.time.LocalDateTime;
 import java.util.Optional;
 
@@ -37,7 +41,7 @@ public class AuthService {
         Optional<User> found = userRepository.findByEmailIgnoreCase(request.email().trim());
 
         if (found.isEmpty() || !passwordEncoder.matches(request.password(), found.get().getPassword())) {
-            return new LoginResponse(false, "Incorrect email or password", null, null);
+            return new LoginResponse(false, "Incorrect email or password", null, null, null);
         }
 
         User user = found.get();
@@ -45,7 +49,8 @@ public class AuthService {
             true, 
             "Login successful. Welcome, " + user.getName() + "!", 
             user.getActiveRole(), 
-            user.getEmail()
+            user.getEmail(),
+            user.getId() 
         );
     }
 
@@ -85,9 +90,14 @@ public class AuthService {
                 homeownerRepository.save(homeowner);
             }
 
-            return new SignupResponse(true, "Registration successful!");
+            userRepository.flush();
 
+            return new SignupResponse(true, "Registration successful!");
+        } catch (DuplicateKeyException e) {
+            TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
+            return new SignupResponse(false, "An account with this email already exists.");
         } catch (Exception e) {
+            TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
             return new SignupResponse(false, "An error occurred during registration: " + e.getMessage());
         }
     }

@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/screens/login_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/auth_services.dart';
+import '../services/sitter_service.dart';
 import '../theme/app_colors.dart';
-import 'owner_home_screen.dart';
 import 'bookings_dashboard_screen.dart';
+import 'direct_chat_screen.dart';
 import 'jobs_dashboard_screen.dart';
 import 'messages_screen.dart';
+import 'owner_home_screen.dart';
 import 'owner_profile_screen.dart';
 import 'sitter_profile_screen.dart';
 
@@ -22,6 +25,7 @@ class _SitterHomeScreenState extends State<SitterHomeScreen> {
 
   String _email = '';
   String _userRole = 'SITTER'; // Default fallback
+  int? _sitterId; // Stores the actual logged-in sitter ID
 
   String? _idPhotoPath;
   String? _sapsCertPath;
@@ -35,6 +39,14 @@ class _SitterHomeScreenState extends State<SitterHomeScreen> {
   void initState() {
     super.initState();
     _loadUserData();
+    _loadSitterId();
+  }
+
+  Future<void> _loadSitterId() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _sitterId = prefs.getInt('userId');
+    });
   }
 
   Future<void> _loadUserData() async {
@@ -207,12 +219,40 @@ class _SitterHomeScreenState extends State<SitterHomeScreen> {
               backgroundColor: Colors.black87,
               foregroundColor: Colors.white,
             ),
-            onPressed: () {
+            onPressed: () async {
+              // 1. Validate that required fields are not empty
+              final referencesText = messageController.text.trim();
+              final hasPhoto = _idPhotoPath != null && _idPhotoPath!.isNotEmpty;
+
+              if (!hasPhoto || referencesText.isEmpty) {
+                _showSnack('Please complete all checks before submitting.');
+                return;
+              }
+
+              // 2. Validate logged-in sitter session
+              if (_sitterId == null) {
+                _showSnack('Error: No active sitter session found. Please log in again.');
+                return;
+              }
+
               Navigator.pop(ctx);
-              _comingSoon('Admin Verification Review');
+
+              try {
+                await SitterService.submitVerification(
+                  sitterId: _sitterId!,
+                  type: 'id',
+                  idPhotoUrl: _idPhotoPath!,
+                  references: referencesText,
+                );
+                if (!mounted) return;
+                _showSnack('Submitted to admin!');
+              } catch (e) {
+                if (!mounted) return;
+                _showSnack('Error: $e');
+              }
             },
             child: const Text('Submit to Admin'),
-          ),
+          )
         ],
       ),
     );

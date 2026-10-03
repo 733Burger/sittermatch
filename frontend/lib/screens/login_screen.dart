@@ -6,12 +6,8 @@ import 'role_select_screen.dart';
 import '../theme/app_colors.dart';
 
 class LoginScreen extends StatefulWidget {
-  final String selectedRole;
 
-  const LoginScreen({
-    super.key,
-    this.selectedRole = 'HOMEOWNER',
-  });
+  const LoginScreen({super.key});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -42,34 +38,41 @@ class _LoginScreenState extends State<LoginScreen> {
       _errorMessage = null;
     });
 
-    final result = await _authService.login(
-      email: _emailController.text.trim(),
-      password: _passwordController.text,
-    );
+    try {
+      final result = await _authService.login(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
 
-    if (!mounted) return;
-    setState(() => _loading = false);
-
-    if (result['success'] == true) {
-      // AuthService.login saved the role the backend returned.
-      final userRole = ((await _authService.getUserRole()) ?? '').toUpperCase();
       if (!mounted) return;
 
-      if (userRole != 'SITTER' && userRole != 'HOMEOWNER') {
-        setState(() => _errorMessage = 'Your account has no role assigned.');
+      final userRole = ((await _authService.getUserRole()) ?? '').toUpperCase();
+      
+      if (result['success'] == true && (userRole == 'SITTER' || userRole == 'HOMEOWNER')) {
+        final Widget targetScreen = (userRole == 'SITTER')
+            ? const SitterHomeScreen()
+            : const OwnerHomeScreen();
+
+        if (!mounted) return;
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => targetScreen),
+          (route) => false,
+        );
         return;
       }
 
-      final Widget targetScreen = userRole == 'SITTER'
-          ? const SitterHomeScreen()
-          : const OwnerHomeScreen();
-
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => targetScreen),
-        (route) => false,
-      );
-    } else {
-      setState(() => _errorMessage = result['message'] ?? 'Login failed');
+      setState(() {
+        _loading = false;
+        _errorMessage = (result['success'] == true)
+            ? 'Your account has no role assigned'
+            : 'Invalid email or password';
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _errorMessage = 'Could not connect. Please try again.';
+      });
     }
   }
 
@@ -114,7 +117,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Signing in as ${widget.selectedRole}',
+                    'Login to continue',
                     style: const TextStyle(
                       color: subtextColor,
                       fontSize: 14,
@@ -178,9 +181,13 @@ class _LoginScreenState extends State<LoginScreen> {
                               borderSide: BorderSide.none,
                             ),
                           ),
-                          validator: (v) => (v == null || !v.contains('@'))
-                              ? 'Enter a valid email address'
-                              : null,
+                          validator: (v) {
+                            final value = v?.trim() ?? '';
+                            if (value.isEmpty || !value.contains('@') || !value.contains('.')) {
+                              return 'Enter a valid email address';
+                            }
+                            return null;
+                          }
                         ),
                         const SizedBox(height: 16),
                         Row(

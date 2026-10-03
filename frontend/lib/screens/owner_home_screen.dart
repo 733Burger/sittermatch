@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/screens/login_screen.dart';
 import '../services/auth_services.dart';
+import '../services/home_services.dart';
 import '../theme/app_colors.dart';
 import 'bookings_dashboard_screen.dart';
 import 'saved_sitters_screen.dart';
@@ -9,7 +10,7 @@ import 'sitter_detail_screen.dart';
 import 'booking_flow_screen.dart';
 import 'messages_screen.dart';
 import 'owner_profile_screen.dart';
- 
+
 class SitterListing {
   final int id;
   final String name;
@@ -19,7 +20,7 @@ class SitterListing {
   final double nightRate;
   final String? imageUrl;
   final List<String> completedChecks;
- 
+
   SitterListing({
     required this.id,
     required this.name,
@@ -31,39 +32,40 @@ class SitterListing {
     required this.completedChecks,
   });
 }
- 
+
 class OwnerHomeScreen extends StatefulWidget {
   const OwnerHomeScreen({super.key});
- 
+
   @override
   State<OwnerHomeScreen> createState() => _OwnerHomeScreenState();
 }
- 
+
 class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   bool _isGuestBrowsing = false;
   bool _checksExpanded = false; // checks dropdown starts closed
+  bool _loading = false;
   String _email = '';
- 
+
   String _homeownerAddress = '12 Main Road, Rondebosch';
   String _emergencyContact = '+27 82 123 4567';
   String? _idPhotoPath;
- 
+  String _selectedFilter = 'All';
+
   // 'completed', 'pending' or 'incomplete' statuses
   String _idCheckStatus = 'incomplete';
   String _addressCheckStatus = 'completed';
   String _emergencyCheckStatus = 'pending';
- 
+
   int get _completedChecks => [
         _idCheckStatus,
         _addressCheckStatus,
         _emergencyCheckStatus,
       ].where((s) => s == 'completed').length;
- 
+
   final Set<int> _favoriteSitterIds = {101};
   final TextEditingController _searchController = TextEditingController();
-  String _selectedFilter = 'All';
- 
+
   final List<String> _filterTags = [
     'All',
     'ID Verified',
@@ -71,7 +73,7 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
     'Date Available',
     'Medication Admin',
   ];
- 
+
   final List<SitterListing> _sitters = [
     SitterListing(
       id: 101,
@@ -104,41 +106,54 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
       completedChecks: ['SA ID Verified'],
     ),
   ];
- 
+
   @override
   void initState() {
     super.initState();
-    _loadEmail();
+    _loadData();
   }
- 
-  Future<void> _loadEmail() async {
-    final email = await AuthService().getUserEmail();
+
+  Future<void> _loadData() async {
+    setState(() => _loading = true);
+    final email = await HomeService().getUserEmail();
     if (!mounted) return;
-    setState(() => _email = email ?? '');
+
+    if (email == null || email.isEmpty) {
+      setState(() {
+        _email = '';
+        _loading = false;
+      });
+      return;
+    }
+
+    setState(() {
+      _email = email;
+      _loading = false;
+    });
   }
- 
+
   @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
   }
- 
+
   void _closeDrawerIfOpen() {
     if (_scaffoldKey.currentState?.isDrawerOpen ?? false) Navigator.pop(context);
   }
- 
+
   void _open(Widget screen) {
     _closeDrawerIfOpen();
     Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
   }
- 
+
   void _comingSoon(String title) {
     _closeDrawerIfOpen();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('$title is coming soon')),
     );
   }
- 
+
   Future<void> _signOut() async {
     await AuthService().clearSession();
     if (!mounted) return;
@@ -147,7 +162,7 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
       (route) => false,
     );
   }
- 
+
   void _toggleFavorite(int sitterId) {
     setState(() {
       if (!_favoriteSitterIds.remove(sitterId)) {
@@ -155,13 +170,13 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
       }
     });
   }
- 
+
   void _showSnack(String message) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
- 
+
   // ---------- Footer navigation ----------
- 
+
   void _handleBottomNavTap(int index) {
     switch (index) {
       case 0:
@@ -178,9 +193,9 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
         break;
     }
   }
- 
+
   // ---------- Dialogs ----------
- 
+
   void _openIdentityCheckDialog() {
     showDialog(
       context: context,
@@ -211,7 +226,7 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
       ),
     );
   }
- 
+
   void _openTextEntryDialog({
     required String title,
     required String prompt,
@@ -261,7 +276,7 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
       ),
     );
   }
- 
+
   void _openAddressCheckDialog() {
     _openTextEntryDialog(
       title: 'Home Address Verification',
@@ -276,7 +291,7 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
       },
     );
   }
- 
+
   void _openEmergencyContactDialog() {
     _openTextEntryDialog(
       title: 'Emergency Contact Details',
@@ -292,7 +307,7 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
       },
     );
   }
- 
+
   void _openSubmitDetailsModal() {
     final messageController = TextEditingController();
     showDialog(
@@ -332,9 +347,9 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
       ),
     );
   }
- 
+
   // ---------- Build ----------
- 
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -460,7 +475,7 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
       ),
     );
   }
- 
+
   Widget _buildChecksCard() {
     return Material(
       color: Colors.white,
@@ -590,7 +605,7 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
       ),
     );
   }
- 
+
   Widget _buildSearchField() {
     return TextField(
       controller: _searchController,
@@ -612,7 +627,7 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
       ),
     );
   }
- 
+
   Widget _buildFilters() {
     return SizedBox(
       height: 36,
@@ -645,17 +660,17 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
       ),
     );
   }
- 
+
   Widget _avatarPlaceholder() {
     return Container(
       color: Colors.grey.shade300,
       child: const Icon(Icons.person, color: Colors.grey, size: 36),
     );
   }
- 
+
   Widget _buildSitterCard(SitterListing sitter) {
     final isSaved = _favoriteSitterIds.contains(sitter.id);
- 
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: InkWell(
@@ -822,7 +837,7 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
       ),
     );
   }
- 
+
   Widget _buildCheckTile({
     required String title,
     required String subtitle,
@@ -831,7 +846,7 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
   }) {
     Color statusColor;
     String statusText;
- 
+
     switch (status) {
       case 'completed':
         statusColor = Colors.green;
@@ -847,7 +862,7 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
         statusText = 'Incomplete';
         break;
     }
- 
+
     return ListTile(
       contentPadding: EdgeInsets.zero,
       title: Text(title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
@@ -875,4 +890,3 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
     );
   }
 }
- 

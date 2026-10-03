@@ -1,9 +1,10 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../storage/preference_keys.dart';
 import '../config/api_config.dart';
-import 'package:flutter/foundation.dart';
+
 
 class AuthService {
   final String _baseUrl = ApiConfig.baseUrl;
@@ -21,6 +22,11 @@ class AuthService {
     await prefs.remove(PreferenceKeys.isLoggedIn);
     await prefs.remove(PreferenceKeys.userEmail);
     await prefs.remove(PreferenceKeys.userRole);
+  }
+
+  Future<void> activateAccount() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(PreferenceKeys.isActiveUser, true);
   }
 
   Future<bool> isLoggedIn() async {
@@ -58,13 +64,13 @@ class AuthService {
   Future<bool> validateSession() async {
     final loggedIn = await isLoggedIn();
     final email = await getUserEmail();
+    final role = await getUserRole();
 
-    if (!loggedIn || email == null || email.isEmpty) {
+    if (!loggedIn || email == null || email.isEmpty || role == null || role.isEmpty) {
       return false;
+    } else {
+      return true;
     }
-
-    return true;
-
     // commented out because I couldn't find the api it was calling and it was causing a delay on flutter frames
     // try {
     //   final response = await http.get(
@@ -101,8 +107,17 @@ class AuthService {
 
       if (response.statusCode == 200 && json['success'] == true) {
         await saveSession(email, json['role'] ?? '');
+  
+        // Save user/sitter ID to SharedPreferences so SitterHomeScreen can read it
+        final prefs = await SharedPreferences.getInstance();
+        if (json['userId'] != null) {
+          await prefs.setInt('userId', json['userId']);
+        } else if (json['id'] != null) {
+          await prefs.setInt('userId', json['id']);
+        }
+
         return {'success': true, 'message': json['message'], 'role': json['role']};
-      } else {
+      }else {
         return {'success': false, 'message': json['message'] ?? 'Login failed.'};
       }
     } catch (e) {
@@ -111,8 +126,7 @@ class AuthService {
     }
   }
 
-  Future<Map<String, dynamic>> signup({required String fullName, required String email, required String phoneNumber, required String password,required String role,
-  }) async {
+  Future<Map<String, dynamic>> signup({required String fullName, required String email, required String phoneNumber, required String password,required String role,}) async {
     try {
       final response = await http.post(
         Uri.parse('$_baseUrl/api/auth/signup'),
@@ -129,6 +143,7 @@ class AuthService {
       final json = jsonDecode(response.body);
 
       if ((response.statusCode == 200 || response.statusCode == 201) && json['success'] == true) {
+        activateAccount();
         return {'success': true, 'message': json['message']};
       } else {
         return {'success': false, 'message': json['message'] ?? 'Signup failed.'};

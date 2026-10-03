@@ -15,12 +15,12 @@ class SitterMatchApp extends StatelessWidget {
       title: 'SitterMatch',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        scaffoldBackgroundColor: AppColors.background,
+        useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(
           seedColor: AppColors.primaryRust,
           primary: AppColors.primaryRust,
         ),
-        useMaterial3: true,
+        scaffoldBackgroundColor: AppColors.background,
       ),
       home: const SplashScreen(),
     );
