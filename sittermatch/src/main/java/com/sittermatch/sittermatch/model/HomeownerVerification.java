@@ -2,13 +2,19 @@ package com.sittermatch.sittermatch.model;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.Lob;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.MapsId;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
+
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "homeowner_verifications")
@@ -23,29 +29,46 @@ public class HomeownerVerification {
     @JoinColumn(name = "homeowner_id")
     private Homeowner homeowner;
 
-    @Column(name = "id_number_encrypted", nullable = false)
-    private byte[] idNumberEncrypted;
+    //SA ID(photo)
+    @Lob
+    @JdbcTypeCode(SqlTypes.BLOB)
+    @Column(name = "id_photo", columnDefinition = "MEDIUMBLOB")
+    private byte[] idPhoto;
 
-    @Column(name = "id_number_hash", nullable = false, unique = true, length = 64)
-    private String idNumberHash;
+    @Column(name = "id_photo_type", length = 10)
+    private String idPhotoType;
 
-    @Column(name = "id_document_path")
-    private String idDocumentPath;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "id_status", nullable = false)
+    private VerificationStatus idStatus = VerificationStatus.INCOMPLETE;
 
-    @Column(name = "residence_document_path", nullable = false)
-    private String residenceDocumentPath;
+    @Column(name = "id_rejection_reason", length = 255)
+    private String idRejectionReason;
 
-    @Column(name = "residence_document_type")
-    private String residenceDocumentType;
+    // Proof of residence
+    @Column(name = "residence_address", length = 255)
+    private String residenceAddress;
 
-    @Column(nullable = false)
-    private String status = "PENDING";
+    @Enumerated(EnumType.STRING)
+    @Column(name = "residence_status", nullable = false)
+    private VerificationStatus residenceStatus = VerificationStatus.INCOMPLETE;
 
-    @Column(name = "rejection_reason")
-    private String rejectionReason;
+    @Column(name = "residence_rejection_reason", length = 255)
+    private String residenceRejectionReason;
 
-    @Column(name = "submitted_at", insertable = false, updatable = false)
-    private LocalDateTime submittedAt;
+    // Emergency contact
+    @Column(name = "emergency_contact_name", length = 100)
+    private String emergencyContactName;
+
+    @Column(name = "emergency_contact_phone_number", length = 20)
+    private String emergencyContactPhoneNumber;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "emergency_status", nullable = false)
+    private VerificationStatus emergencyStatus = VerificationStatus.INCOMPLETE;
+
+    @Column(name = "emergency_rejection_reason", length = 255)
+    private String emergencyRejectionReason;
 
     @Column(name = "reviewed_at")
     private LocalDateTime reviewedAt;
@@ -54,16 +77,16 @@ public class HomeownerVerification {
     @JoinColumn(name = "reviewed_by")
     private User reviewedBy;
 
+    @Column(name = "created_at", insertable = false, updatable = false)
+    private LocalDateTime createdAt;
+
+    @Column(name = "updated_at", insertable = false, updatable = false)
+    private LocalDateTime updatedAt;
+
     public HomeownerVerification() {}
 
-    public HomeownerVerification(Homeowner homeowner, byte[] idNumberEncrypted, String idNumberHash,
-            String idDocumentPath, String residenceDocumentPath, String residenceDocumentType) {
+    public HomeownerVerification(Homeowner homeowner) {
         this.homeowner = homeowner;
-        this.idNumberEncrypted = idNumberEncrypted;
-        this.idNumberHash = idNumberHash;
-        this.idDocumentPath = idDocumentPath;
-        this.residenceDocumentPath = residenceDocumentPath;
-        this.residenceDocumentType = residenceDocumentType;
     }
 
     public Integer getHomeownerId() {
@@ -82,64 +105,92 @@ public class HomeownerVerification {
         this.homeowner = homeowner;
     }
 
-    public byte[] getIdNumberEncrypted() {
-        return idNumberEncrypted;
+    public byte[] getIdPhoto() {
+        return idPhoto;
     }
 
-    public void setIdNumberEncrypted(byte[] idNumberEncrypted) {
-        this.idNumberEncrypted = idNumberEncrypted;
+    public void setIdPhoto(byte[] idPhoto) {
+        this.idPhoto = idPhoto;
     }
 
-    public String getIdNumberHash() {
-        return idNumberHash;
+    public String getIdPhotoType() {
+        return idPhotoType;
     }
 
-    public void setIdNumberHash(String idNumberHash) {
-        this.idNumberHash = idNumberHash;
+    public void setIdPhotoType(String idPhotoType) {
+        this.idPhotoType = idPhotoType;
     }
 
-    public String getIdDocumentPath() {
-        return idDocumentPath;
+    public VerificationStatus getIdStatus() {
+        return idStatus;
     }
 
-    public void setIdDocumentPath(String idDocumentPath) {
-        this.idDocumentPath = idDocumentPath;
+    public void setIdStatus(VerificationStatus idStatus) {
+        this.idStatus = idStatus;
     }
 
-    public String getResidenceDocumentPath() {
-        return residenceDocumentPath;
+    public String getIdRejectionReason() {
+        return idRejectionReason;
+    }
+    
+    public void setIdRejectionReason(String idRejectionReason) {
+        this.idRejectionReason = idRejectionReason;
     }
 
-    public void setResidenceDocumentPath(String residenceDocumentPath) {
-        this.residenceDocumentPath = residenceDocumentPath;
+    public String getResidenceAddress() {
+        return residenceAddress;
     }
 
-    public String getResidenceDocumentType() {
-        return residenceDocumentType;
+    public void setResidenceAddress(String residenceAddress) {
+        this.residenceAddress = residenceAddress;
     }
 
-    public void setResidenceDocumentType(String residenceDocumentType) {
-        this.residenceDocumentType = residenceDocumentType;
+    public VerificationStatus getResidenceStatus() {
+        return residenceStatus;
     }
 
-    public String getStatus() {
-        return status;
+    public void setResidenceStatus(VerificationStatus residenceStatus) {
+        this.residenceStatus = residenceStatus;
     }
 
-    public void setStatus(String status) {
-        this.status = status;
+    public String getResidenceRejectionReason() {
+        return residenceRejectionReason;
     }
 
-    public String getRejectionReason() {
-        return rejectionReason;
+    public void setResidenceRejectionReason(String residenceRejectionReason) {
+        this.residenceRejectionReason = residenceRejectionReason;
     }
 
-    public void setRejectionReason(String rejectionReason) {
-        this.rejectionReason = rejectionReason;
+    public String getEmergencyContactName() {
+        return emergencyContactName;
     }
 
-    public LocalDateTime getSubmittedAt() {
-        return submittedAt;
+    public void setEmergencyContactName(String emergencyContactName) {
+        this.emergencyContactName = emergencyContactName;
+    }
+
+    public String getEmergencyContactPhoneNumber() {
+        return emergencyContactPhoneNumber;
+    }
+
+    public void setEmergencyContactPhoneNumber(String emergencyContactPhoneNumber) {
+        this.emergencyContactPhoneNumber = emergencyContactPhoneNumber;
+    }
+
+    public VerificationStatus getEmergencyStatus() {
+        return emergencyStatus;
+    }
+
+    public void setEmergencyStatus(VerificationStatus emergencyStatus) {
+        this.emergencyStatus = emergencyStatus;
+    }
+
+    public String getEmergencyRejectionReason() {
+        return emergencyRejectionReason;
+    }
+
+    public void setEmergencyRejectionReason(String emergencyRejectionReason) {
+        this.emergencyRejectionReason = emergencyRejectionReason;
     }
 
     public LocalDateTime getReviewedAt() {
@@ -157,4 +208,18 @@ public class HomeownerVerification {
     public void setReviewedBy(User reviewedBy) {
         this.reviewedBy = reviewedBy;
     }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public LocalDateTime getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public boolean isFullyVerified() {
+    return idStatus == VerificationStatus.APPROVED
+            && residenceStatus == VerificationStatus.APPROVED
+            && emergencyStatus == VerificationStatus.APPROVED;
+}
 }
