@@ -70,6 +70,10 @@ public class HomeownerVerification {
     @Column(name = "emergency_rejection_reason", length = 255)
     private String emergencyRejectionReason;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "overall_status", nullable = false)
+    private VerificationStatus overallStatus = VerificationStatus.INCOMPLETE;
+
     @Column(name = "reviewed_at")
     private LocalDateTime reviewedAt;
 
@@ -193,6 +197,14 @@ public class HomeownerVerification {
         this.emergencyRejectionReason = emergencyRejectionReason;
     }
 
+    public VerificationStatus getOverallStatus() {
+        return overallStatus;
+    }
+
+    public void setOverallStatus(VerificationStatus overallStatus) {
+        this.overallStatus = overallStatus;
+    }
+
     public LocalDateTime getReviewedAt() {
         return reviewedAt;
     }
@@ -217,9 +229,38 @@ public class HomeownerVerification {
         return updatedAt;
     }
 
-    public boolean isFullyVerified() {
-    return idStatus == VerificationStatus.APPROVED
+    public void refreshOverallStatus() {
+        if (isRejected()) {
+            overallStatus = VerificationStatus.REJECTED;
+        } else if (isApproved()) {
+            overallStatus = VerificationStatus.APPROVED;
+        } else if (isSubmitted()) {
+            overallStatus = VerificationStatus.PENDING;
+        } else {
+            overallStatus = VerificationStatus.INCOMPLETE;
+        }
+    }
+
+    public boolean isApproved() {
+        return idStatus == VerificationStatus.APPROVED
             && residenceStatus == VerificationStatus.APPROVED
             && emergencyStatus == VerificationStatus.APPROVED;
-}
+    }
+
+    public boolean isRejected() {
+        return idStatus == VerificationStatus.REJECTED 
+            || residenceStatus == VerificationStatus.REJECTED 
+            || emergencyStatus == VerificationStatus.REJECTED;
+    }
+
+    private boolean isSubmitted() {
+        return hasBeenSubmitted(idStatus)
+            && hasBeenSubmitted(residenceStatus)
+            && hasBeenSubmitted(emergencyStatus);
+    }
+
+    private boolean hasBeenSubmitted(VerificationStatus status) {
+        return status == VerificationStatus.PENDING
+            || status == VerificationStatus.APPROVED;
+    }
 }

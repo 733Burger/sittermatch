@@ -36,7 +36,7 @@ public class HomeController {
 
     @PostMapping("/residence-check")
     public ResponseEntity<ResidenceCheckResponse> submitResidence(@RequestBody ResidenceCheckRequest request) {
-        ResidenceCheckResponse response = homeService.submitResidence(request.email(), request.address());
+        ResidenceCheckResponse response = homeService.submitResidenceCheck(request.email(), request.address());
         if (!response.success()) {
             return ResponseEntity.badRequest().body(response);
         }
@@ -45,7 +45,7 @@ public class HomeController {
 
     @PostMapping("/emergency-check")
     public ResponseEntity<EmergencyCheckResponse> submitEmergency(@RequestBody EmergencyCheckRequest request) {
-        EmergencyCheckResponse response = homeService.submitEmergency(
+        EmergencyCheckResponse response = homeService.submitEmergencyCheck(
                 request.email(), request.name(), request.phoneNumber());
         if (!response.success()) {
             return ResponseEntity.badRequest().body(response);

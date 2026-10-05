@@ -45,7 +45,6 @@ class OwnerHomeScreen extends StatefulWidget {
 
 class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
-  bool _isGuestBrowsing = false;
   bool _checksExpanded = false;
   bool _loading = false;
   String _email = '';
@@ -62,12 +61,8 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
   String _addressCheckSubtitle = '';
   String _emergencyCheckStatus = '';
   String _emergencyCheckSubtitle = '';
-
-  int get _completedChecks => [
-        _idCheckStatus,
-        _addressCheckStatus,
-        _emergencyCheckStatus,
-      ].where((s) => s == 'completed').length;
+  int _completedChecks = 0;
+  String _verificationStatus = '';
 
   final Set<int> _favoriteSitterIds = {101};
   final TextEditingController _searchController = TextEditingController();
@@ -126,43 +121,60 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
   Future<void> _loadData() async {
     setState(() => _loading = true);
 
-    final email = await HomeService().getUserEmail();
-    if (!mounted) return;
+    try {
+      final email = await HomeService().getUserEmail();
+      if (!mounted) return;
 
-    if (email == null || email.isEmpty) {
+      if (email == null || email.isEmpty) {
+        setState(() {
+          _email = '';
+          _loading = false;
+        });
+        return;
+      }
+
+      final results = await Future.wait([
+        HomeService().fetchChecks(email: email),
+        // HomeService().fetchSitters(...), // uncomment when ready
+      ]);
+      if (!mounted) return;
+
+      final check = results[0];
+      // final sittersResult = results[1];
+
+      if (check['success'] == false) {
+        setState(() {
+          _email = email;
+          _loading = false;
+        });
+        _showSnack(check['message']?.toString() ?? 'Could not load checks');
+        return;
+      }
+
       setState(() {
-        _email = '';
+        _email = email;
+        _idCheckStatus = check['idCheck']['status']?.toString() ?? 'incomplete';
+        _idCheckSubtitle = check['idCheck']['subtitle']?.toString() ?? '';
+        _addressCheckStatus = check['addressCheck']['status']?.toString() ?? 'incomplete';
+        _addressCheckSubtitle = check['addressCheck']['subtitle']?.toString() ?? '';
+        _homeownerAddress = _addressCheckSubtitle;
+        _emergencyCheckStatus = check['emergencyContactCheck']['status']?.toString() ?? 'incomplete';
+        _emergencyCheckSubtitle = check['emergencyContactCheck']['subtitle']?.toString() ?? '';
+        _emergencyName = check['emergencyContactName']?.toString() ?? '';
+        _emergencyPhone = check['emergencyContactNumber']?.toString() ?? '';
+        _completedChecks = (check['verificationCount'] as num?)?.toInt() ?? 0;
+        _verificationStatus = check['verificationStatus']?.toString() ?? 'INCOMPLETE';
+
+        // when sitters API exists:
+        // _sitters = parseSitters(sittersResult);
+
         _loading = false;
       });
-      return;
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+      _showSnack('Could not load home data');
     }
-
-    final result = await HomeService().fetchChecks(email: email);
-    if (!mounted) return;
-
-    final idTile = _tile(result, 'idCheck');
-    final addressTile = _tile(result, 'addressCheck');
-    final emergencyTile = _tile(result, 'emergencyContactCheck');
-
-    setState(() {
-      _loading = false;
-      _email = email;
-      _idCheckStatus = idTile?['status']?.toString() ?? '';
-      _idCheckSubtitle = idTile?['subtitle']?.toString() ?? '';
-      _addressCheckStatus = addressTile?['status']?.toString() ?? '';
-      _addressCheckSubtitle = addressTile?['subtitle']?.toString() ?? '';
-      _homeownerAddress = addressTile?['subtitle']?.toString() ?? '';
-      _emergencyCheckStatus = emergencyTile?['status']?.toString() ?? '';
-      _emergencyCheckSubtitle = emergencyTile?['subtitle']?.toString() ?? '';
-      _emergencyName = result['emergencyContactName']?.toString() ?? '';
-      _emergencyPhone = result['emergencyContactNumber']?.toString() ?? '';
-    });
-  }
-
-  Map<String, dynamic>? _tile(Map<String, dynamic> result, String key) {
-    final value = result[key];
-    if (value is! Map) return null;
-    return Map<String, dynamic>.from(value);
   }
 
   @override
@@ -334,13 +346,9 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
       if (dialogContext.mounted) Navigator.pop(dialogContext);
 
       if (result['success'] == true) {
-        final tile = _tile(result, 'idCheck');
-        setState(() {
-          _idPhotoPath = photo.path;
-          _idCheckStatus = tile?['status'] as String? ?? 'pending';
-          _idCheckSubtitle = tile?['subtitle'] as String? ?? 'ID uploaded';
-        });
+        setState(() => _idPhotoPath = photo.path);
         _showSnack('ID Photo uploaded successfully! Status set to Pending.');
+        await _loadData();
       } else {
         _showSnack(result['message']?.toString() ?? 'Upload failed.');
       }
@@ -360,13 +368,8 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
         email: _email,
         onSaved: (address, result) {
           if (!mounted) return;
-          final tile = _tile(result, 'addressCheck');
-          setState(() {
-            _homeownerAddress = address;
-            _addressCheckStatus = tile?['status'] as String? ?? 'pending';
-            _addressCheckSubtitle = tile?['subtitle'] as String? ?? address;
-          });
           _showSnack('Home address saved! Status set to Pending.');
+          _loadData();
         },
         onMessage: (msg) {
           if (mounted) _showSnack(msg);
@@ -384,62 +387,12 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
         email: _email,
         onSaved: (name, phone, result) {
           if (!mounted) return;
-          final tile = _tile(result, 'emergencyContactCheck');
-          setState(() {
-            _emergencyName = name;
-            _emergencyPhone = phone;
-            _emergencyCheckStatus = tile?['status'] as String? ?? 'pending';
-            _emergencyCheckSubtitle =
-                tile?['subtitle'] as String? ?? '$name - $phone';
-          });
           _showSnack('Emergency contact saved! Status set to Pending.');
+          _loadData();
         },
         onMessage: (m) {
           if (mounted) _showSnack(m);
         },
-      ),
-    );
-  }
-
-  void _openSubmitDetailsModal() {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Submit Verification Details'),
-        content: const Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Add an optional message or note for the Admin review team:',
-            ),
-            SizedBox(height: 12),
-            TextField(
-              maxLines: 3,
-              decoration: InputDecoration(
-                hintText: 'e.g., Please check my updated proof of residence...',
-                border: OutlineInputBorder(),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.black87,
-              foregroundColor: Colors.white,
-            ),
-            onPressed: () {
-              Navigator.pop(ctx);
-              _comingSoon('Admin Verification Review');
-            },
-            child: const Text('Submit to Admin'),
-          ),
-        ],
       ),
     );
   }
@@ -586,45 +539,83 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
   }
 
   Widget _buildChecksCard() {
+    final allDone = _completedChecks >= 3;
+    final progress = (_completedChecks / 3).clamp(0.0, 1.0);
+
     return Material(
       color: Colors.white,
+      elevation: 0,
       clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
         side: BorderSide(color: Colors.grey.shade200),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           InkWell(
             onTap: () => setState(() => _checksExpanded = !_checksExpanded),
             child: Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.fromLTRB(16, 16, 12, 16),
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.warning_amber_rounded,
-                      color: AppColors.primaryRust, size: 22),
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryRust.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      allDone ? Icons.verified_rounded : Icons.shield_outlined,
+                      color: AppColors.primaryRust,
+                      size: 22,
+                    ),
+                  ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Complete your profile',
-                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(height: 2),
                         Text(
-                          '$_completedChecks of 3 checks complete',
-                          style: const TextStyle(fontSize: 12, color: Colors.black54),
+                          _checksTitle,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _checksSubtitle,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.black54,
+                            height: 1.3,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(999),
+                          child: LinearProgressIndicator(
+                            value: progress,
+                            minHeight: 6,
+                            backgroundColor: Colors.grey.shade200,
+                            color: AppColors.primaryRust,
+                          ),
                         ),
                       ],
                     ),
                   ),
+                  const SizedBox(width: 4),
                   AnimatedRotation(
                     turns: _checksExpanded ? 0.5 : 0,
                     duration: const Duration(milliseconds: 200),
-                    child: const Icon(Icons.keyboard_arrow_down, color: Colors.black54),
+                    child: const Icon(
+                      Icons.keyboard_arrow_down_rounded,
+                      color: Colors.black45,
+                    ),
                   ),
                 ],
               ),
@@ -636,18 +627,11 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
             alignment: Alignment.topCenter,
             child: _checksExpanded
                 ? Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Divider(height: 1),
-                        const SizedBox(height: 12),
-                        const Text(
-                          'Complete your outstanding checks to start booking sitters.',
-                          style: TextStyle(
-                              fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black87),
-                        ),
-                        const SizedBox(height: 8),
+                        Divider(height: 1, color: Colors.grey.shade200),
+                        const SizedBox(height: 4),
                         _buildCheckTile(
                           title: 'Identity / SA ID Verification',
                           subtitle: _idCheckSubtitle,
@@ -666,45 +650,6 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
                           status: _emergencyCheckStatus,
                           onTap: _openEmergencyContactDialog,
                         ),
-                        const SizedBox(height: 16),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.black87,
-                                  shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(8)),
-                                  padding: const EdgeInsets.symmetric(vertical: 12),
-                                ),
-                                onPressed: _openSubmitDetailsModal,
-                                child: const Text(
-                                  'Submit Documents / Details',
-                                  style: TextStyle(color: Colors.white, fontSize: 11),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            OutlinedButton(
-                              style: OutlinedButton.styleFrom(
-                                side: const BorderSide(color: Colors.black87),
-                                shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8)),
-                                padding: const EdgeInsets.symmetric(
-                                    vertical: 12, horizontal: 10),
-                              ),
-                              onPressed: () {
-                                setState(() => _isGuestBrowsing = true);
-                                _showSnack(
-                                    'Guest Browsing Active: Booking functions disabled until verified.');
-                              },
-                              child: const Text(
-                                'Browse as Guest',
-                                style: TextStyle(color: Colors.black87, fontSize: 11),
-                              ),
-                            ),
-                          ],
-                        ),
                       ],
                     ),
                   )
@@ -713,6 +658,34 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
         ],
       ),
     );
+  }
+
+  String get _checksTitle {
+    switch (_verificationStatus.toUpperCase()) {
+      case 'APPROVED':
+        return 'Profile checks complete';
+      case 'PENDING':
+        return 'Profile checks under review';
+      case 'REJECTED':
+        return 'Profile checks need attention';
+      case 'INCOMPLETE':
+      default:
+        return 'Complete your profile';
+    }
+  }
+  
+  String get _checksSubtitle {
+    switch (_verificationStatus.toUpperCase()) {
+      case 'APPROVED':
+        return 'You’re ready to book sitters';
+      case 'PENDING':
+        return '$_completedChecks of 3 submitted — Waiting for admin review';
+      case 'REJECTED':
+        return 'One or more checks were rejected — Please update and resubmit';
+      case 'INCOMPLETE':
+      default:
+        return '$_completedChecks of 3 checks done';
+    }
   }
 
   Widget _buildSearchField() {
@@ -939,11 +912,7 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: ElevatedButton.icon(
-                      onPressed: _isGuestBrowsing
-                          ? () => _showSnack(
-                              'Booking is disabled in Guest Mode. Complete verification to book!',
-                            )
-                          : () => _open(const BookingFlowScreen()),
+                      onPressed:() => _open(const BookingFlowScreen()),
                       icon: const Icon(Icons.calendar_month, color: Colors.white, size: 16),
                       label: const Text('Book',
                           style: TextStyle(color: Colors.white, fontSize: 13)),
@@ -995,7 +964,7 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
         break;
       case 'pending':
         statusColor = Colors.amber.shade800;
-        statusText = 'Pending Review';
+        statusText = 'Pending';
         break;
       case 'incomplete':
       default:

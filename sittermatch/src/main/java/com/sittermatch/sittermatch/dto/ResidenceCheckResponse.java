@@ -3,5 +3,8 @@ package com.sittermatch.sittermatch.dto;
 public record ResidenceCheckResponse(
     boolean success,
     String message
-    // HomeownerCheckResponse.CheckTile addressCheck
-) {}
+) {
+    public static ResidenceCheckResponse failure (String message) {
+        return new ResidenceCheckResponse(false, message);
+    }
+}
