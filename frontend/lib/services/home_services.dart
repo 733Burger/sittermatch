@@ -38,6 +38,8 @@ class HomeService {
           'emergencyContactCheck': json['emergencyContactCheck'],
           'emergencyContactName': json['emergencyContactName'],
           'emergencyContactNumber': json['emergencyContactNumber'],
+          'verificationCount': json['verificationCount'],
+          'verificationStatus': json['verificationStatus']
         };
       }
       return {
@@ -45,6 +47,9 @@ class HomeService {
         'idCheck': json['idCheck'],
         'addressCheck': json['addressCheck'],
         'emergencyContactCheck': json['emergencyContactCheck'],
+        'emergencyContactName': json['emergencyContactName'],
+        'emergencyContactNumber': json['emergencyContactNumber'],
+        'verificationCount': json['verificationCount']
       };
     } catch (e) {
       debugPrint('Error fetching checks: $e');

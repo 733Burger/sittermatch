@@ -1,5 +1,7 @@
 package com.sittermatch.sittermatch.dto;
 
+import com.sittermatch.sittermatch.model.VerificationStatus;
+
 public record HomeownerCheckResponse(
     boolean success,
     String message,
@@ -7,7 +9,9 @@ public record HomeownerCheckResponse(
     CheckTile addressCheck,
     CheckTile emergencyContactCheck,
     String emergencyContactName,
-    String emergencyContactNumber
+    String emergencyContactNumber,
+    int verificationCount,
+    String verificationStatus
 ) {
     public record CheckTile(String status, String subtitle) {
         public static CheckTile of(String status, String subtitle) {
@@ -23,7 +27,9 @@ public record HomeownerCheckResponse(
                 CheckTile.of("incomplete", "No Address Uploaded"),
                 CheckTile.of("incomplete", "No Emergency Contact Uploaded"),
                 "",
-                ""
+                "",
+                0,
+                VerificationStatus.INCOMPLETE.name()
         );
     }
 
@@ -35,23 +41,9 @@ public record HomeownerCheckResponse(
                 CheckTile.of("error", message),
                 CheckTile.of("error", message),
                 "",
-                ""
+                "",
+                0,
+                VerificationStatus.INCOMPLETE.name()
         );
     }
-
-    // public static HomeownerCheckResponse success(
-    //         String idStatus, String idSubtitle,
-    //         String addressStatus, String addressSubtitle,
-    //         String emergencyContactStatus, String emergencyContactSubtitle,
-    //         String emergencyContactName, String emergencyContactNumber) {
-    //     return new HomeownerCheckResponse(
-    //             true,
-    //             "Checks retrieved successfully",
-    //             CheckTile.of(idStatus, idSubtitle),
-    //             CheckTile.of(addressStatus, addressSubtitle),
-    //             CheckTile.of(emergencyContactStatus, emergencyContactSubtitle),
-    //             emergencyContactName,
-    //             emergencyContactStatus
-    //     );
-    // }
 }
