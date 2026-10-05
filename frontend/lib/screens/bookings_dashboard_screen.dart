@@ -6,7 +6,10 @@ import 'sitter_detail_screen.dart';
 import 'booking_flow_screen.dart';
 import 'direct_chat_screen.dart';
 import 'messages_screen.dart';
+import 'ongoing_booking_screen.dart';
 import 'owner_profile_screen.dart';
+import 'previous_booking_screen.dart';
+import 'owner_home_screen.dart';
 
 /// Plain data the booking cards draw from.
 /// status: 'ongoing' | 'accepted' | 'completed' | 'searching'
@@ -189,8 +192,9 @@ class _BookingsDashboardScreenState extends State<BookingsDashboardScreen> {
         onTap: (index) {
           switch (index) {
             case 0:
-              // Home is the first screen in the stack after login.
-              Navigator.of(context).popUntil((route) => route.isFirst);
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(builder: (_) => const OwnerHomeScreen()),
+              );
               break;
             case 1:
               break; // already on Bookings
@@ -334,7 +338,9 @@ class _BookingsDashboardScreenState extends State<BookingsDashboardScreen> {
     final status = booking.status;
 
     return GestureDetector(
-      onTap: () => _open(const SitterDetailScreen()),
+      onTap: () => _open(
+        status == 'completed' ? const PreviousBookingsScreen() : const SitterDetailScreen(),
+      ),
       child: Container(
         margin: const EdgeInsets.only(bottom: 16),
         padding: const EdgeInsets.all(16),
@@ -406,7 +412,7 @@ class _BookingsDashboardScreenState extends State<BookingsDashboardScreen> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
-                  onPressed: () => _showSnack('Booking details are coming soon.'),
+                  onPressed: () => _open(const OngoingBookingScreen()),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.heritageFooterBg,
                     padding: const EdgeInsets.symmetric(vertical: 12),

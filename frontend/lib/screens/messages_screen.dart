@@ -6,6 +6,7 @@ import 'direct_chat_screen.dart';
 import 'jobs_dashboard_screen.dart';
 import 'owner_profile_screen.dart';
 import 'sitter_profile_screen.dart';
+import 'owner_home_screen.dart';
 
 /// One row in the conversation list.
 class _Conversation {
@@ -141,8 +142,9 @@ class _MessagesScreenState extends State<MessagesScreen> {
   void _handleBottomNavTap(int index) {
     switch (index) {
       case 0:
-        // Home is the first screen in the stack after login.
-        Navigator.of(context).popUntil((route) => route.isFirst);
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const OwnerHomeScreen()),
+         );
         break;
       case 1:
         Navigator.of(context).pushReplacement(
