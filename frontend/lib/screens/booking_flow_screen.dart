@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../theme/app_colors.dart';
 import '../models/booking_draft_model.dart';
 import '../services/booking_service.dart';
+import 'saved_sitters_screen.dart';
+import 'bookings_dashboard_screen.dart';
+import 'direct_chat_screen.dart';
+import 'owner_profile_screen.dart';
 
 class BookingFlowScreen extends StatefulWidget {
   const BookingFlowScreen({super.key});
@@ -13,6 +18,17 @@ class BookingFlowScreen extends StatefulWidget {
 class _BookingFlowScreenState extends State<BookingFlowScreen> {
   late Future<BookingDraftModel> _draftFuture;
   final TextEditingController _instructionsController = TextEditingController(text: "Armed response callout procedure attached, Bella takes joint tablet morning");
+
+  // State for interactive Pickers
+  DateTime _checkInDate = DateTime.now();
+  DateTime _checkOutDate = DateTime.now().add(const Duration(days: 1));
+  TimeOfDay _checkInTime = const TimeOfDay(hour: 9, minute: 0);
+  TimeOfDay _checkOutTime = const TimeOfDay(hour: 16, minute: 0);
+
+  // State for Services Menu
+  bool _stayNight = true;
+  bool _feedDog = false;
+  bool _walkDog = false;
 
   @override
   void initState() {
@@ -26,6 +42,66 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
     super.dispose();
   }
 
+  // Pickers Logic
+  Future<void> _selectDate(BuildContext context, bool isCheckIn) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: isCheckIn ? _checkInDate : _checkOutDate,
+      firstDate: DateTime.now(),
+      lastDate: DateTime(2030),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: AppColors.primaryRust, // Teal highlight
+              onPrimary: Colors.white,
+              onSurface: AppColors.darkText,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null) {
+      setState(() {
+        if (isCheckIn) {
+          _checkInDate = picked;
+          if (_checkOutDate.isBefore(_checkInDate)) {
+            _checkOutDate = _checkInDate.add(const Duration(days: 1));
+          }
+        } else {
+          _checkOutDate = picked;
+        }
+      });
+    }
+  }
+
+  Future<void> _selectTime(BuildContext context, bool isCheckIn) async {
+    final TimeOfDay? picked = await showTimePicker(
+      context: context,
+      initialTime: isCheckIn ? _checkInTime : _checkOutTime,
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: AppColors.primaryRust, // Teal highlight
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null) {
+      setState(() {
+        if (isCheckIn) {
+          _checkInTime = picked;
+        } else {
+          _checkOutTime = picked;
+        }
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -37,7 +113,7 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
           icon: const Icon(Icons.arrow_back, color: AppColors.darkText),
           onPressed: () => Navigator.pop(context), 
         ),
-        title: const Text('Booking Flow', style: TextStyle(color: AppColors.darkText, fontWeight: FontWeight.bold)),
+        title: const Text('New Booking', style: TextStyle(color: AppColors.darkText, fontWeight: FontWeight.bold)),
         actions: [
           IconButton(icon: const Icon(Icons.more_vert, color: AppColors.darkText), onPressed: () {}),
           const Padding(
@@ -57,26 +133,21 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
           final draft = snapshot.data!;
 
           return SingleChildScrollView(
-            child: Column(
-              children: [
-                _buildProgressHeader(),
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    children: [
-                      _buildDatesCard(draft),
-                      const SizedBox(height: 16),
-                      _buildPetsCard(draft),
-                      const SizedBox(height: 16),
-                      _buildSecurityCard(),
-                      const SizedBox(height: 16),
-                      _buildFeeCard(draft),
-                      const SizedBox(height: 24),
-                      _buildDispatchFooter(draft),
-                    ],
-                  ),
-                ),
-              ],
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                children: [
+                  _buildDatesCard(draft),
+                  const SizedBox(height: 16),
+                  _buildServicesCard(),
+                  const SizedBox(height: 16),
+                  _buildPetsCard(draft),
+                  const SizedBox(height: 16),
+                  _buildSecurityCard(),
+                  const SizedBox(height: 24),
+                  _buildDispatchFooter(draft),
+                ],
+              ),
             ),
           );
         },
@@ -87,95 +158,98 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
         currentIndex: 1, 
         selectedItemColor: AppColors.primaryRust,
         unselectedItemColor: Colors.grey,
+        onTap: (index) {
+          if (index == 0) {
+            Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const SavedSittersScreen()));
+          } else if (index == 1) {
+            Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const BookingsDashboardScreen()));
+          } else if (index == 2) {
+            Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const DirectChatScreen()));
+          } else if (index == 3) {
+            Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const OwnerProfileScreen()));
+          }
+        },
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home_outlined), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.calendar_today), label: 'Bookings'),
-          BottomNavigationBarItem(icon: Icon(Icons.chat_bubble_outline), label: 'Messages'),
-          BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: 'Profile'),
+          BottomNavigationBarItem(icon: Icon(Icons.home_outlined), label: 'HOME'),
+          BottomNavigationBarItem(icon: Icon(Icons.calendar_today), label: 'BOOKINGS'),
+          BottomNavigationBarItem(icon: Icon(Icons.chat_bubble_outline), label: 'MESSAGES'),
+          BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: 'PROFILE'),
         ],
       ),
     );
   }
 
-  Widget _buildProgressHeader() {
-    return Column(
-      children: [
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('BOOKING REQUEST SETUP', style: TextStyle(color: AppColors.primaryRust, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.1)),
-              Text('Step 2 of 3', style: TextStyle(color: AppColors.darkText, fontSize: 12)),
-            ],
-          ),
-        ),
-        Row(
-          children: [
-            Expanded(flex: 2, child: Container(height: 3, color: AppColors.primaryRust)),
-            Expanded(flex: 1, child: Container(height: 3, color: Colors.grey.shade300)),
-          ],
-        )
-      ],
-    );
-  }
-
   Widget _buildDatesCard(BookingDraftModel draft) {
+    int nights = _checkOutDate.difference(_checkInDate).inDays;
+    if (nights <= 0) nights = 1;
+
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          const Row(
             children: [
-              const Row(
-                children: [
-                  Icon(Icons.calendar_today, color: AppColors.primaryRust, size: 18),
-                  SizedBox(width: 8),
-                  Text('Stay Dates & Duration', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                ],
-              ),
-              Text('Edit', style: TextStyle(color: AppColors.primaryRust, fontSize: 12, fontWeight: FontWeight.bold)),
+              Icon(Icons.calendar_today, color: AppColors.primaryRust, size: 18),
+              SizedBox(width: 8),
+              Text('Stay Dates & Duration', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.darkText)),
             ],
-          ),
-          const Padding(
-            padding: EdgeInsets.only(left: 26.0),
-            child: Text('Cape Town & Surrounds (SAST)', style: TextStyle(fontSize: 12, color: Colors.grey)),
           ),
           const SizedBox(height: 16),
           Container(
             padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(12)),
+            decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(16)),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('CHECK-IN', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
-                    Text(draft.checkInDate, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                    const Text('From 09:00\nAM', style: TextStyle(fontSize: 12, color: Colors.grey)),
-                  ],
+                // CHECK-IN INTERACTIVE COLUMN
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => _selectDate(context, true),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('CHECK-IN', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey)),
+                        const SizedBox(height: 4),
+                        Text(DateFormat('dd MMM').format(_checkInDate), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.darkText)),
+                        const SizedBox(height: 4),
+                        GestureDetector(
+                          onTap: () => _selectTime(context, true),
+                          child: Text('From ${_checkInTime.format(context)}', style: const TextStyle(fontSize: 12, color: AppColors.primaryRust, fontWeight: FontWeight.bold, decoration: TextDecoration.underline)),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(color: AppColors.lightRustBg, borderRadius: BorderRadius.circular(20)),
                   child: Column(
                     children: [
                       const Icon(Icons.arrow_forward, color: AppColors.primaryRust, size: 16),
-                      Text('${draft.nights} Nights', style: const TextStyle(color: AppColors.primaryRust, fontSize: 10, fontWeight: FontWeight.bold)),
+                      Text('$nights Nights', style: const TextStyle(color: AppColors.primaryRust, fontSize: 10, fontWeight: FontWeight.bold)),
                     ],
                   ),
                 ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    const Text('CHECK-OUT', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
-                    Text(draft.checkOutDate, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                    const Text('Until 04:00 PM', style: TextStyle(fontSize: 12, color: Colors.grey)),
-                  ],
+                // CHECK-OUT INTERACTIVE COLUMN
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => _selectDate(context, false),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        const Text('CHECK-OUT', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey)),
+                        const SizedBox(height: 4),
+                        Text(DateFormat('dd MMM').format(_checkOutDate), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.darkText)),
+                        const SizedBox(height: 4),
+                        GestureDetector(
+                          onTap: () => _selectTime(context, false),
+                          child: Text('Until ${_checkOutTime.format(context)}', style: const TextStyle(fontSize: 12, color: AppColors.primaryRust, fontWeight: FontWeight.bold, decoration: TextDecoration.underline)),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -185,10 +259,96 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
     );
   }
 
+  Widget _buildServicesCard() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.design_services_outlined, color: AppColors.primaryRust, size: 18),
+              SizedBox(width: 8),
+              Text('Select Services', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.darkText)),
+            ],
+          ),
+          const SizedBox(height: 16),
+          // Stay Night Toggle
+          _buildServiceOption(
+            title: 'Stay Night',
+            icon: Icons.nightlight_round,
+            isSelected: _stayNight,
+            onTap: () {
+              setState(() {
+                _stayNight = !_stayNight;
+                if (_stayNight) _feedDog = false; 
+              });
+            }
+          ),
+          const SizedBox(height: 8),
+          // Feed Dog Toggle
+          _buildServiceOption(
+            title: 'Feed Dog',
+            icon: Icons.restaurant,
+            isSelected: _feedDog,
+            onTap: () {
+              setState(() {
+                _feedDog = !_feedDog;
+                if (_feedDog) _stayNight = false; 
+              });
+            }
+          ),
+          const SizedBox(height: 8),
+          // Walk Dog Toggle (Independent)
+          _buildServiceOption(
+            title: 'Walk Dog',
+            icon: Icons.directions_walk,
+            isSelected: _walkDog,
+            onTap: () {
+              setState(() {
+                _walkDog = !_walkDog;
+              });
+            }
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildServiceOption({required String title, required IconData icon, required bool isSelected, required VoidCallback onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.primaryRust : AppColors.background,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              children: [
+                Icon(icon, color: isSelected ? Colors.white : AppColors.darkText, size: 20),
+                const SizedBox(width: 12),
+                Text(title, style: TextStyle(color: isSelected ? Colors.white : AppColors.darkText, fontWeight: FontWeight.bold, fontSize: 14)),
+              ],
+            ),
+            Icon(
+              isSelected ? Icons.check_circle : Icons.circle_outlined, 
+              color: isSelected ? Colors.white : Colors.grey.shade400,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildPetsCard(BookingDraftModel draft) {
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -196,47 +356,42 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
             children: [
               Icon(Icons.pets, color: AppColors.primaryRust, size: 18),
               SizedBox(width: 8),
-              Text('Who Needs Care?', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              Text('Pets', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.darkText)),
             ],
           ),
-          const Padding(
-            padding: EdgeInsets.only(left: 26.0),
-            child: Text('Tap to select your registered household companions', style: TextStyle(fontSize: 12, color: Colors.grey)),
-          ),
+          const SizedBox(height: 4),
+          const Text('Tap to select your registered companions', style: TextStyle(fontSize: 12, color: Colors.grey)),
           const SizedBox(height: 16),
           GridView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, crossAxisSpacing: 12, mainAxisSpacing: 12, childAspectRatio: 1.5),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, crossAxisSpacing: 12, mainAxisSpacing: 12, childAspectRatio: 2.2),
             itemCount: draft.companions.length,
             itemBuilder: (context, index) {
               final pet = draft.companions[index];
               return GestureDetector(
                 onTap: () => setState(() => pet.isSelected = !pet.isSelected),
                 child: Container(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
                     color: pet.isSelected ? AppColors.primaryRust : AppColors.background,
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(16),
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  child: Row(
                     children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Icon(Icons.pets, color: pet.isSelected ? Colors.white : Colors.grey, size: 16),
-                          Icon(pet.isSelected ? Icons.check_circle : Icons.add_circle_outline, color: pet.isSelected ? Colors.white : Colors.grey, size: 16),
-                        ],
+                      Icon(Icons.pets, color: pet.isSelected ? Colors.white : Colors.grey, size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(pet.category, style: TextStyle(color: pet.isSelected ? Colors.white : AppColors.darkText, fontWeight: FontWeight.bold, fontSize: 13)),
+                            Text(pet.details, style: TextStyle(color: pet.isSelected ? Colors.white70 : Colors.grey, fontSize: 10), maxLines: 1, overflow: TextOverflow.ellipsis),
+                          ],
+                        ),
                       ),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(pet.category, style: TextStyle(color: pet.isSelected ? Colors.white : AppColors.darkText, fontWeight: FontWeight.bold, fontSize: 14)),
-                          Text(pet.details, style: TextStyle(color: pet.isSelected ? Colors.white70 : Colors.grey, fontSize: 10)),
-                        ],
-                      )
+                      Icon(pet.isSelected ? Icons.check_circle : Icons.add_circle_outline, color: pet.isSelected ? Colors.white : Colors.grey, size: 16),
                     ],
                   ),
                 ),
@@ -250,196 +405,51 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
 
   Widget _buildSecurityCard() {
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Row(
             children: [
-              Icon(Icons.shield_outlined, color: AppColors.primaryRust, size: 18),
+              Icon(Icons.note_alt_outlined, color: AppColors.primaryRust, size: 18),
               SizedBox(width: 8),
-              Expanded(child: Text('Special Instructions & House Security', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+              Text('Notes & Instructions', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.darkText)),
             ],
           ),
           const SizedBox(height: 12),
           TextField(
             controller: _instructionsController,
-            maxLines: 3,
+            maxLines: 4,
             style: const TextStyle(fontSize: 13),
             decoration: InputDecoration(
               filled: true,
-              fillColor: AppColors.background,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+              fillColor: AppColors.background, // Clean soft background
+              hintText: 'Add feeding times, security codes, or extra details...',
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none), 
             ),
           ),
-          const SizedBox(height: 8),
-          const Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  Icon(Icons.verified_user, color: AppColors.primaryRust, size: 14),
-                  SizedBox(width: 4),
-                  Text('ADT / FIDELITY LINKED', style: TextStyle(color: AppColors.primaryRust, fontSize: 10, fontWeight: FontWeight.bold)),
-                ],
-              ),
-              Text('72 / 400 chars', style: TextStyle(fontSize: 10, color: Colors.grey)),
-            ],
-          )
         ],
       ),
-    );
-  }
-
-  Widget _buildFeeCard(BookingDraftModel draft) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Row(
-                children: [
-                  Icon(Icons.receipt_long, color: AppColors.primaryRust, size: 18),
-                  SizedBox(width: 8),
-                  Text('Transparent Fee\nBreakdown', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                ],
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(4)),
-                child: const Text('ZAR\nGUARANTEED', textAlign: TextAlign.center, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
-              )
-            ],
-          ),
-          const SizedBox(height: 16),
-          _buildFeeRow('Base Sitting Rate (${draft.nights} nights × R320)', draft.baseRate),
-          const SizedBox(height: 8),
-          _buildFeeRow('Multi-pet Care Fee (2 additional)', draft.multiPetFee),
-          const SizedBox(height: 8),
-          _buildFeeRow('Trust & Security Protection Guarantee', draft.trustFee, isHighlight: true),
-          const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(8)),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Estimated Total', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                    Text('Held securely in trust until stay\ncompletion', style: TextStyle(fontSize: 10, color: Colors.grey)),
-                  ],
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text('R ${draft.estimatedTotal.toStringAsFixed(0)}', style: const TextStyle(color: AppColors.primaryRust, fontSize: 24, fontWeight: FontWeight.bold)),
-                    const Text('ZAR INCL. VAT', style: TextStyle(fontSize: 8, fontWeight: FontWeight.bold)),
-                  ],
-                )
-              ],
-            ),
-          )
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFeeRow(String label, double amount, {bool isHighlight = false}) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Expanded(child: Text(label, style: TextStyle(color: isHighlight ? AppColors.primaryRust : AppColors.darkText, fontSize: 12))),
-        Text('R ${amount.toStringAsFixed(2)}', style: TextStyle(color: isHighlight ? AppColors.primaryRust : AppColors.darkText, fontSize: 14, fontWeight: FontWeight.bold)),
-      ],
     );
   }
 
   Widget _buildDispatchFooter(BookingDraftModel draft) {
     return Column(
       children: [
-        const Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text('DISPATCH BOOKING BROADCAST', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.1)),
-            Row(
-              children: [
-                Icon(Icons.circle, color: AppColors.primaryRust, size: 8),
-                SizedBox(width: 4),
-                Text('14 Sitters Active Near You', style: TextStyle(color: AppColors.primaryRust, fontSize: 10)),
-              ],
-            )
-          ],
-        ),
-        const SizedBox(height: 12),
         SizedBox(
           width: double.infinity,
           child: ElevatedButton(
-            // Executes the POST request using the data from the screen
             onPressed: () async => await BookingService.dispatchBooking(draft, _instructionsController.text),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primaryRust,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              padding: const EdgeInsets.symmetric(vertical: 18),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             ),
-            child: const Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.radar, color: Colors.white),
-                SizedBox(width: 12),
-                Column(
-                  children: [
-                    Text('Send to Both (Saved & Nearby)', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
-                    Text('Maximum reach & fastest verified confirmation', style: TextStyle(color: Colors.white70, fontSize: 10)),
-                  ],
-                ),
-                SizedBox(width: 12),
-                Icon(Icons.send, color: Colors.white),
-              ],
-            ),
+            child: const Text('Send Booking', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16, letterSpacing: 1.1)),
           ),
         ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8)),
-                child: const Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(Icons.bookmark, color: AppColors.primaryRust, size: 16),
-                    SizedBox(height: 4),
-                    Text('Saved Sitters', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                    Text('Notify Page 11 Shortlist', style: TextStyle(color: Colors.grey, fontSize: 10)),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8)),
-                child: const Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(Icons.verified, color: AppColors.primaryRust, size: 16),
-                    SizedBox(height: 4),
-                    Text('Nearby Verified', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                    Text('SAPS Vetted in Radius', style: TextStyle(color: Colors.grey, fontSize: 10)),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        )
+        const SizedBox(height: 20),
       ],
     );
   }

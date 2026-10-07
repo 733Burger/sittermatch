@@ -99,6 +99,7 @@ class _SignupScreenState extends State<SignupScreen> {
     const backgroundColor = AppColors.background;
     const cardColor = Colors.white;
     const primaryDark = AppColors.darkText;
+    const primaryTeal = AppColors.primaryRust;
     const subtextColor = Colors.black54;
     const inputFillColor = AppColors.expandButtonBg;
     const borderColor = Color(0xFFEEEEEE);
@@ -121,7 +122,8 @@ class _SignupScreenState extends State<SignupScreen> {
                       onPressed: () => Navigator.of(context).pop(),
                     ),
                   ),
-                  const Icon(Icons.pets, size: 44, color: primaryDark),
+                  // Updated Logo to match the Teal Paw
+                  const Icon(Icons.pets, size: 44, color: primaryTeal),
                   const SizedBox(height: 8),
                   const Text(
                     'SIT & STAY',
@@ -141,15 +143,15 @@ class _SignupScreenState extends State<SignupScreen> {
 
                   // Card Form Container
                   Container(
-                    padding: const EdgeInsets.all(20),
+                    padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
                       color: cardColor,
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(24), 
                       border: Border.all(color: borderColor),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black.withOpacity(0.03),
-                          blurRadius: 8,
+                          blurRadius: 12,
                           offset: const Offset(0, 4),
                         ),
                       ],
@@ -172,25 +174,24 @@ class _SignupScreenState extends State<SignupScreen> {
                             Container(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 10,
-                                vertical: 4,
+                                vertical: 6, 
                               ),
                               decoration: BoxDecoration(
-                                color: inputFillColor,
+                                color: AppColors.lightRustBg, 
                                 borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: borderColor),
                               ),
                               child: Text(
                                 widget.selectedRole,
                                 style: const TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.bold,
-                                  color: primaryDark,
+                                  color: primaryTeal,
                                 ),
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 18),
+                        const SizedBox(height: 24),
 
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -217,7 +218,7 @@ class _SignupScreenState extends State<SignupScreen> {
                                       fillColor: inputFillColor,
                                       filled: true,
                                       border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(8),
+                                        borderRadius: BorderRadius.circular(12), // Softer corners
                                         borderSide: BorderSide.none,
                                       ),
                                     ),
@@ -251,7 +252,7 @@ class _SignupScreenState extends State<SignupScreen> {
                                       fillColor: inputFillColor,
                                       filled: true,
                                       border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(8),
+                                        borderRadius: BorderRadius.circular(12), // Softer corners
                                         borderSide: BorderSide.none,
                                       ),
                                     ),
@@ -286,7 +287,7 @@ class _SignupScreenState extends State<SignupScreen> {
                             fillColor: inputFillColor,
                             filled: true,
                             border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
+                              borderRadius: BorderRadius.circular(12),
                               borderSide: BorderSide.none,
                             ),
                           ),
@@ -320,7 +321,7 @@ class _SignupScreenState extends State<SignupScreen> {
                             fillColor: inputFillColor,
                             filled: true,
                             border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
+                              borderRadius: BorderRadius.circular(12),
                               borderSide: BorderSide.none,
                             ),
                           ),
@@ -361,7 +362,7 @@ class _SignupScreenState extends State<SignupScreen> {
                               onPressed: () => setState(() => _hidePassword = !_hidePassword),
                             ),
                             border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
+                              borderRadius: BorderRadius.circular(12), // Softer corners
                               borderSide: BorderSide.none,
                             ),
                           ),
@@ -400,7 +401,7 @@ class _SignupScreenState extends State<SignupScreen> {
                                   setState(() => _hideConfirmPassword = !_hideConfirmPassword),
                             ),
                             border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
+                              borderRadius: BorderRadius.circular(12), // Softer corners
                               borderSide: BorderSide.none,
                             ),
                           ),
@@ -415,7 +416,7 @@ class _SignupScreenState extends State<SignupScreen> {
                             padding: const EdgeInsets.all(10),
                             decoration: BoxDecoration(
                               color: Colors.red.shade50,
-                              borderRadius: BorderRadius.circular(8),
+                              borderRadius: BorderRadius.circular(12),
                               border: Border.all(color: Colors.red.shade200),
                             ),
                             child: Text(
@@ -426,17 +427,17 @@ class _SignupScreenState extends State<SignupScreen> {
                           ),
                         ],
 
-                        const SizedBox(height: 22),
+                        const SizedBox(height: 24),
 
                         // Submit Button
                         ElevatedButton(
                           onPressed: _loading ? null : _handleSignup,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: primaryDark,
+                            backgroundColor: primaryTeal,
                             foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            padding: const EdgeInsets.symmetric(vertical: 16),
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
+                              borderRadius: BorderRadius.circular(12), 
                             ),
                           ),
                           child: _loading
@@ -468,7 +469,7 @@ class _SignupScreenState extends State<SignupScreen> {
                     ),
                   ),
 
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 24),
 
                   // Login Link
                   TextButton(
@@ -476,7 +477,7 @@ class _SignupScreenState extends State<SignupScreen> {
                         ? null
                         : () => Navigator.of(context).pushReplacement(
                               MaterialPageRoute(
-                                builder: (_) => LoginScreen(),
+                                builder: (_) => const LoginScreen(),
                               ),
                             ),
                     child: const Text(

@@ -6,7 +6,6 @@ import 'role_select_screen.dart';
 import '../theme/app_colors.dart';
 
 class LoginScreen extends StatefulWidget {
-
   const LoginScreen({super.key});
 
   @override
@@ -81,6 +80,7 @@ class _LoginScreenState extends State<LoginScreen> {
     const backgroundColor = AppColors.background;
     const cardColor = Colors.white;
     const primaryDark = AppColors.darkText;
+    const primaryTeal = AppColors.primaryRust; 
     const subtextColor = Colors.black54;
     const inputFillColor = AppColors.expandButtonBg;
     const borderColor = Color(0xFFEEEEEE);
@@ -104,7 +104,8 @@ class _LoginScreenState extends State<LoginScreen> {
                         onPressed: () => Navigator.of(context).pop(),
                       ),
                     ),
-                  const Icon(Icons.pets, size: 44, color: primaryDark),
+                  // I updated the logo to match the Teal Paw in the screenshot
+                  const Icon(Icons.pets, size: 44, color: primaryTeal),
                   const SizedBox(height: 12),
                   const Text(
                     'SIT & STAY',
@@ -116,9 +117,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  Text(
+                  const Text(
                     'Login to continue',
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: subtextColor,
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
@@ -126,15 +127,16 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 28),
                   Container(
-                    padding: const EdgeInsets.all(20),
+                    padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
                       color: cardColor,
-                      borderRadius: BorderRadius.circular(16),
+                      // i increased border radius for a softer, modern look matching the new UI
+                      borderRadius: BorderRadius.circular(24),
                       border: Border.all(color: borderColor),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black.withOpacity(0.03),
-                          blurRadius: 8,
+                          blurRadius: 12,
                           offset: const Offset(0, 4),
                         ),
                       ],
@@ -177,7 +179,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             fillColor: inputFillColor,
                             filled: true,
                             border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
+                              borderRadius: BorderRadius.circular(12), // Softer corners
                               borderSide: BorderSide.none,
                             ),
                           ),
@@ -207,7 +209,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 'Forgot password?',
                                 style: TextStyle(
                                   fontSize: 12,
-                                  color: primaryDark,
+                                  color: primaryTeal, 
                                   fontWeight: FontWeight.w600,
                                   decoration: TextDecoration.underline,
                                 ),
@@ -235,7 +237,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               onPressed: () => setState(() => _hidePassword = !_hidePassword),
                             ),
                             border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
+                              borderRadius: BorderRadius.circular(12), // Softer corners
                               borderSide: BorderSide.none,
                             ),
                           ),
@@ -254,11 +256,11 @@ class _LoginScreenState extends State<LoginScreen> {
                         ElevatedButton(
                           onPressed: _loading ? null : _handleLogin,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: primaryDark,
+                            backgroundColor: primaryTeal, 
                             foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            padding: const EdgeInsets.symmetric(vertical: 16),
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
+                              borderRadius: BorderRadius.circular(12), // Created softer corners
                             ),
                           ),
                           child: _loading
