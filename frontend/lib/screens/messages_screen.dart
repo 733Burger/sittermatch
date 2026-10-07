@@ -142,9 +142,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
   void _handleBottomNavTap(int index) {
     switch (index) {
       case 0:
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const OwnerHomeScreen()),
-         );
+        Navigator.of(context).popUntil((route) => route.isFirst);
         break;
       case 1:
         Navigator.of(context).pushReplacement(

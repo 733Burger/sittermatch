@@ -6,10 +6,10 @@ import 'sitter_detail_screen.dart';
 import 'booking_flow_screen.dart';
 import 'direct_chat_screen.dart';
 import 'messages_screen.dart';
+import 'accepted_booking_screen.dart';
 import 'ongoing_booking_screen.dart';
 import 'owner_profile_screen.dart';
 import 'previous_booking_screen.dart';
-import 'owner_home_screen.dart';
 
 /// Plain data the booking cards draw from.
 /// status: 'ongoing' | 'accepted' | 'completed' | 'searching'
@@ -192,9 +192,8 @@ class _BookingsDashboardScreenState extends State<BookingsDashboardScreen> {
         onTap: (index) {
           switch (index) {
             case 0:
-              Navigator.of(context).pushReplacement(
-                MaterialPageRoute(builder: (_) => const OwnerHomeScreen()),
-              );
+              // Home is the first screen in the stack after login.
+              Navigator.of(context).popUntil((route) => route.isFirst);
               break;
             case 1:
               break; // already on Bookings
@@ -338,9 +337,17 @@ class _BookingsDashboardScreenState extends State<BookingsDashboardScreen> {
     final status = booking.status;
 
     return GestureDetector(
-      onTap: () => _open(
-        status == 'completed' ? const PreviousBookingsScreen() : const SitterDetailScreen(),
-      ),
+      onTap: () {
+        Widget screen;
+        if (status == 'completed') {
+          screen = const PreviousBookingsScreen();
+        } else if (status == 'accepted') {
+          screen = const AcceptedBookingScreen();
+        } else {
+          screen = const SitterDetailScreen();
+        }
+        _open(screen);
+      },
       child: Container(
         margin: const EdgeInsets.only(bottom: 16),
         padding: const EdgeInsets.all(16),

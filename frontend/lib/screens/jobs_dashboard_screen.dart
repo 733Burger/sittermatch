@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
+import 'accepted_booking_screen.dart';
 import 'direct_chat_screen.dart';
 import 'messages_screen.dart';
 import 'ongoing_booking_screen.dart';
@@ -448,10 +449,17 @@ class _JobsDashboardScreenState extends State<JobsDashboardScreen> {
       ),
     );
 
-    // Completed jobs open the previous jobs screen (details and your review).
-    if (status != 'completed') return card;
+    // Accepted jobs open their details; completed jobs open the previous jobs screen.
+    Widget? detail;
+    if (status == 'accepted') {
+      detail = const AcceptedBookingScreen();
+    } else if (status == 'completed') {
+      detail = const PreviousBookingsScreen();
+    }
+    final target = detail;
+    if (target == null) return card;
     return GestureDetector(
-      onTap: () => _open(const PreviousBookingsScreen()),
+      onTap: () => _open(target),
       child: card,
     );
   }
