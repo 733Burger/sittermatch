@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
+import 'accepted_booking_screen.dart';
 import 'direct_chat_screen.dart';
 import 'messages_screen.dart';
+import 'ongoing_booking_screen.dart';
+import 'previous_booking_screen.dart';
 import 'sitter_profile_screen.dart';
 
 /// One job on the sitter's dashboard.
@@ -303,7 +306,7 @@ class _JobsDashboardScreenState extends State<JobsDashboardScreen> {
   Widget _buildJobCard(_Job job) {
     final status = job.status;
 
-    return Container(
+    final card = Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
@@ -372,7 +375,7 @@ class _JobsDashboardScreenState extends State<JobsDashboardScreen> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: () => _showSnack('Job details are coming soon.'),
+                onPressed: () => _open(const OngoingBookingScreen()),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.heritageFooterBg,
                   padding: const EdgeInsets.symmetric(vertical: 12),
@@ -444,6 +447,20 @@ class _JobsDashboardScreenState extends State<JobsDashboardScreen> {
           ],
         ],
       ),
+    );
+
+    // Accepted jobs open their details; completed jobs open the previous jobs screen.
+    Widget? detail;
+    if (status == 'accepted') {
+      detail = const AcceptedBookingScreen();
+    } else if (status == 'completed') {
+      detail = const PreviousBookingsScreen();
+    }
+    final target = detail;
+    if (target == null) return card;
+    return GestureDetector(
+      onTap: () => _open(target),
+      child: card,
     );
   }
 

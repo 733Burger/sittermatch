@@ -3,6 +3,7 @@ import '../services/auth_services.dart';
 import '../theme/app_colors.dart';
 import 'bookings_dashboard_screen.dart';
 import 'messages_screen.dart';
+import 'owner_home_screen.dart';
 
 class PetModel {
   String name;
@@ -133,8 +134,9 @@ class _OwnerProfileScreenState extends State<OwnerProfileScreen> {
     }
     switch (index) {
       case 0:
-        // Home is the first screen in the stack after login.
-        Navigator.of(context).popUntil((route) => route.isFirst);
+        Navigator.of(context).pushReplacement(
+                MaterialPageRoute(builder: (_) => const OwnerHomeScreen()),
+              );
         break;
       case 1:
         Navigator.of(context).pushReplacement(

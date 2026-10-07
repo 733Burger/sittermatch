@@ -28,6 +28,37 @@ class SitterProfile {
   });
 }
 
+/// One service the sitter offers, with their price.
+class _ServiceRate {
+  final IconData icon;
+  final String title;
+  final String? detail;
+  final String price;
+  final String unit;
+
+  const _ServiceRate({
+    required this.icon,
+    required this.title,
+    this.detail,
+    required this.price,
+    required this.unit,
+  });
+}
+
+class _Review {
+  final String author;
+  final double rating;
+  final String comment;
+  final String date;
+
+  const _Review({
+    required this.author,
+    required this.rating,
+    required this.comment,
+    required this.date,
+  });
+}
+
 // UI SCREEN
 class SitterDetailScreen extends StatefulWidget {
   const SitterDetailScreen({super.key});
@@ -38,7 +69,6 @@ class SitterDetailScreen extends StatefulWidget {
 
 class _SitterDetailScreenState extends State<SitterDetailScreen> {
   bool isFavorite = false;
-  bool isReviewsExpanded = false;
 
   // Detail screen isn't a root tab page, so selected tab state starts unselected (-1)
   int currentNavIndex = -1;
@@ -52,6 +82,50 @@ class _SitterDetailScreenState extends State<SitterDetailScreen> {
     companions: ['Dogs (All Sizes)', 'Cats', 'Senior Dogs', 'Birds & Parrots'],
     yearsExperience: 8,
   );
+
+  // Sample details. TODO: load these from the backend.
+  static const String _about =
+      'Canine first aid certified, with 8 years of experience looking after dogs and cats '
+      'in Southern Suburbs homes. Comfortable with alarm systems and load shedding routines.';
+
+  static const List<_ServiceRate> _services = [
+    _ServiceRate(
+      icon: Icons.nights_stay_outlined,
+      title: 'Stay over night',
+      price: 'R320',
+      unit: '/ night',
+    ),
+    _ServiceRate(
+      icon: Icons.directions_walk,
+      title: 'Walk dog',
+      detail: '45 minute walks',
+      price: 'R120',
+      unit: '/ walk',
+    ),
+    _ServiceRate(
+      icon: Icons.restaurant_outlined,
+      title: 'Feed dog',
+      price: 'R160',
+      unit: '/ visit',
+    ),
+  ];
+
+  static const List<_Review> _reviews = [
+    _Review(
+      author: 'Michael S.',
+      rating: 5.0,
+      comment:
+          'Lerato was exceptional with our two German Shepherds and managed the alarm system '
+          'and solar backup flawlessly. Total peace of mind while overseas.',
+      date: 'Sep 2026',
+    ),
+    _Review(
+      author: 'Claire V.',
+      rating: 4.9,
+      comment: 'Punctual, caring and sent daily photo updates.',
+      date: 'Aug 2026',
+    ),
+  ];
 
   void _onBottomNavTapped(int index) {
     setState(() => currentNavIndex = index);
@@ -137,420 +211,114 @@ class _SitterDetailScreenState extends State<SitterDetailScreen> {
     );
   }
 
+  // ---------- Helpers ----------
+
+  BoxDecoration _cardDecoration() {
+    return BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(color: Colors.grey.shade200),
+    );
+  }
+
+  Widget _sectionTitle(String text) {
+    return Text(
+      text,
+      style: const TextStyle(
+        fontSize: 16,
+        fontWeight: FontWeight.bold,
+        color: AppColors.darkText,
+      ),
+    );
+  }
+
+  Widget _stars(double score, {double size = 16}) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: List.generate(5, (i) {
+        final remaining = score - i;
+        IconData icon;
+        if (remaining >= 1) {
+          icon = Icons.star_rounded;
+        } else if (remaining >= 0.5) {
+          icon = Icons.star_half_rounded;
+        } else {
+          icon = Icons.star_outline_rounded;
+        }
+        return Icon(icon, color: AppColors.primaryRust, size: size);
+      }),
+    );
+  }
+
+  // ---------- Build ----------
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: AppColors.background,
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: AppColors.darkText),
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
-          'Sitter Detail',
-          style: TextStyle(color: AppColors.darkText, fontWeight: FontWeight.w600),
+          'Sitter Profile',
+          style: TextStyle(color: AppColors.darkText, fontWeight: FontWeight.bold),
         ),
         actions: [
           IconButton(
             icon: const Icon(Icons.more_vert, color: AppColors.darkText),
             onPressed: _showMoreOptions,
           ),
-          Padding(
-            padding: const EdgeInsets.only(right: 16.0),
-            child: GestureDetector(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const OwnerProfileScreen()),
-                );
-              },
-              child: const CircleAvatar(
-                radius: 16,
-                backgroundColor: Color(0xFF8B4513),
-                child: Icon(Icons.person, color: Colors.white, size: 20),
-              ),
-            ),
-          ),
         ],
       ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 10),
-              // Header Tags
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: AppColors.lightRustBg,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: const Row(
-                      children: [
-                        Icon(Icons.verified_outlined, color: AppColors.primaryRust, size: 16),
-                        SizedBox(width: 4),
-                        Text(
-                          'VERIFIED ESTATE CARETAKER',
-                          style: TextStyle(
-                            color: AppColors.primaryRust,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Row(
-                    children: [
-                      GestureDetector(
-                        onTap: _shareProfile,
-                        child: const CircleAvatar(
-                          backgroundColor: Colors.white,
-                          radius: 18,
-                          child: Icon(Icons.share, color: AppColors.darkText, size: 18),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      GestureDetector(
-                        onTap: _toggleFavorite,
-                        child: CircleAvatar(
-                          backgroundColor: Colors.white,
-                          radius: 18,
-                          child: Icon(
-                            isFavorite ? Icons.favorite : Icons.favorite_border,
-                            color: isFavorite ? Colors.red : AppColors.darkText,
-                            size: 18,
-                          ),
-                        ),
-                      ),
-                    ],
-                  )
-                ],
-              ),
-              const SizedBox(height: 20),
-
-              // Profile Info
-              Row(
-                children: [
-                  Stack(
-                    children: [
-                      CircleAvatar(
-                        radius: 40,
-                        backgroundImage: NetworkImage(sitter.avatarUrl),
-                      ),
-                      const Positioned(
-                        bottom: 0,
-                        right: 0,
-                        child: CircleAvatar(
-                          radius: 12,
-                          backgroundColor: AppColors.primaryRust,
-                          child: Icon(Icons.security, color: Colors.white, size: 14),
-                        ),
-                      )
-                    ],
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          sitter.name,
-                          style: const TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.darkText,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            const Icon(Icons.location_on_outlined, color: AppColors.primaryRust, size: 16),
-                            const SizedBox(width: 4),
-                            Text(sitter.location, style: const TextStyle(color: AppColors.darkText, fontSize: 14)),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            const Icon(Icons.star, color: AppColors.primaryRust, size: 16),
-                            const SizedBox(width: 4),
-                            Text(
-                              '${sitter.rating}  (${sitter.reviewCount} verified reviews)',
-                              style: TextStyle(
-                                color: AppColors.darkText.withValues(alpha: 0.7),
-                                fontSize: 13,
-                              ),
-                            ),
-                          ],
-                        )
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-
-              // Certifications
-              Row(
-                children: [
-                  Expanded(child: _buildCertCard(Icons.verified_user_outlined, 'SAPS CERTIFIED', 'Police Clearance Valid')),
-                  const SizedBox(width: 12),
-                  Expanded(child: _buildCertCard(Icons.badge_outlined, 'DHA NATIONAL ID', 'Biometric Registered')),
-                ],
-              ),
-              const SizedBox(height: 30),
-
-              // Companions
-              Text(
-                'ACCEPTED COMPANIONS',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.darkText.withValues(alpha: 0.6),
-                  letterSpacing: 1.1,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: sitter.companions.map((c) => _buildCompanionChip(c)).toList(),
-              ),
-              const SizedBox(height: 30),
-
-              // Security & Mastery
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Icon(Icons.shield_outlined, color: AppColors.primaryRust, size: 28),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Security & High-Care Mastery',
-                                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.darkText),
-                              ),
-                              Text(
-                                'Cape Town Residential Protocols',
-                                style: TextStyle(fontSize: 13, color: AppColors.darkText.withValues(alpha: 0.6)),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(color: AppColors.primaryRust, borderRadius: BorderRadius.circular(4)),
-                          child: Text(
-                            '${sitter.yearsExperience}+ YRS\nEXP',
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
-                          ),
-                        )
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Canine First Aid certified with extensive operational familiarity managing high-security & Southern Suburbs residences. Trained in active alarm systems and power redundancy routines.',
-                      style: TextStyle(color: AppColors.darkText.withValues(alpha: 0.8), height: 1.5, fontSize: 14),
-                    ),
-                    const SizedBox(height: 20),
-                    Row(
-                      children: [
-                        Expanded(child: _buildSecurityGridItem(Icons.electrical_services, 'Load Shedding', 'Inverter & Gen Hand...')),
-                        const SizedBox(width: 12),
-                        Expanded(child: _buildSecurityGridItem(Icons.grid_4x4, 'Alarm Systems', 'Paradox, ADT, Electr...')),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(child: _buildSecurityGridItem(Icons.call, 'Armed Response', 'Direct dispatch links')),
-                        const SizedBox(width: 12),
-                        Expanded(child: _buildSecurityGridItem(Icons.medical_services_outlined, 'First Aid Vetted', 'Emergency med do...')),
-                      ],
-                    )
-                  ],
-                ),
-              ),
-              const SizedBox(height: 30),
-
-              // Services
-              const Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text('Services & Standard\nRates', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.darkText)),
-                  Text('ZAR (R)\nTRANSPARENT', textAlign: TextAlign.right, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.primaryRust)),
-                ],
-              ),
-              const SizedBox(height: 16),
-              _buildServiceRow(Icons.home_outlined, 'Overnight House & Pet Sitting', 'Continuous overnight care & perim...', 'R320', '/ night'),
-              _buildServiceRow(Icons.access_time, 'Drop-In & Feeding Visits', 'Fresh water, medication, meal routines...', 'R160', '/ visit'),
-              _buildServiceRow(Icons.directions_walk, 'Dog Walking (Beach & Mountain)', 'Camps Bay tidal runs & Pipe Track tr...', 'R120', '/ hour'),
-              _buildServiceRow(Icons.local_florist_outlined, 'Plant Care & House Managem...', 'Mail, pool check, potted plants ...', 'Included', 'with sitting'),
-              const SizedBox(height: 30),
-
-              // Reviews
-              const Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text('Homeowner\nEndorsements', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.darkText)),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Icon(Icons.workspace_premium, color: AppColors.primaryRust, size: 16),
-                      Text('100%\nCompletion', textAlign: TextAlign.right, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.primaryRust)),
-                    ],
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        const CircleAvatar(
-                          backgroundColor: AppColors.lightRustBg,
-                          child: Text('MS', style: TextStyle(color: AppColors.primaryRust, fontWeight: FontWeight.bold)),
-                        ),
-                        const SizedBox(width: 12),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text('Michael S.', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.darkText)),
-                            Text('Constantia, Cape Town', style: TextStyle(fontSize: 12, color: AppColors.darkText.withValues(alpha: 0.6))),
-                          ],
-                        ),
-                        const Spacer(),
-                        Row(children: List.generate(5, (index) => const Icon(Icons.star, color: AppColors.primaryRust, size: 16))),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      '"Lerato was exceptional with our two German Shepherds and managed our alarm system and solar backup flawlessly during Stage 4 outages. Total peace of mind while overseas."',
-                      style: TextStyle(fontStyle: FontStyle.italic, color: AppColors.darkText.withValues(alpha: 0.8), height: 1.5),
-                    ),
-                    const SizedBox(height: 16),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(8)),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.check_circle_outline, color: AppColors.darkText.withValues(alpha: 0.6), size: 14),
-                          const SizedBox(width: 6),
-                          Text('14-day booking • German Shepherds', style: TextStyle(fontSize: 11, color: AppColors.darkText.withValues(alpha: 0.6))),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: TextButton(
-                  style: TextButton.styleFrom(
-                    backgroundColor: AppColors.expandButtonBg,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
-                  onPressed: () {
-                    setState(() {
-                      isReviewsExpanded = !isReviewsExpanded;
-                    });
-                  },
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        isReviewsExpanded ? 'Collapse Reviews' : 'Expand All 38 Reviews',
-                        style: const TextStyle(color: AppColors.darkText, fontWeight: FontWeight.w600),
-                      ),
-                      Icon(
-                        isReviewsExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
-                        color: AppColors.darkText,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 30),
-
-              // Heritage Bond Footer Card
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(color: AppColors.heritageFooterBg, borderRadius: BorderRadius.circular(16)),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Icon(Icons.verified, color: AppColors.primaryRust, size: 28),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text('The Heritage Concierge\nBond', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Every reserved stay is backed by R10,000,000 public liability, 24/7 telephonic vet support via Cape Animal Medical Centre, and instant replacement emergency cover.',
-                            style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 13, height: 1.5),
-                          ),
-                        ],
-                      ),
-                    )
-                  ],
-                ),
-              ),
-              const SizedBox(height: 40),
-            ],
-          ),
-        ),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          _buildHeaderCard(),
+          const SizedBox(height: 16),
+          _buildAboutCard(),
+          const SizedBox(height: 16),
+          _buildPetsCard(),
+          const SizedBox(height: 16),
+          _buildServicesCard(),
+          const SizedBox(height: 16),
+          _buildReviewsCard(),
+          const SizedBox(height: 16),
+        ],
       ),
       bottomNavigationBar: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-            decoration: const BoxDecoration(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
               color: Colors.white,
-              border: Border(top: BorderSide(color: Colors.black12, width: 1)),
+              border: Border(top: BorderSide(color: Colors.grey.shade200)),
             ),
             child: Row(
               children: [
                 InkWell(
                   onTap: _toggleFavorite,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(8),
                   child: Container(
                     padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(12)),
+                    decoration: BoxDecoration(
+                      color: AppColors.background,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                     child: Icon(
                       isFavorite ? Icons.favorite : Icons.favorite_border,
-                      color: isFavorite ? Colors.red : AppColors.darkText,
+                      color: isFavorite ? AppColors.primaryRust : AppColors.darkText,
                     ),
                   ),
                 ),
-                const SizedBox(width: 16),
+                const SizedBox(width: 12),
                 Expanded(
-                  child: ElevatedButton(
+                  child: ElevatedButton.icon(
                     onPressed: () async {
                       await SitterService.initiateChat('lerato_123');
                       if (context.mounted) {
@@ -564,17 +332,14 @@ class _SitterDetailScreenState extends State<SitterDetailScreen> {
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primaryRust,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                       elevation: 0,
                     ),
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.chat_bubble_outline, color: Colors.white, size: 20),
-                        SizedBox(width: 8),
-                        Text('Message Sitter', style: TextStyle(fontSize: 16, color: Colors.white, fontWeight: FontWeight.bold)),
-                      ],
+                    icon: const Icon(Icons.chat_bubble_outline, color: Colors.white, size: 18),
+                    label: const Text(
+                      'Message Sitter',
+                      style: TextStyle(fontSize: 14, color: Colors.white, fontWeight: FontWeight.bold),
                     ),
                   ),
                 ),
@@ -603,89 +368,317 @@ class _SitterDetailScreenState extends State<SitterDetailScreen> {
     );
   }
 
-  // Helper Widgets
-  Widget _buildCertCard(IconData icon, String title, String subtitle) {
+  Widget _buildHeaderCard() {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-      decoration: BoxDecoration(color: AppColors.lightRustBg, borderRadius: BorderRadius.circular(12)),
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: _cardDecoration(),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          Stack(
             children: [
-              Icon(icon, color: AppColors.primaryRust, size: 16),
-              const SizedBox(width: 6),
-              Expanded(child: Text(title, style: const TextStyle(color: AppColors.primaryRust, fontSize: 10, fontWeight: FontWeight.bold))),
+              CircleAvatar(
+                radius: 48,
+                backgroundColor: Colors.grey.shade300,
+                backgroundImage: NetworkImage(sitter.avatarUrl),
+              ),
+              Positioned(
+                bottom: 0,
+                right: 0,
+                child: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryRust,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 2),
+                  ),
+                  child: const Icon(Icons.check, size: 14, color: Colors.white),
+                ),
+              ),
             ],
           ),
-          const SizedBox(height: 4),
-          Text(subtitle, style: TextStyle(color: AppColors.darkText.withValues(alpha: 0.7), fontSize: 10)),
+          const SizedBox(height: 12),
+          Text(
+            sitter.name,
+            style: const TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: AppColors.darkText,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.location_on_outlined, color: AppColors.primaryRust, size: 16),
+              const SizedBox(width: 4),
+              Text(
+                sitter.location,
+                style: const TextStyle(fontSize: 13, color: Colors.black54),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.star_rounded, color: AppColors.primaryRust, size: 18),
+              const SizedBox(width: 4),
+              Text(
+                sitter.rating.toStringAsFixed(2),
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              ),
+              Text(
+                ' (${sitter.reviewCount} reviews)',
+                style: const TextStyle(fontSize: 12, color: Colors.black54),
+              ),
+            ],
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildCompanionChip(String label) {
+  Widget _buildAboutCard() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(color: AppColors.companionChipBg, borderRadius: BorderRadius.circular(8)),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.pets, color: AppColors.primaryRust, size: 14),
-          const SizedBox(width: 6),
-          Text(label, style: const TextStyle(color: AppColors.darkText, fontSize: 12, fontWeight: FontWeight.w500)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSecurityGridItem(IconData icon, String title, String subtitle) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(12)),
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: _cardDecoration(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: AppColors.primaryRust, size: 20),
-          const SizedBox(height: 8),
-          Text(title, style: const TextStyle(color: AppColors.darkText, fontSize: 12, fontWeight: FontWeight.bold)),
-          Text(subtitle, style: TextStyle(color: AppColors.darkText.withValues(alpha: 0.6), fontSize: 10)),
+          _sectionTitle('About & experience'),
+          const SizedBox(height: 10),
+          const Text(
+            _about,
+            style: TextStyle(fontSize: 13, height: 1.5, color: Colors.black87),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildServiceRow(IconData icon, String title, String subtitle, String price, String unit) {
+  Widget _buildPetsCard() {
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
+      width: double.infinity,
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+      decoration: _cardDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _sectionTitle('Accepted pets'),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: sitter.companions.map((c) {
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: AppColors.expandButtonBg,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.pets, color: AppColors.primaryRust, size: 14),
+                    const SizedBox(width: 6),
+                    Text(
+                      c,
+                      style: const TextStyle(
+                        color: AppColors.darkText,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildServicesCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: _cardDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _sectionTitle('Services & rates'),
+          const SizedBox(height: 2),
+          const Text(
+            'Prices are in rand (R).',
+            style: TextStyle(fontSize: 12, color: Colors.black54),
+          ),
+          ..._services.map(_buildServiceRow),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildServiceRow(_ServiceRate service) {
+    return Container(
+      margin: const EdgeInsets.only(top: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(12),
+      ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(8)),
-            child: Icon(icon, color: AppColors.primaryRust, size: 20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(service.icon, color: AppColors.primaryRust, size: 20),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.darkText, fontSize: 14)),
-                const SizedBox(height: 4),
-                Text(subtitle, style: TextStyle(color: AppColors.darkText.withValues(alpha: 0.6), fontSize: 12)),
+                Text(
+                  service.title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.darkText,
+                    fontSize: 14,
+                  ),
+                ),
+                if (service.detail != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    service.detail!,
+                    style: const TextStyle(fontSize: 11, color: Colors.black54),
+                  ),
+                ],
               ],
             ),
           ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text(price, style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryRust, fontSize: 16)),
-              Text(unit, style: TextStyle(color: AppColors.darkText.withValues(alpha: 0.6), fontSize: 10)),
+              Text(
+                service.price,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primaryRust,
+                  fontSize: 16,
+                ),
+              ),
+              Text(
+                service.unit,
+                style: const TextStyle(fontSize: 10, color: Colors.black54),
+              ),
             ],
-          )
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildReviewsCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: _cardDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _sectionTitle('Rating & reviews'),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Text(
+                sitter.rating.toStringAsFixed(1),
+                style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _stars(sitter.rating, size: 18),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${sitter.reviewCount} reviews',
+                    style: const TextStyle(fontSize: 12, color: Colors.black54),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          const Divider(height: 1),
+          ..._reviews.map(_buildReviewTile),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildReviewTile(_Review review) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 14),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          CircleAvatar(
+            radius: 16,
+            backgroundColor: AppColors.lightRustBg,
+            child: Text(
+              review.author.isEmpty ? '?' : review.author[0].toUpperCase(),
+              style: const TextStyle(
+                color: AppColors.primaryRust,
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        review.author,
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                      ),
+                    ),
+                    Row(
+                      children: [
+                        const Icon(Icons.star_rounded, color: AppColors.primaryRust, size: 14),
+                        const SizedBox(width: 2),
+                        Text(
+                          review.rating.toStringAsFixed(1),
+                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  review.comment,
+                  style: const TextStyle(fontSize: 12, color: Colors.black87),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  review.date,
+                  style: const TextStyle(fontSize: 10, color: Colors.black45),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );

@@ -6,7 +6,10 @@ import 'sitter_detail_screen.dart';
 import 'booking_flow_screen.dart';
 import 'direct_chat_screen.dart';
 import 'messages_screen.dart';
+import 'accepted_booking_screen.dart';
+import 'ongoing_booking_screen.dart';
 import 'owner_profile_screen.dart';
+import 'previous_booking_screen.dart';
 
 /// Plain data the booking cards draw from.
 /// status: 'ongoing' | 'accepted' | 'completed' | 'searching'
@@ -334,7 +337,17 @@ class _BookingsDashboardScreenState extends State<BookingsDashboardScreen> {
     final status = booking.status;
 
     return GestureDetector(
-      onTap: () => _open(const SitterDetailScreen()),
+      onTap: () {
+        Widget screen;
+        if (status == 'completed') {
+          screen = const PreviousBookingsScreen();
+        } else if (status == 'accepted') {
+          screen = const AcceptedBookingScreen();
+        } else {
+          screen = const SitterDetailScreen();
+        }
+        _open(screen);
+      },
       child: Container(
         margin: const EdgeInsets.only(bottom: 16),
         padding: const EdgeInsets.all(16),
@@ -406,7 +419,7 @@ class _BookingsDashboardScreenState extends State<BookingsDashboardScreen> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
-                  onPressed: () => _showSnack('Booking details are coming soon.'),
+                  onPressed: () => _open(const OngoingBookingScreen()),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.heritageFooterBg,
                     padding: const EdgeInsets.symmetric(vertical: 12),

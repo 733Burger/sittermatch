@@ -4,6 +4,7 @@ import 'owner_home_screen.dart';
 import 'sitter_home_screen.dart';
 import 'role_select_screen.dart';
 import '../theme/app_colors.dart';
+import '../utils/role_router.dart';
 
 class LoginScreen extends StatefulWidget {
 
@@ -30,7 +31,7 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  Future<void> _handleLogin() async {
+    Future<void> _handleLogin() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() {
@@ -46,27 +47,28 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (!mounted) return;
 
-      final userRole = ((await _authService.getUserRole()) ?? '').toUpperCase();
-      
-      if (result['success'] == true && (userRole == 'SITTER' || userRole == 'HOMEOWNER')) {
-        final Widget targetScreen = (userRole == 'SITTER')
-            ? const SitterHomeScreen()
-            : const OwnerHomeScreen();
-
-        if (!mounted) return;
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => targetScreen),
-          (route) => false,
-        );
+      if (result['success'] != true) {
+        setState(() {
+          _loading = false;
+          _errorMessage = result['message'] ?? 'Invalid email or password';
+        });
         return;
       }
 
-      setState(() {
-        _loading = false;
-        _errorMessage = (result['success'] == true)
-            ? 'Your account has no role assigned'
-            : 'Invalid email or password';
-      });
+      // Pick the home screen from the role the backend returned.
+      final destination = homeForRole(result['role'] as String?);
+      if (destination == null) {
+        setState(() {
+          _loading = false;
+          _errorMessage = 'Your account has no role assigned.';
+        });
+        return;
+      }
+
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => destination),
+        (route) => false,
+      );
     } catch (e) {
       if (!mounted) return;
       setState(() {
