@@ -3,7 +3,6 @@ import 'signup_screen.dart';
 import 'login_screen.dart';
 import '../theme/app_colors.dart';
 
-
 class RoleSelectScreen extends StatelessWidget {
   const RoleSelectScreen({super.key});
 
@@ -18,7 +17,7 @@ class RoleSelectScreen extends StatelessWidget {
   void _navigateToLogin(BuildContext context) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => LoginScreen()
+        builder: (_) => const LoginScreen()
       ),
     );
   }
@@ -27,6 +26,7 @@ class RoleSelectScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     const backgroundColor = AppColors.background;
     const primaryDark = AppColors.darkText;
+    const primaryTeal = AppColors.primaryRust; 
     const cardBorderColor = Color(0xFFEEEEEE);
     const subtextColor = Colors.black54;
 
@@ -42,7 +42,7 @@ class RoleSelectScreen extends StatelessWidget {
                 const Icon(
                   Icons.pets,
                   size: 48,
-                  color: primaryDark,
+                  color: primaryTeal, 
                 ),
                 const SizedBox(height: 12),
                 const Text(
@@ -123,25 +123,25 @@ class _RoleCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(24), 
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 20),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: borderColor, width: 2),
+          borderRadius: BorderRadius.circular(24), 
+          border: Border.all(color: borderColor, width: 1),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.03),
-              blurRadius: 8,
+              blurRadius: 12, // Softer shadow
               offset: const Offset(0, 4),
             ),
           ],
         ),
         child: Column(
           children: [
-            Icon(icon, size: 48, color: const Color(0xFF0F172A)),
+            Icon(icon, size: 48, color: AppColors.primaryRust), 
             const SizedBox(height: 12),
             Text(
               title,
@@ -149,7 +149,7 @@ class _RoleCard extends StatelessWidget {
               style: const TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF0F172A),
+                color: AppColors.darkText,
                 height: 1.2,
               ),
             ),
@@ -159,7 +159,7 @@ class _RoleCard extends StatelessWidget {
               textAlign: TextAlign.center,
               style: const TextStyle(
                 fontSize: 13,
-                color: Color(0xFF64748B),
+                color: Colors.black54,
                 height: 1.3,
               ),
             ),
