@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/services/auth_services.dart';
 import '../theme/app_colors.dart';
 import '../models/saved_sitter_model.dart';
 import '../services/saved_sitter_service.dart';
-import 'messages_screen.dart';
-import 'bookings_dashboard_screen.dart';
-import 'owner_home_screen.dart';
-import 'owner_profile_screen.dart';
 import 'direct_chat_screen.dart';
+import 'bookings_dashboard_screen.dart';
 
 class SavedSittersScreen extends StatefulWidget {
   const SavedSittersScreen({super.key});
@@ -23,6 +21,8 @@ class _SavedSittersScreenState extends State<SavedSittersScreen> {
     super.initState();
     _sittersFuture = SavedSitterService.getSavedSitters();
   }
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -136,7 +136,11 @@ class _SavedSittersScreenState extends State<SavedSittersScreen> {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.grey.shade200)),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -145,13 +149,12 @@ class _SavedSittersScreenState extends State<SavedSittersScreen> {
             children: [
               Stack(
                 children: [
-                
                   Container(
-                    width: 60, 
+                    width: 60,
                     height: 60,
                     decoration: BoxDecoration(
                       color: Colors.grey.shade300,
-                      borderRadius: BorderRadius.circular(12)
+                      borderRadius: BorderRadius.circular(12),
                     ),
                     child: const Icon(Icons.person, color: Colors.grey, size: 36),
                   ),
@@ -161,9 +164,13 @@ class _SavedSittersScreenState extends State<SavedSittersScreen> {
                     child: CircleAvatar(
                       radius: 10,
                       backgroundColor: AppColors.primaryRust,
-                      child: Icon(sitter.isVetNurse ? Icons.medical_services : Icons.check, color: Colors.white, size: 12),
+                      child: Icon(
+                        sitter.isVetNurse ? Icons.medical_services : Icons.check,
+                        color: Colors.white,
+                        size: 12,
+                      ),
                     ),
-                  )
+                  ),
                 ],
               ),
               const SizedBox(width: 16),
@@ -213,10 +220,10 @@ class _SavedSittersScreenState extends State<SavedSittersScreen> {
                         const SizedBox(width: 4),
                         Text('${sitter.rating} (${sitter.reviewCount})', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                       ],
-                    )
+                    ),
                   ],
                 ),
-              )
+              ),
             ],
           ),
           const SizedBox(height: 12),
@@ -244,11 +251,87 @@ class _SavedSittersScreenState extends State<SavedSittersScreen> {
               ),
               const SizedBox(width: 12),
               Container(
-                decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(8)),
-                child: IconButton(icon: const Icon(Icons.bookmark_border, color: Colors.black87), onPressed: () {}),
-              )
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: IconButton(
+                  icon: Icon(
+                    sitter.isSaved ? Icons.bookmark : Icons.bookmark_border,
+                    color: sitter.isSaved ? AppColors.primaryRust : Colors.grey,
+                  ),
+                  onPressed: () async {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Processing request...'),
+                        duration: Duration(milliseconds: 800),
+                      ),
+                    );
+
+                    // Instantiating AuthService to retrieve the logged-in ID
+                    final authService = AuthService();
+                    final int? currentHomeownerId = await authService.getUserId();
+
+                    if (currentHomeownerId == null) {
+                      if (!mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('User session expired. Please log in again.')),
+                      );
+                      return;
+                    }
+
+                    // Sitter ID remains hardcoded for now as requested
+                    const int targetSitterId = 10;
+                    final bool wasSaved = sitter.isSaved;
+
+                    debugPrint('Sending POST -> homeownerId: $currentHomeownerId, sitterId: $targetSitterId');
+
+                    try {
+                      final success = await SavedSitterService.toggleSaveSitter(
+                        homeownerId: currentHomeownerId,
+                        sitterId: targetSitterId,
+                        isCurrentlySaved: wasSaved,
+                      );
+
+                      if (!mounted) return;
+
+                      if (success) {
+                        setState(() {
+                          sitter.isSaved = !wasSaved;
+                        });
+
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              wasSaved
+                                  ? 'Sitter removed from saved list.'
+                                  : 'Sitter added to saved list!',
+                            ),
+                          ),
+                        );
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              wasSaved
+                                  ? 'Failed to remove sitter from database.'
+                                  : 'Failed to save sitter to database.',
+                            ),
+                          ),
+                        );
+                      }
+                    } catch (e) {
+                      debugPrint('Error toggling sitter: $e');
+                      if (!mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Network error: $e')),
+                      );
+                    }
+                  },
+                ),
+              ),
             ],
-          )
+          ),
         ],
       ),
     );
@@ -292,9 +375,7 @@ class _SavedSittersScreenState extends State<SavedSittersScreen> {
         if (index == 1) {
           Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const BookingsDashboardScreen()));
         } else if (index == 2) {
-          Navigator.push(context, MaterialPageRoute(builder: (context) => const MessagesScreen()));
-        }else if (index == 3) {
-          Navigator.push(context, MaterialPageRoute(builder: (context) => const OwnerProfileScreen()));
+          Navigator.push(context, MaterialPageRoute(builder: (context) => const DirectChatScreen()));
         }
       },
       items: const [
