@@ -6,6 +6,10 @@
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Sit and Stay uses your camera to take photos you choose to upload, such as your ID for verification.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Sit and Stay accesses your photos so you can choose images to upload, such as your ID for verification.</string>
 	<key>CFBundleDisplayName</key>
 	<string>Frontend</string>
 	<key>CFBundleExecutable</key>
