@@ -59,7 +59,6 @@ class _Review {
   });
 }
 
-// UI SCREEN
 class SitterDetailScreen extends StatefulWidget {
   const SitterDetailScreen({super.key});
 
