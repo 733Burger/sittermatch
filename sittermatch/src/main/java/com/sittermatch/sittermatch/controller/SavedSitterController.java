@@ -18,8 +18,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 
 import com.sittermatch.sittermatch.model.SavedSitter;
 import com.sittermatch.sittermatch.model.Sitter;
-import com.sittermatch.sittermatch.repositories.SavedSitterRepository;
-import com.sittermatch.sittermatch.repositories.SitterRepository;
+import com.sittermatch.sittermatch.repository.SavedSitterRepository;
+import com.sittermatch.sittermatch.repository.SitterRepository;
 
 @RestController
 @RequestMapping("/api/saved-sitters")

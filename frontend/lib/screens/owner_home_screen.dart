@@ -1,10 +1,20 @@
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 
+import '../models/homeowner_checks_model.dart';
+import '../models/sitter_listing.dart';
 import '../screens/login_screen.dart';
 import '../services/auth_services.dart';
 import '../services/home_services.dart';
 import '../theme/app_colors.dart';
+import '../widgets/homeowner/dialogs/address_check_dialog.dart';
+import '../widgets/homeowner/dialogs/emergency_contact_dialog.dart';
+import '../widgets/homeowner/dialogs/identity_check_dialog.dart';
+import '../widgets/homeowner/homeowner_bottom_nav_bar.dart';
+import '../widgets/homeowner/homeowner_drawer.dart';
+import '../widgets/homeowner/sitter_card.dart';
+import '../widgets/homeowner/sitter_filter_chips.dart';
+import '../widgets/homeowner/sitter_search_field.dart';
+import '../widgets/homeowner/verification_checks_card.dart';
 
 import 'bookings_dashboard_screen.dart';
 import 'saved_sitters_screen.dart';
@@ -14,28 +24,6 @@ import 'booking_flow_screen.dart';
 import 'messages_screen.dart';
 import 'owner_profile_screen.dart';
 
-class SitterListing {
-  final int id;
-  final String name;
-  final String suburb;
-  final double rating;
-  final int totalReviews;
-  final double nightRate;
-  final String? imageUrl;
-  final List<String> completedChecks;
-
-  SitterListing({
-    required this.id,
-    required this.name,
-    required this.suburb,
-    required this.rating,
-    required this.totalReviews,
-    required this.nightRate,
-    this.imageUrl,
-    required this.completedChecks,
-  });
-}
-
 class OwnerHomeScreen extends StatefulWidget {
   const OwnerHomeScreen({super.key});
 
@@ -44,33 +32,7 @@ class OwnerHomeScreen extends StatefulWidget {
 }
 
 class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
-  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
-  bool _checksExpanded = false;
-  bool _loading = false;
-
-  String _email = '';
-
-  String _homeownerAddress = '';
-  String _emergencyName = '';
-  String _emergencyPhone = '';
-  String? _idPhotoPath;
-  String _selectedFilter = 'All';
-
-  String _idCheckStatus = '';
-  String _idCheckSubtitle = '';
-  String _addressCheckStatus = '';
-  String _addressCheckSubtitle = '';
-  String _emergencyCheckStatus = '';
-  String _emergencyCheckSubtitle = '';
-  int _completedChecks = 0;
-  String _verificationStatus = '';
-
-  List<SitterListing> _sitters = [];
-
-  final Set<int> _favoriteSitterIds = {101};
-  final TextEditingController _searchController = TextEditingController();
-
-  final List<String> _filterTags = [
+  static const List<String> _filterTags = [
     'All',
     'ID Verified',
     'Pet Type',
@@ -78,107 +40,23 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
     'Medication Admin',
   ];
 
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  final HomeService _homeService = HomeService();
+  final TextEditingController _searchController = TextEditingController();
+
+  String _email = '';
+  OwnerChecks _checks = const OwnerChecks();
+  List<SitterListing> _sitters = [];
+
+  String? _idPhotoPath;
+  String _selectedFilter = _filterTags.first;
+
+  final Set<int> _favoriteSitterIds = {101};
 
   @override
   void initState() {
     super.initState();
     _loadData();
-  }
-  Future<void> _loadData() async {
-    setState(() => _loading = true);
-    try {
-      final email = await HomeService().getUserEmail();
-      if (!mounted) return;
-      if (email == null || email.isEmpty) {
-        setState(() {
-          _email = '';
-          _sitters = [];
-          _loading = false;
-        });
-        return;
-      }
-      final results = await Future.wait([
-        HomeService().fetchChecks(email: email),
-        HomeService().fetchSitters(),
-      ]);
-
-      if (!mounted) return;
-
-      final check = results[0];
-      final sittersResult = results[1];
-      
-      if (check['success'] != true) {
-        setState(() {
-          _email = email;
-          _loading = false;
-        });
-        _showSnack(check['message']?.toString() ?? 'Could not load checks');
-        return;
-      }
-      setState(() {
-        _email = email;
-        _idCheckStatus = check['idCheck']['status']?.toString() ?? 'incomplete';
-        _idCheckSubtitle = check['idCheck']['subtitle']?.toString() ?? '';
-        _addressCheckStatus = check['addressCheck']['status']?.toString() ?? 'incomplete';
-        _addressCheckSubtitle = check['addressCheck']['subtitle']?.toString() ?? '';
-        _homeownerAddress = _addressCheckSubtitle;
-        _emergencyCheckStatus = check['emergencyContactCheck']['status']?.toString() ?? 'incomplete';
-        _emergencyCheckSubtitle = check['emergencyContactCheck']['subtitle']?.toString() ?? '';
-        _emergencyName = check['emergencyContactName']?.toString() ?? '';
-        _emergencyPhone = check['emergencyContactNumber']?.toString() ?? '';
-        _completedChecks = (check['verificationCount'] as num?)?.toInt() ?? 0;
-        _verificationStatus = check['verificationStatus']?.toString() ?? 'INCOMPLETE';
-
-        if (sittersResult['success'] == true) {
-          _sitters = _parseSitters(sittersResult['sitters']);
-        } else {
-          _sitters = [];
-        }
-
-        _loading = false;
-      });
-
-      if (sittersResult['success'] != true) {
-        _showSnack(
-          sittersResult['message']?.toString() ?? 'Could not load sitters',
-        );
-      }
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _loading = false);
-      _showSnack('Could not load home data');
-    }
-  }
-  
-  List<SitterListing> _parseSitters(dynamic raw) {
-    if (raw is! List) return [];
-    return raw.map((item) {
-      final map = Map<String, dynamic>.from(item as Map);
-      final serviceTypes = (map['serviceTypes'] as List?)
-              ?.map((e) => e.toString())
-              .toList() ??
-          <String>[];
-      final petTypes = (map['petTypes'] as List?)
-              ?.map((e) => e.toString())
-              .toList() ??
-          <String>[];
-      final checks = <String>[
-        if (map['isVerified'] == true) 'Verified',
-        ...serviceTypes.take(2),
-        ...petTypes.take(1),
-      ];
-      final id = (map['id'] as num?)?.toInt() ?? 0;
-      return SitterListing(
-        id: id,
-        name: map['name']?.toString() ?? 'Sitter',
-        suburb: map['suburb']?.toString() ?? 'Location TBD',
-        rating: (map['rating'] as num?)?.toDouble() ?? 0.0,
-        totalReviews: (map['totalReviews'] as num?)?.toInt() ?? 0,
-        nightRate: (map['nightRate'] as num?)?.toDouble() ?? 0.0,
-        imageUrl: 'https://i.pravatar.cc/150?u=$id', // fake for now
-        completedChecks: checks,
-      );
-    }).toList();
   }
 
   @override
@@ -187,9 +65,42 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
     super.dispose();
   }
 
+  Future<void> _loadData() async {
+    try {
+      final email = await _homeService.getUserEmail();
+      if (!mounted) return;
+
+      if (email == null || email.isEmpty) {
+        setState(() => _email = '');
+        return;
+      }
+
+      final verificationCheck = await _homeService.fetchChecks(email: email);
+      final nearbySitters = await _homeService.fetchSitters();
+
+      if (!mounted) return;
+
+      if (verificationCheck['success'] == false) {
+        setState(() => _email = email);
+        _showSnack(verificationCheck['message']?.toString() ?? 'Could not load checks');
+        return;
+      }
+
+      setState(() {
+        _email = email;
+        _checks = OwnerChecks.fromJson(verificationCheck);
+        _sitters = SitterListing.listFromJson(nearbySitters['sitters']);
+      });
+    } catch (e) {
+      if (!mounted) return;
+      _showSnack('Could not load home data');
+    }
+  }
+
   void _closeDrawerIfOpen() {
-    if (_scaffoldKey.currentState?.isDrawerOpen ?? false)
+    if (_scaffoldKey.currentState?.isDrawerOpen ?? false) {
       Navigator.pop(context);
+    }
   }
 
   void _open(Widget screen) {
@@ -199,11 +110,10 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
 
   void _comingSoon(String title) {
     _closeDrawerIfOpen();
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text('$title is coming soon')));
+    _showSnack('$title is coming soon');
   }
 
-  Future<void> _signOut() async {
+  Future<void> _LogOut() async {
     await AuthService().clearSession();
     if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
@@ -225,20 +135,21 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
         .showSnackBar(SnackBar(content: Text(message)));
   }
 
-  // ---------- Footer navigation ----------
+  void _showMessageIfMounted(String message) {
+    if (mounted) _showSnack(message);
+  }
 
-  void _handleBottomNavTap(int index) {
-    switch (index) {
-      case 0:
-        // Already on Home
+  void _handleBottomNavTap(OwnerNavTab tab) {
+    switch (tab) {
+      case OwnerNavTab.home:
         break;
-      case 1:
+      case OwnerNavTab.bookings:
         _open(const BookingsDashboardScreen());
         break;
-      case 2:
+      case OwnerNavTab.messages:
         _open(const MessagesScreen());
         break;
-      case 3:
+      case OwnerNavTab.profile:
         _open(const OwnerProfileScreen());
         break;
     }
@@ -249,135 +160,34 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
   void _openIdentityCheckDialog() {
     showDialog(
       context: context,
-      builder: (context) {
-        var submitting = false;
-        return StatefulBuilder(
-          builder: (context, setDialogState) => AlertDialog(
-            title: const Text('Identity / SA ID Verification'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  'Upload a clear photo of your South African ID Document or Card.',
-                ),
-                const SizedBox(height: 16),
-                ElevatedButton.icon(
-                  onPressed: submitting
-                      ? null
-                      : () => _pickAndSubmitId(
-                          context,
-                          ImageSource.gallery,
-                          setDialogState,
-                          () => submitting,
-                          (value) => submitting = value,
-                        ),
-                  icon: Icon(Icons.photo_library),
-                  label: Text(
-                    _idPhotoPath == null
-                        ? 'Select from Gallery'
-                        : 'Change Selected Photo',
-                  ),
-                ),
-                const SizedBox(height: 8),
-                ElevatedButton.icon(
-                  onPressed: submitting
-                      ? null
-                      : () => _pickAndSubmitId(
-                          context,
-                          ImageSource.camera,
-                          setDialogState,
-                          () => submitting,
-                          (value) => submitting = value,
-                        ),
-                  icon: const Icon(Icons.photo_camera),
-                  label: Text(
-                    _idPhotoPath == null
-                        ? 'Take a Photo'
-                        : 'Replace with camera',
-                  ),
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: submitting ? null : () => Navigator.pop(context),
-                child: const Text('Cancel'),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Future<void> _pickAndSubmitId(
-    BuildContext dialogContext,
-    ImageSource source,
-    void Function(VoidCallback fn) setDialogState,
-    bool Function() isSubmitting,
-    void Function(bool value) setSubmitting,
-  ) async {
-    if (_email.isEmpty) {
-      Navigator.pop(dialogContext);
-      _showSnack('Please log in to upload your ID.');
-      return;
-    }
-
-    if (isSubmitting()) return;
-    setDialogState(() => setSubmitting(true));
-
-    try {
-      final photo = await ImagePicker().pickImage(
-        source: source,
-        imageQuality: 85,
-        maxWidth: 2000,
-      );
-      if (!dialogContext.mounted) return;
-
-      if (photo == null) {
-        setDialogState(() => setSubmitting(false));
-        return;
-      }
-
-      final bytes = await photo.readAsBytes();
-      final result = await HomeService().submitIdentityCheck(
+      builder: (_) => IdentityCheckDialog(
         email: _email,
-        bytes: bytes,
-        filename: photo.name.isEmpty ? 'id-photo.jpg' : photo.name,
-      );
-
-      if (!mounted) return;
-      if (dialogContext.mounted) Navigator.pop(dialogContext);
-
-      if (result['success'] == true) {
-        setState(() => _idPhotoPath = photo.path);
-        _showSnack('ID Photo uploaded successfully! Status set to Pending.');
-        await _loadData();
-      } else {
-        _showSnack(result['message']?.toString() ?? 'Upload failed.');
-      }
-    } catch (e) {
-      if (dialogContext.mounted) {
-        setDialogState(() => setSubmitting(false));
-      }
-      if (mounted) _showSnack('Upload failed.');
-    }
+        homeService: _homeService,
+        hasSelectedPhoto: _idPhotoPath != null,
+        onUploaded: (photoPath) {
+          if (!mounted) return;
+          setState(() => _idPhotoPath = photoPath);
+          _showSnack('ID Photo uploaded successfully! Status set to Pending.');
+          _loadData();
+        },
+        onMessage: _showMessageIfMounted,
+      ),
+    );
   }
 
   void _openAddressCheckDialog() {
     showDialog(
       context: context,
-      builder: (_) => _AddressCheckDialog(
-        initialAddress: _homeownerAddress,
+      builder: (_) => AddressCheckDialog(
+        initialAddress: _checks.addressCheck.subtitle,
         email: _email,
-        onSaved: (address, result) {
+        homeService: _homeService,
+        onSaved: () {
           if (!mounted) return;
           _showSnack('Home address saved! Status set to Pending.');
           _loadData();
         },
-        onMessage: (msg) {
-          if (mounted) _showSnack(msg);
-        },
+        onMessage: _showMessageIfMounted,
       ),
     );
   }
@@ -385,18 +195,17 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
   void _openEmergencyContactDialog() {
     showDialog(
       context: context,
-      builder: (_) => _EmergencyContactDialog(
-        initialName: _emergencyName,
-        initialPhone: _emergencyPhone,
+      builder: (_) => EmergencyContactDialog(
+        initialName: _checks.emergencyContactName,
+        initialPhone: _checks.emergencyContactNumber,
         email: _email,
-        onSaved: (name, phone, result) {
+        homeService: _homeService,
+        onSaved: () {
           if (!mounted) return;
           _showSnack('Emergency contact saved! Status set to Pending.');
           _loadData();
         },
-        onMessage: (m) {
-          if (mounted) _showSnack(m);
-        },
+        onMessage: _showMessageIfMounted,
       ),
     );
   }
@@ -439,788 +248,53 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
           ),
         ],
       ),
-      drawer: Drawer(
-        backgroundColor: AppColors.background,
-        child: ListView(
-          padding: EdgeInsets.zero,
-          children: [
-            UserAccountsDrawerHeader(
-              decoration: const BoxDecoration(color: AppColors.primaryRust),
-              accountName: const Text('Homeowner'),
-              accountEmail: Text(_email),
-              currentAccountPicture: const CircleAvatar(
-                backgroundColor: Colors.white,
-                child: Icon(Icons.person, color: AppColors.primaryRust),
-              ),
-            ),
-            ListTile(
-              leading: const Icon(Icons.person_outline),
-              title: const Text('Profile'),
-              onTap: () => _open(const OwnerProfileScreen()),
-            ),
-            ListTile(
-              leading: const Icon(Icons.calendar_today_outlined),
-              title: const Text('My Bookings'),
-              onTap: () => _open(const BookingsDashboardScreen()),
-            ),
-            ListTile(
-              leading: const Icon(Icons.bookmark_border_outlined),
-              title: const Text('Saved Sitters'),
-              trailing: Badge(
-                label: Text('${_favoriteSitterIds.length}'),
-                backgroundColor: AppColors.primaryRust,
-              ),
-              onTap: () => _open(const SavedSittersScreen()),
-            ),
-            ListTile(
-              leading: const Icon(Icons.settings_outlined),
-              title: const Text('Settings'),
-              onTap: () => _comingSoon('Settings'),
-            ),
-            const Divider(),
-            ListTile(
-              leading: const Icon(Icons.logout, color: Colors.red),
-              title: const Text('Log Out', style: TextStyle(color: Colors.red)),
-              onTap: _signOut,
-            ),
-          ],
-        ),
+      drawer: OwnerHomeDrawer(
+        email: _email,
+        savedSittersCount: _favoriteSitterIds.length,
+        onProfileTap: () => _open(const OwnerProfileScreen()),
+        onBookingsTap: () => _open(const BookingsDashboardScreen()),
+        onSavedSittersTap: () => _open(const SavedSittersScreen()),
+        onSettingsTap: () => _comingSoon('Settings'),
+        onLogOut: _LogOut,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildChecksCard(),
+            VerificationChecksCard(
+              checks: _checks,
+              onIdentityTap: _openIdentityCheckDialog,
+              onAddressTap: _openAddressCheckDialog,
+              onEmergencyContactTap: _openEmergencyContactDialog,
+            ),
             const SizedBox(height: 24),
-            _buildSearchField(),
+            SitterSearchField(controller: _searchController),
             const SizedBox(height: 12),
-            _buildFilters(),
+            SitterFilterChips(
+              tags: _filterTags,
+              selected: _selectedFilter,
+              onSelected: (tag) => setState(() => _selectedFilter = tag),
+            ),
             const SizedBox(height: 20),
             const Text(
               'Available Sitters Nearby',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
-            ..._sitters.map(_buildSitterCard),
+            for (final sitter in _sitters)
+              SitterCard(
+                sitter: sitter,
+                isSaved: _favoriteSitterIds.contains(sitter.id),
+                onTap: () => _open(const SitterDetailScreen()),
+                onMessage: () => _open(const DirectChatScreen()),
+                onBook: () => _open(const BookingFlowScreen()),
+                onToggleFavorite: () => _toggleFavorite(sitter.id),
+              ),
           ],
         ),
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        backgroundColor: Colors.white,
-        elevation: 0,
-        currentIndex: 0,
-        selectedItemColor: AppColors.primaryRust,
-        unselectedItemColor: Colors.grey,
-        selectedFontSize: 12,
-        unselectedFontSize: 12,
-        onTap: _handleBottomNavTap,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home_outlined),
-            label: 'HOME',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.calendar_today),
-            label: 'BOOKINGS',
-          ),
-          BottomNavigationBarItem(
-            icon: Badge(
-              label: Text('3'),
-              backgroundColor: AppColors.primaryRust,
-              child: Icon(Icons.chat_bubble_outline),
-            ),
-            label: 'MESSAGES',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline),
-            label: 'PROFILE',
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildChecksCard() {
-    final allDone = _completedChecks >= 3;
-    final progress = (_completedChecks / 3).clamp(0.0, 1.0);
-
-    return Material(
-      color: Colors.white,
-      elevation: 0,
-      clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: Colors.grey.shade200),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          InkWell(
-            onTap: () => setState(() => _checksExpanded = !_checksExpanded),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 12, 16),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: AppColors.primaryRust.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(
-                      allDone ? Icons.verified_rounded : Icons.shield_outlined,
-                      color: AppColors.primaryRust,
-                      size: 22,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _checksTitle,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.black87,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          _checksSubtitle,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Colors.black54,
-                            height: 1.3,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(999),
-                          child: LinearProgressIndicator(
-                            value: progress,
-                            minHeight: 6,
-                            backgroundColor: Colors.grey.shade200,
-                            color: AppColors.primaryRust,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  AnimatedRotation(
-                    turns: _checksExpanded ? 0.5 : 0,
-                    duration: const Duration(milliseconds: 200),
-                    child: const Icon(
-                      Icons.keyboard_arrow_down_rounded,
-                      color: Colors.black45,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          AnimatedSize(
-            duration: const Duration(milliseconds: 200),
-            curve: Curves.easeInOut,
-            alignment: Alignment.topCenter,
-            child: _checksExpanded
-                ? Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                    child: Column(
-                      children: [
-                        Divider(height: 1, color: Colors.grey.shade200),
-                        const SizedBox(height: 4),
-                        _buildCheckTile(
-                          title: 'Identity / SA ID Verification',
-                          subtitle: _idCheckSubtitle,
-                          status: _idCheckStatus,
-                          onTap: _openIdentityCheckDialog,
-                        ),
-                        _buildCheckTile(
-                          title: 'Home Address / Proof of Residence',
-                          subtitle: _addressCheckSubtitle,
-                          status: _addressCheckStatus,
-                          onTap: _openAddressCheckDialog,
-                        ),
-                        _buildCheckTile(
-                          title: 'Emergency Contact Details',
-                          subtitle: _emergencyCheckSubtitle,
-                          status: _emergencyCheckStatus,
-                          onTap: _openEmergencyContactDialog,
-                        ),
-                      ],
-                    ),
-                  )
-                : const SizedBox(width: double.infinity),
-          ),
-        ],
-      ),
-    );
-  }
-
-  String get _checksTitle {
-    switch (_verificationStatus.toUpperCase()) {
-      case 'APPROVED':
-        return 'Profile checks complete';
-      case 'PENDING':
-        return 'Profile checks under review';
-      case 'REJECTED':
-        return 'Profile checks need attention';
-      case 'INCOMPLETE':
-      default:
-        return 'Complete your profile';
-    }
-  }
-  
-  String get _checksSubtitle {
-    switch (_verificationStatus.toUpperCase()) {
-      case 'APPROVED':
-        return 'You’re ready to book sitters';
-      case 'PENDING':
-        return '$_completedChecks of 3 submitted — Waiting for admin review';
-      case 'REJECTED':
-        return 'One or more checks were rejected — Please update and resubmit';
-      case 'INCOMPLETE':
-      default:
-        return '$_completedChecks of 3 checks done';
-    }
-  }
-
-  Widget _buildSearchField() {
-    return TextField(
-      controller: _searchController,
-      decoration: InputDecoration(
-        hintText: 'Search suburb or location...',
-        hintStyle: const TextStyle(fontSize: 14, color: Colors.grey),
-        prefixIcon: const Icon(
-          Icons.location_on_outlined,
-          color: AppColors.primaryRust,
-        ),
-        fillColor: Colors.white,
-        filled: true,
-        contentPadding: const EdgeInsets.symmetric(vertical: 14),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey.shade300),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(
-            color: AppColors.primaryRust,
-            width: 1.5,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildFilters() {
-    return SizedBox(
-      height: 36,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: _filterTags.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 8),
-        itemBuilder: (context, index) {
-          final tag = _filterTags[index];
-          final isSelected = _selectedFilter == tag;
-          return GestureDetector(
-            onTap: () => setState(() => _selectedFilter = tag),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: isSelected ? Colors.black87 : Colors.grey.shade200,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Text(
-                tag,
-                style: TextStyle(
-                  color: isSelected ? Colors.white : Colors.black87,
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                  fontSize: 12,
-                ),
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _avatarPlaceholder() {
-    return Container(
-      color: Colors.grey.shade300,
-      child: const Icon(Icons.person, color: Colors.grey, size: 36),
-    );
-  }
-
-  Widget _buildSitterCard(SitterListing sitter) {
-    final isSaved = _favoriteSitterIds.contains(sitter.id);
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: InkWell(
-        onTap: () => _open(const SitterDetailScreen()),
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.grey.shade200),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: SizedBox(
-                          width: 60,
-                          height: 60,
-                          child: sitter.imageUrl != null
-                              ? Image.network(
-                                  sitter.imageUrl!,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (_, _, _) =>
-                                      _avatarPlaceholder(),
-                                )
-                              : _avatarPlaceholder(),
-                        ),
-                      ),
-                      const Positioned(
-                        bottom: -4,
-                        right: -4,
-                        child: CircleAvatar(
-                          radius: 10,
-                          backgroundColor: AppColors.primaryRust,
-                          child: Icon(
-                            Icons.check,
-                            color: Colors.white,
-                            size: 12,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Flexible(
-                              child: Text(
-                                sitter.name,
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            RichText(
-                              text: TextSpan(
-                                children: [
-                                  TextSpan(
-                                    text:
-                                        'R${sitter.nightRate.toStringAsFixed(0)}',
-                                    style: const TextStyle(
-                                        color: Colors.black,
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold),
-                                  ),
-                                  const TextSpan(
-                                    text: ' / nt',
-                                    style: TextStyle(
-                                      color: Colors.black54,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            const Icon(
-                              Icons.location_on_outlined,
-                              color: AppColors.primaryRust,
-                              size: 14,
-                            ),
-                            const SizedBox(width: 4),
-                            Expanded(
-                              child: Text(
-                                sitter.suburb,
-                                style: const TextStyle(
-                                  color: Colors.black54,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            const Icon(Icons.star_rounded,
-                                color: AppColors.primaryRust, size: 14),
-                            const SizedBox(width: 4),
-                            Text(
-                              '${sitter.rating} (${sitter.totalReviews})',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () => _open(const DirectChatScreen()),
-                      icon: const Icon(Icons.chat_bubble_outline, color: Colors.white, size: 16),
-                      label: const Text('Message',
-                          style: TextStyle(color: Colors.white, fontSize: 13)),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.black87,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed:() => _open(const BookingFlowScreen()),
-                      icon: const Icon(Icons.calendar_month, color: Colors.white, size: 16),
-                      label: const Text('Book',
-                          style: TextStyle(color: Colors.white, fontSize: 13)),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primaryRust,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: IconButton(
-                      icon: Icon(
-                        isSaved ? Icons.favorite : Icons.favorite_border,
-                        color: isSaved ? AppColors.primaryRust : Colors.black87,
-                      ),
-                      onPressed: () => _toggleFavorite(sitter.id),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCheckTile({
-    required String title,
-    required String subtitle,
-    required String status,
-    required VoidCallback onTap,
-  }) {
-    Color statusColor;
-    String statusText;
-
-    switch (status) {
-      case 'completed':
-        statusColor = Colors.green;
-        statusText = 'Completed';
-        break;
-      case 'pending':
-        statusColor = Colors.amber.shade800;
-        statusText = 'Pending';
-        break;
-      case 'incomplete':
-      default:
-        statusColor = Colors.red;
-        statusText = 'Incomplete';
-        break;
-    }
-
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      title: Text(
-        title,
-        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
-      ),
-      subtitle: Text(
-        subtitle,
-        style: const TextStyle(fontSize: 11, color: Colors.grey),
-      ),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: statusColor.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: statusColor.withValues(alpha: 0.3)),
-            ),
-            child: Text(
-              statusText,
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
-                color: statusColor,
-              ),
-            ),
-          ),
-          const SizedBox(width: 4),
-          const Icon(Icons.chevron_right, size: 18, color: Colors.grey),
-        ],
-      ),
-      onTap: onTap,
-    );
-  }
-}
-
-class _AddressCheckDialog extends StatefulWidget {
-  const _AddressCheckDialog({
-    required this.initialAddress,
-    required this.email,
-    required this.onSaved,
-    required this.onMessage,
-  });
-
-  final String initialAddress;
-  final String email;
-  final void Function(String address, Map<String, dynamic> result) onSaved;
-  final void Function(String message) onMessage;
-
-  @override
-  State<_AddressCheckDialog> createState() => _AddressCheckDialogState();
-}
-
-class _AddressCheckDialogState extends State<_AddressCheckDialog> {
-  late final TextEditingController _controller;
-  bool _submitting = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = TextEditingController(text: widget.initialAddress);
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose(); // runs only after the dialog is fully removed
-    super.dispose();
-  }
-
-  Future<void> _submit() async {
-    if (widget.email.isEmpty) {
-      Navigator.pop(context);
-      widget.onMessage('Please log in to save your address.');
-      return;
-    }
-
-    final address = _controller.text.trim(); // read BEFORE the await
-    setState(() => _submitting = true);
-
-    final result = await HomeService().submitResidenceCheck(
-      email: widget.email,
-      address: address,
-    );
-    if (!mounted) return;
-
-    if (result['success'] == true) {
-      Navigator.pop(context);
-      widget.onSaved(address, result);
-    } else {
-      setState(() => _submitting = false);
-      widget.onMessage(result['message']?.toString() ?? 'Save failed.');
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Home Address Verification'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('Confirm or enter your home physical address:'),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _controller,
-            enabled: !_submitting,
-            decoration: const InputDecoration(
-              labelText: 'Home Address',
-              border: OutlineInputBorder(),
-            ),
-          ),
-        ],
-      ),
-      actions: [
-        TextButton(
-          onPressed: _submitting ? null : () => Navigator.pop(context),
-          child: const Text('Cancel'),
-        ),
-        ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.black87,
-            foregroundColor: Colors.white,
-          ),
-          onPressed: _submitting ? null : _submit,
-          child: const Text('Save & Confirm'),
-        ),
-      ],
-    );
-  }
-}
-
-class _EmergencyContactDialog extends StatefulWidget {
-  const _EmergencyContactDialog({
-    required this.initialName,
-    required this.initialPhone,
-    required this.email,
-    required this.onSaved,
-    required this.onMessage,
-  });
-
-  final String initialName;
-  final String initialPhone;
-  final String email;
-  final void Function(String name, String phone, Map<String, dynamic> result)
-      onSaved;
-  final void Function(String message) onMessage;
-
-  @override
-  State<_EmergencyContactDialog> createState() =>
-      _EmergencyContactDialogState();
-}
-
-class _EmergencyContactDialogState extends State<_EmergencyContactDialog> {
-  late final TextEditingController _name;
-  late final TextEditingController _phone;
-  bool _submitting = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _name = TextEditingController(text: widget.initialName);
-    _phone = TextEditingController(text: widget.initialPhone);
-  }
-
-  @override
-  void dispose() {
-    _name.dispose();
-    _phone.dispose();
-    super.dispose();
-  }
-
-  Future<void> _submit() async {
-    if (widget.email.isEmpty) {
-      Navigator.pop(context);
-      widget.onMessage('Please log in to save this contact.');
-      return;
-    }
-    final name = _name.text.trim();
-    final phone = _phone.text.trim();
-    setState(() => _submitting = true);
-
-    final result = await HomeService().submitEmergencyCheck(
-      email: widget.email,
-      name: name,
-      phoneNumber: phone,
-    );
-    if (!mounted) return;
-
-    if (result['success'] == true) {
-      Navigator.pop(context);
-      widget.onSaved(name, phone, result);
-    } else {
-      setState(() => _submitting = false);
-      widget.onMessage(result['message']?.toString() ?? 'Save failed.');
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Emergency Contact Details'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('Enter a person we can call while you are away:'),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _name,
-            enabled: !_submitting,
-            decoration: const InputDecoration(
-              labelText: 'Contact Name',
-              border: OutlineInputBorder(),
-            ),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _phone,
-            enabled: !_submitting,
-            keyboardType: TextInputType.phone,
-            decoration: const InputDecoration(
-              labelText: 'Phone Number',
-              border: OutlineInputBorder(),
-            ),
-          ),
-        ],
-      ),
-      actions: [
-        TextButton(
-          onPressed: _submitting ? null : () => Navigator.pop(context),
-          child: const Text('Cancel'),
-        ),
-        ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.black87,
-            foregroundColor: Colors.white,
-          ),
-          onPressed: _submitting ? null : _submit,
-          child: const Text('Save Contact'),
-        ),
-      ],
+      bottomNavigationBar: OwnerBottomNavBar(onTap: _handleBottomNavTap),
     );
   }
 }

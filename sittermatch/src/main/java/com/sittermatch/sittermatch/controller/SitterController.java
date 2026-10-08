@@ -46,7 +46,7 @@ public class SitterController {
     //Profile and Account Managment
     @PutMapping("/{sitterId}/profile")
     public ResponseEntity<Sitter> updateProfile(
-        @PathVariable Integer sitterId,
+                @PathVariable Integer sitterId,
         @RequestBody UpdateSitterProfileRequest request){
             Sitter updatedSitter = sitterService.updateProfile(
                 sitterId,
