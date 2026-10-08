@@ -1,6 +1,6 @@
 package com.sittermatch.sittermatch.controller;
 
-import com.sittermatch.sittermatch.dto.SitterResponseDTO;
+import com.sittermatch.sittermatch.dto.SitterListResponse;
 import com.sittermatch.sittermatch.dto.SitterReviewHomeownerRequest;
 import com.sittermatch.sittermatch.dto.SitterReviewPetRequest;
 import com.sittermatch.sittermatch.dto.SitterSendMessageRequest;
@@ -13,48 +13,35 @@ import com.sittermatch.sittermatch.model.PetReview;
 import com.sittermatch.sittermatch.model.Review;
 import com.sittermatch.sittermatch.model.Sitter;
 import com.sittermatch.sittermatch.model.SitterCheck;
-import com.sittermatch.sittermatch.repositories.SitterRepository;
 import com.sittermatch.sittermatch.services.SitterService;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Set;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+
 
 @RestController
 @RequestMapping("/api/sitters")
 public class SitterController {
 
-    private final SitterRepository sitterRepository;
     private final SitterService sitterService;
 
-    public SitterController(SitterRepository sitterRepository, SitterService sitterService) {
-        this.sitterRepository = sitterRepository;
+    public SitterController(SitterService sitterService) {
         this.sitterService = sitterService;
     }
 
-    @GetMapping
-    public ResponseEntity<List<SitterResponseDTO>> getAllSitters() {
-        List<SitterResponseDTO> sitters = sitterRepository.findAll().stream()
-            .map(sitter -> new SitterResponseDTO(
-                sitter.getId(),
-                sitter.getUser() != null ? sitter.getUser().getName() : null,
-                sitter.getUser() != null ? sitter.getUser().getEmail() : null,
-                sitter.getUser() != null ? sitter.getUser().getPhone() : null,
-                sitter.getRating(),
-                sitter.getTotalReviews(),
-                sitter.getDayRate(),
-                sitter.getNightRate(),
-                sitter.getExperience(),
-                sitter.getServiceTypes() != null ? sitter.getServiceTypes() : Set.of(),
-                sitter.getPetTypes() != null ? sitter.getPetTypes() : Set.of(),
-                sitter.getIsVerified()
-            ))
-            .toList();
-
+    @GetMapping("get-sitters")
+    public ResponseEntity<List<SitterListResponse>> getSitters() {
+        List<SitterListResponse> sitters = sitterService.getSitters();
+        if (sitters == null || sitters.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
         return ResponseEntity.ok(sitters);
     }
+    
 
     //Profile and Account Managment
     @PutMapping("/{sitterId}/profile")
