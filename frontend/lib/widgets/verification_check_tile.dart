@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
+import '../models/owner_checks_model.dart';
+
 class VerificationCheckTile extends StatelessWidget {
   final String title;
   final String subtitle;
-  final String status;
+  final CheckStatus status;
   final VoidCallback onTap;
 
   const VerificationCheckTile({
@@ -16,29 +18,22 @@ class VerificationCheckTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Color statusColor;
-    String statusText;
-
-    switch (status) {
-      case 'completed':
-        statusColor = Colors.green;
-        statusText = 'Completed';
-        break;
-      case 'pending':
-        statusColor = Colors.amber.shade800;
-        statusText = 'Pending Review';
-        break;
-      case 'incomplete':
-      default:
-        statusColor = Colors.red;
-        statusText = 'Incomplete';
-        break;
-    }
+    final (statusColor, statusText) = switch (status) {
+      CheckStatus.completed => (Colors.green, 'Completed'),
+      CheckStatus.pending => (Colors.amber.shade800, 'Pending'),
+      CheckStatus.incomplete => (Colors.red, 'Incomplete'),
+    };
 
     return ListTile(
       contentPadding: EdgeInsets.zero,
-      title: Text(title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-      subtitle: Text(subtitle, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+      title: Text(
+        title,
+        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+      ),
+      subtitle: Text(
+        subtitle,
+        style: const TextStyle(fontSize: 11, color: Colors.grey),
+      ),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -51,7 +46,11 @@ class VerificationCheckTile extends StatelessWidget {
             ),
             child: Text(
               statusText,
-              style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: statusColor),
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                color: statusColor,
+              ),
             ),
           ),
           const SizedBox(width: 4),
