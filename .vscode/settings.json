@@ -1,3 +1,4 @@
 {
-    "cmake.sourceDirectory": "C:/Users/Zeke/OneDrive/Documents/sittermatch/frontend/windows"
+    "cmake.sourceDirectory": "C:/Users/Zeke/OneDrive/Documents/sittermatch/frontend/windows",
+    "java.compile.nullAnalysis.mode": "automatic"
 }

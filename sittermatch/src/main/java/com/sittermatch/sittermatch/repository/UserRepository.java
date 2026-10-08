@@ -1,4 +1,4 @@
-package com.sittermatch.sittermatch.repositories;
+package com.sittermatch.sittermatch.repository;
 
 import com.sittermatch.sittermatch.model.User;
 import java.util.List;

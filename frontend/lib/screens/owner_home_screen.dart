@@ -47,6 +47,7 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   bool _checksExpanded = false;
   bool _loading = false;
+
   String _email = '';
 
   String _homeownerAddress = '';
@@ -64,6 +65,8 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
   int _completedChecks = 0;
   String _verificationStatus = '';
 
+  List<SitterListing> _sitters = [];
+
   final Set<int> _favoriteSitterIds = {101};
   final TextEditingController _searchController = TextEditingController();
 
@@ -75,74 +78,36 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
     'Medication Admin',
   ];
 
-  final List<SitterListing> _sitters = [
-    SitterListing(
-      id: 101,
-      name: 'Sarah Jenkins',
-      suburb: 'Sea Point, Cape Town',
-      rating: 4.9,
-      totalReviews: 28,
-      nightRate: 250.0,
-      imageUrl: 'https://i.pravatar.cc/150?img=5',
-      completedChecks: ['SA ID Verified', 'SAPS Clearance'],
-    ),
-    SitterListing(
-      id: 102,
-      name: 'Michael Tau',
-      suburb: 'Sandton, Johannesburg',
-      rating: 5.0,
-      totalReviews: 14,
-      nightRate: 300.0,
-      imageUrl: 'https://i.pravatar.cc/150?img=12',
-      completedChecks: [
-        'SA ID Verified',
-        'Proof of Address',
-        'Reference Check',
-      ],
-    ),
-    SitterListing(
-      id: 103,
-      name: 'Jessica Daniels',
-      suburb: 'Claremont, Cape Town',
-      rating: 4.8,
-      totalReviews: 19,
-      nightRate: 220.0,
-      imageUrl: 'https://i.pravatar.cc/150?img=9',
-      completedChecks: ['SA ID Verified'],
-    ),
-  ];
 
   @override
   void initState() {
     super.initState();
     _loadData();
   }
-
   Future<void> _loadData() async {
     setState(() => _loading = true);
-
     try {
       final email = await HomeService().getUserEmail();
       if (!mounted) return;
-
       if (email == null || email.isEmpty) {
         setState(() {
           _email = '';
+          _sitters = [];
           _loading = false;
         });
         return;
       }
-
       final results = await Future.wait([
         HomeService().fetchChecks(email: email),
-        // HomeService().fetchSitters(...), // uncomment when ready
+        HomeService().fetchSitters(),
       ]);
+
       if (!mounted) return;
 
       final check = results[0];
-      // final sittersResult = results[1];
-
-      if (check['success'] == false) {
+      final sittersResult = results[1];
+      
+      if (check['success'] != true) {
         setState(() {
           _email = email;
           _loading = false;
@@ -150,7 +115,6 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
         _showSnack(check['message']?.toString() ?? 'Could not load checks');
         return;
       }
-
       setState(() {
         _email = email;
         _idCheckStatus = check['idCheck']['status']?.toString() ?? 'incomplete';
@@ -165,16 +129,56 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
         _completedChecks = (check['verificationCount'] as num?)?.toInt() ?? 0;
         _verificationStatus = check['verificationStatus']?.toString() ?? 'INCOMPLETE';
 
-        // when sitters API exists:
-        // _sitters = parseSitters(sittersResult);
+        if (sittersResult['success'] == true) {
+          _sitters = _parseSitters(sittersResult['sitters']);
+        } else {
+          _sitters = [];
+        }
 
         _loading = false;
       });
+
+      if (sittersResult['success'] != true) {
+        _showSnack(
+          sittersResult['message']?.toString() ?? 'Could not load sitters',
+        );
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() => _loading = false);
       _showSnack('Could not load home data');
     }
+  }
+  
+  List<SitterListing> _parseSitters(dynamic raw) {
+    if (raw is! List) return [];
+    return raw.map((item) {
+      final map = Map<String, dynamic>.from(item as Map);
+      final serviceTypes = (map['serviceTypes'] as List?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          <String>[];
+      final petTypes = (map['petTypes'] as List?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          <String>[];
+      final checks = <String>[
+        if (map['isVerified'] == true) 'Verified',
+        ...serviceTypes.take(2),
+        ...petTypes.take(1),
+      ];
+      final id = (map['id'] as num?)?.toInt() ?? 0;
+      return SitterListing(
+        id: id,
+        name: map['name']?.toString() ?? 'Sitter',
+        suburb: map['suburb']?.toString() ?? 'Location TBD',
+        rating: (map['rating'] as num?)?.toDouble() ?? 0.0,
+        totalReviews: (map['totalReviews'] as num?)?.toInt() ?? 0,
+        nightRate: (map['nightRate'] as num?)?.toDouble() ?? 0.0,
+        imageUrl: 'https://i.pravatar.cc/150?u=$id', // fake for now
+        completedChecks: checks,
+      );
+    }).toList();
   }
 
   @override

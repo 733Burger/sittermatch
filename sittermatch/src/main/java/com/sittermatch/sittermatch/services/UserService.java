@@ -9,9 +9,9 @@ import com.sittermatch.sittermatch.dto.UserRoleResponse;
 import com.sittermatch.sittermatch.model.Homeowner;
 import com.sittermatch.sittermatch.model.Sitter;
 import com.sittermatch.sittermatch.model.User;
-import com.sittermatch.sittermatch.repositories.HomeownerRepository;
-import com.sittermatch.sittermatch.repositories.SitterRepository;
-import com.sittermatch.sittermatch.repositories.UserRepository;
+import com.sittermatch.sittermatch.repository.HomeownerRepository;
+import com.sittermatch.sittermatch.repository.SitterRepository;
+import com.sittermatch.sittermatch.repository.UserRepository;
 
 @Service 
 public class UserService {

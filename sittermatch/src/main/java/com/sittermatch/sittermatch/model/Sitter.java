@@ -42,10 +42,20 @@ public class Sitter {
     @Column(name = "pet_type")
     private Set<String> petTypes = new HashSet<>();
 
-    public Sitter() {}
+    // Default constructor
+    public Sitter() {
+    }
 
-    public Sitter(Integer id, User user, Integer experience, Double dayRate, Double nightRate, 
-                  Double rating, Integer totalReviews, Boolean isVerified) {
+    // Constructor
+    public Sitter(
+            Integer id,
+            User user,
+            Integer experience,
+            Double dayRate,
+            Double nightRate,
+            Double rating,
+            Integer totalReviews,
+            Boolean isVerified) {
         this.id = id;
         this.user = user;
         this.experience = experience;
@@ -56,33 +66,85 @@ public class Sitter {
         this.isVerified = isVerified;
     }
 
-    public Integer getId() { return id; }
-    public void setId(Integer id) { this.id = id; }
+    // Getters and Setters
 
-    public User getUser() { return user; }
-    public void setUser(User user) { this.user = user; }
+    public Integer getId() {
+        return id;
+    }
 
-    public Integer getExperience() { return experience; }
-    public void setExperience(Integer experience) { this.experience = experience; }
+    public void setId(Integer id) {
+        this.id = id;
+    }
 
-    public Double getDayRate() { return dayRate; }
-    public void setDayRate(Double dayRate) { this.dayRate = dayRate; }
+    public User getUser() {
+        return user;
+    }
 
-    public Double getNightRate() { return nightRate; }
-    public void setNightRate(Double nightRate) { this.nightRate = nightRate; }
+    public void setUser(User user) {
+        this.user = user;
+    }
 
-    public Double getRating() { return rating; }
-    public void setRating(Double rating) { this.rating = rating; }
+    public Integer getExperience() {
+        return experience;
+    }
 
-    public Integer getTotalReviews() { return totalReviews; }
-    public void setTotalReviews(Integer totalReviews) { this.totalReviews = totalReviews; }
+    public void setExperience(Integer experience) {
+        this.experience = experience;
+    }
 
-    public Boolean getIsVerified() { return isVerified; }
-    public void setIsVerified(Boolean isVerified) { this.isVerified = isVerified; }
+    public Double getDayRate() {
+        return dayRate;
+    }
 
-    public Set<String> getServiceTypes() { return serviceTypes; }
-    public void setServiceTypes(Set<String> serviceTypes) { this.serviceTypes = serviceTypes; }
+    public void setDayRate(Double dayRate) {
+        this.dayRate = dayRate;
+    }
 
-    public Set<String> getPetTypes() { return petTypes; }
-    public void setPetTypes(Set<String> petTypes) { this.petTypes = petTypes; }
+    public Double getNightRate() {
+        return nightRate;
+    }
+
+    public void setNightRate(Double nightRate) {
+        this.nightRate = nightRate;
+    }
+
+    public Double getRating() {
+        return rating;
+    }
+
+    public void setRating(Double rating) {
+        this.rating = rating;
+    }
+
+    public Integer getTotalReviews() {
+        return totalReviews;
+    }
+
+    public void setTotalReviews(Integer totalReviews) {
+        this.totalReviews = totalReviews;
+    }
+
+    public Boolean getIsVerified() {
+        return isVerified;
+    }
+
+    public void setIsVerified(Boolean isVerified) {
+        this.isVerified = isVerified;
+    }
+
+    public Set<String> getServiceTypes() {
+        return serviceTypes;
+    }
+
+    public void setServiceTypes(Set<String> serviceTypes) {
+        this.serviceTypes = serviceTypes;
+    }
+
+    public Set<String> getPetTypes() {
+        return petTypes;
+    }
+
+    public void setPetTypes(Set<String> petTypes) {
+        this.petTypes = petTypes;
+    }
 }

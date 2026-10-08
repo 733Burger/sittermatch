@@ -17,15 +17,15 @@ import com.sittermatch.sittermatch.model.PetReview;
 import com.sittermatch.sittermatch.model.Review;
 import com.sittermatch.sittermatch.model.Sitter;
 import com.sittermatch.sittermatch.model.User;
-import com.sittermatch.sittermatch.repositories.BookingRepository;
-import com.sittermatch.sittermatch.repositories.HomeownerRepository;
-import com.sittermatch.sittermatch.repositories.ListingRepository;
-import com.sittermatch.sittermatch.repositories.MessageRepository;
-import com.sittermatch.sittermatch.repositories.PetRepository;
-import com.sittermatch.sittermatch.repositories.PetReviewRepository;
-import com.sittermatch.sittermatch.repositories.ReviewRepository;
-import com.sittermatch.sittermatch.repositories.SitterRepository;
-import com.sittermatch.sittermatch.repositories.UserRepository;
+import com.sittermatch.sittermatch.repository.BookingRepository;
+import com.sittermatch.sittermatch.repository.HomeownerRepository;
+import com.sittermatch.sittermatch.repository.ListingRepository;
+import com.sittermatch.sittermatch.repository.MessageRepository;
+import com.sittermatch.sittermatch.repository.PetRepository;
+import com.sittermatch.sittermatch.repository.PetReviewRepository;
+import com.sittermatch.sittermatch.repository.ReviewRepository;
+import com.sittermatch.sittermatch.repository.SitterRepository;
+import com.sittermatch.sittermatch.repository.UserRepository;
 
 @RestController 
 @RequestMapping("/api/test")
