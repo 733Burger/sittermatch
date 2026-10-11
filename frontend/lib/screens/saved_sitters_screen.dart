@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:frontend/services/auth_services.dart';
 import '../theme/app_colors.dart';
 import '../models/saved_sitter_model.dart';
 import '../services/saved_sitter_service.dart';
@@ -58,11 +57,17 @@ class _SavedSittersScreenState extends State<SavedSittersScreen> {
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              _buildHeader(),
+              _buildHeader(sitters.length),
               const SizedBox(height: 16),
               _buildFilters(),
               const SizedBox(height: 16),
-              ...sitters.map((sitter) => _buildSitterCard(sitter)),
+              if (sitters.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 32),
+                  child: Center(child: Text('No saved sitters yet.')),
+                )
+              else
+                ...sitters.map((sitter) => _buildSitterCard(sitter)),
               _buildSecurityFooter(),
             ],
           );
@@ -72,7 +77,7 @@ class _SavedSittersScreenState extends State<SavedSittersScreen> {
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(int savedCount) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -84,7 +89,7 @@ class _SavedSittersScreenState extends State<SavedSittersScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(color: AppColors.lightRustBg, borderRadius: BorderRadius.circular(20)),
-              child: const Text('3\nSAVED', textAlign: TextAlign.center, style: TextStyle(color: AppColors.primaryRust, fontWeight: FontWeight.bold, fontSize: 12)),
+              child: Text('$savedCount\nSAVED', textAlign: TextAlign.center, style: const TextStyle(color: AppColors.primaryRust, fontWeight: FontWeight.bold, fontSize: 12)),
             ),
             const SizedBox(width: 8),
             Expanded(
@@ -227,12 +232,6 @@ class _SavedSittersScreenState extends State<SavedSittersScreen> {
             ],
           ),
           const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(8)),
-            child: Text(sitter.bioSnippet, style: const TextStyle(fontStyle: FontStyle.italic, color: Colors.black87, fontSize: 13)),
-          ),
-          const SizedBox(height: 12),
           Row(
             children: [
               Expanded(
@@ -249,87 +248,8 @@ class _SavedSittersScreenState extends State<SavedSittersScreen> {
                   ),
                 ),
               ),
-              const SizedBox(width: 12),
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: IconButton(
-                  icon: Icon(
-                    sitter.isSaved ? Icons.bookmark : Icons.bookmark_border,
-                    color: sitter.isSaved ? AppColors.primaryRust : Colors.grey,
-                  ),
-                  onPressed: () async {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Processing request...'),
-                        duration: Duration(milliseconds: 800),
-                      ),
-                    );
-
-                    // Instantiating AuthService to retrieve the logged-in ID
-                    final authService = AuthService();
-                    final int? currentHomeownerId = await authService.getUserId();
-
-                    if (currentHomeownerId == null) {
-                      if (!mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('User session expired. Please log in again.')),
-                      );
-                      return;
-                    }
-
-                    // Sitter ID remains hardcoded for now as requested
-                    const int targetSitterId = 10;
-                    final bool wasSaved = sitter.isSaved;
-
-                    debugPrint('Sending POST -> homeownerId: $currentHomeownerId, sitterId: $targetSitterId');
-
-                    try {
-                      final success = await SavedSitterService.toggleSaveSitter(
-                        homeownerId: currentHomeownerId,
-                        sitterId: targetSitterId,
-                        isCurrentlySaved: wasSaved,
-                      );
-
-                      if (!mounted) return;
-
-                      if (success) {
-                        setState(() {
-                          sitter.isSaved = !wasSaved;
-                        });
-
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              wasSaved
-                                  ? 'Sitter removed from saved list.'
-                                  : 'Sitter added to saved list!',
-                            ),
-                          ),
-                        );
-                      } else {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              wasSaved
-                                  ? 'Failed to remove sitter from database.'
-                                  : 'Failed to save sitter to database.',
-                            ),
-                          ),
-                        );
-                      }
-                    } catch (e) {
-                      debugPrint('Error toggling sitter: $e');
-                      if (!mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Network error: $e')),
-                      );
-                    }
-                  },
-                ),
-              ),
+            
+              
             ],
           ),
         ],

@@ -15,6 +15,7 @@ import '../widgets/homeowner/sitter_card.dart';
 import '../widgets/homeowner/sitter_filter_chips.dart';
 import '../widgets/homeowner/sitter_search_field.dart';
 import '../widgets/homeowner/verification_checks_card.dart';
+import '../services/saved_sitter_service.dart';
 
 import 'bookings_dashboard_screen.dart';
 import 'saved_sitters_screen.dart';
@@ -51,7 +52,7 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
   String? _idPhotoPath;
   String _selectedFilter = _filterTags.first;
 
-  final Set<int> _favoriteSitterIds = {101};
+  final Set<int> _savedSitterIds = {};
 
   @override
   void initState() {
@@ -86,10 +87,16 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
         return;
       }
 
+      final saved = await SavedSitterService.getSavedSitters();   
+      if (!mounted) return;
+
       setState(() {
         _email = email;
         _checks = OwnerChecks.fromJson(verificationCheck);
         _sitters = SitterListing.listFromJson(nearbySitters['sitters']);
+        _savedSitterIds                                  
+          ..clear()                                      
+          ..addAll(saved.map((s) => s.id));              
       });
     } catch (e) {
       if (!mounted) return;
@@ -122,13 +129,6 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
     );
   }
 
-  void _toggleFavorite(int sitterId) {
-    setState(() {
-      if (!_favoriteSitterIds.remove(sitterId)) {
-        _favoriteSitterIds.add(sitterId);
-      }
-    });
-  }
 
   void _showSnack(String message) {
     ScaffoldMessenger.of(context)
@@ -210,6 +210,47 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
     );
   }
 
+  Future<void> _toggleSaved(SitterListing sitter) async {
+    _showSnack('Processing request...');
+
+    final int? homeownerId = await AuthService().getUserId();
+    if (!mounted) return;
+    if (homeownerId == null) {
+      _showSnack('User session expired. Please log in again.');
+      return;
+    }
+
+    final bool wasSaved = _savedSitterIds.contains(sitter.id);
+
+    try {
+      final success = await SavedSitterService.toggleSaveSitter(
+        homeownerId: homeownerId,
+        sitterId: sitter.id,
+        isCurrentlySaved: wasSaved,
+      );
+      if (!mounted) return;
+
+      if (success) {
+        setState(() {
+          wasSaved
+              ? _savedSitterIds.remove(sitter.id)
+              : _savedSitterIds.add(sitter.id);
+        });
+        _showSnack(wasSaved
+            ? '${sitter.name} removed from Saved Sitters.'
+            : '${sitter.name} added to Saved Sitters!');
+      } else {
+        _showSnack(wasSaved
+            ? 'Failed to remove sitter from database.'
+            : 'Failed to save sitter to database.');
+      }
+    } catch (e) {
+      debugPrint('Error toggling sitter: $e');
+      if (!mounted) return;
+      _showSnack('Network error: $e');
+    }
+  }
+
   // ---------- Build ----------
 
   @override
@@ -250,7 +291,7 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
       ),
       drawer: OwnerHomeDrawer(
         email: _email,
-        savedSittersCount: _favoriteSitterIds.length,
+        savedSittersCount: _savedSitterIds.length,
         onProfileTap: () => _open(const OwnerProfileScreen()),
         onBookingsTap: () => _open(const BookingsDashboardScreen()),
         onSavedSittersTap: () => _open(const SavedSittersScreen()),
@@ -285,11 +326,11 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
             for (final sitter in _sitters)
               SitterCard(
                 sitter: sitter,
-                isSaved: _favoriteSitterIds.contains(sitter.id),
+                isSaved: _savedSitterIds.contains(sitter.id),
                 onTap: () => _open(const SitterDetailScreen()),
                 onMessage: () => _open(const DirectChatScreen()),
                 onBook: () => _open(const BookingFlowScreen()),
-                onToggleFavorite: () => _toggleFavorite(sitter.id),
+                onToggleSave: () => _toggleSaved(sitter),
               ),
           ],
         ),
