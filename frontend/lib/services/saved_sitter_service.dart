@@ -4,48 +4,28 @@ import '../config/api_config.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../models/saved_sitter_model.dart';
+import 'auth_services.dart';
 
 class SavedSitterService {
 
   // Use central ApiConfig for environment flexibility
   static String get baseUrl => '${ApiConfig.baseUrl}/api/saved-sitters';
-  static Future<List<SavedSitterModel>> getSavedSitters() async {
-    debugPrint('FRONTEND LOG: Calling Get /api/sitters/saved');
-    await Future.delayed(const Duration(seconds: 1));
 
-    return [
-      SavedSitterModel(
-        id: 1,
-        name: 'Lerato Khum...',
-        price: 320,
-        location: 'Camps Bay, Cape Town',
-        verificationBadge: 'SAPS VERIFIED',
-        rating: 4.95,
-        reviewCount: 38,
-        bioSnippet: '"Specialized in sensitive seniors, daily..."',
-      ),
-      SavedSitterModel(
-        id: 2,
-        name: 'David Marais',
-        price: 350,
-        location: 'Constantia, Cape Town',
-        verificationBadge: 'SAPS VERIFIED',
-        rating: 5.0,
-        reviewCount: 42,
-        bioSnippet: '"Estate surveillance accredited. Highly..."',
-      ),
-      SavedSitterModel(
-        id: 3,
-        name: 'Nomvula Sit...',
-        price: 300,
-        location: 'Rondebosch, Cape Town',
-        verificationBadge: 'VET NURSE • POLICE CHECKED',
-        rating: 4.98,
-        reviewCount: 29,
-        bioSnippet: '"Post-operative care, subcutaneous..."',
-        isVetNurse: true,
-      ),
-    ];
+  static Future<List<SavedSitterModel>> getSavedSitters() async {
+    final homeownerId = await AuthService().getUserId();
+    if (homeownerId == null) throw Exception('No logged-in user');
+
+    final url = Uri.parse('$baseUrl/$homeownerId');
+    debugPrint('FRONTEND LOG: GET $url');
+    final response = await http.get(url);
+    if (response.statusCode != 200) {
+      throw Exception('Failed to load saved sitters (${response.statusCode})');
+    }
+
+    final raw = jsonDecode(response.body) as List;
+    return raw
+        .map((e) => SavedSitterModel.fromJson(Map<String, dynamic>.from(e as Map)))
+        .toList();
   }
 
 // Toggle save/unsave state on backend
@@ -78,5 +58,6 @@ class SavedSitterService {
       rethrow;
     }
   }
+
 
 }

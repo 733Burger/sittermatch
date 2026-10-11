@@ -11,7 +11,7 @@ class SitterCard extends StatelessWidget {
     required this.onTap,
     required this.onMessage,
     required this.onBook,
-    required this.onToggleFavorite,
+    required this.onToggleSave,
   });
 
   final SitterListing sitter;
@@ -19,7 +19,7 @@ class SitterCard extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback onMessage;
   final VoidCallback onBook;
-  final VoidCallback onToggleFavorite;
+  final VoidCallback onToggleSave;
 
   @override
   Widget build(BuildContext context) {
@@ -74,10 +74,10 @@ class SitterCard extends StatelessWidget {
                     ),
                     child: IconButton(
                       icon: Icon(
-                        isSaved ? Icons.favorite : Icons.favorite_border,
-                        color: isSaved ? AppColors.primaryRust : Colors.black87,
+                        isSaved ? Icons.bookmark : Icons.bookmark_border,
+                        color: isSaved ? AppColors.primaryRust : Colors.grey,
                       ),
-                      onPressed: onToggleFavorite,
+                      onPressed: onToggleSave,
                     ),
                   ),
                 ],
