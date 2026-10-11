@@ -24,16 +24,18 @@ class _SitterHomeScreenState extends State<SitterHomeScreen> {
   final AuthService _authService = AuthService();
 
   String _email = '';
-  String _userRole = 'SITTER'; // Default fallback
-  int? _sitterId; // Stores the actual logged-in sitter ID
+  String _userRole = 'SITTER'; 
+  int? _sitterId; 
 
-  String? _idPhotoPath;
-  String? _sapsCertPath;
-  String _homeAddress = '';
-
+  // Backend verification state
   String _idCheckStatus = 'incomplete';
-  String _sapsCheckStatus = 'incomplete';
   String _addressCheckStatus = 'incomplete';
+  String _emergencyCheckStatus = 'incomplete';
+
+  String _homeAddress = '';
+  String _emergencyName = '';
+  String _emergencyPhone = '';
+  bool _hasIdPhoto = false;
 
   @override
   void initState() {
@@ -57,6 +59,34 @@ class _SitterHomeScreenState extends State<SitterHomeScreen> {
       _email = email ?? '';
       _userRole = (role ?? 'SITTER').toUpperCase();
     });
+    
+    // Fetch live data from MySQL as soon as we have the email
+    if (_email.isNotEmpty) {
+      _fetchVerificationStatus();
+    }
+  }
+
+  Future<void> _fetchVerificationStatus() async {
+    try {
+      final data = await SitterService.getVerificationChecks(_email);
+      if (data['success'] == true && mounted) {
+        setState(() {
+          _idCheckStatus = data['idCheck']['status'] ?? 'incomplete';
+          _addressCheckStatus = data['residenceCheck']['status'] ?? 'incomplete';
+          _emergencyCheckStatus = data['emergencyCheck']['status'] ?? 'incomplete';
+
+          _homeAddress = data['residenceCheck']['subtitle'] == 'No address provided' 
+              ? '' 
+              : data['residenceCheck']['subtitle'];
+          
+          _emergencyName = data['emergencyContactName'] ?? '';
+          _emergencyPhone = data['emergencyContactPhone'] ?? '';
+          _hasIdPhoto = _idCheckStatus != 'incomplete';
+        });
+      }
+    } catch (e) {
+      debugPrint("Failed to fetch verifications: $e");
+    }
   }
 
   void _closeDrawerIfOpen() {
@@ -88,31 +118,35 @@ class _SitterHomeScreenState extends State<SitterHomeScreen> {
     );
   }
 
-  // ---------- Dialogs ----------
+  // Dialogs connected to Backend 
 
-  void _openUploadDialog({
-    required String title,
-    required String description,
-    required bool alreadyUploaded,
-    required VoidCallback onUploaded,
-  }) {
+  void _openIdentityCheckDialog() {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(title),
+        title: const Text('Identity / SA ID Verification'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(description),
+            const Text('Upload a clear photo of your South African ID Document or Card.'),
             const SizedBox(height: 16),
             ElevatedButton.icon(
-              onPressed: () {
-                setState(onUploaded);
+              onPressed: () async {
                 Navigator.pop(ctx);
-                _showSnack('Uploaded successfully! Status set to Pending.');
+                try {
+                  // Pushing a dummy byte array to the backend since we are in the emulator
+                  await SitterService.submitIdentityCheck(
+                    email: _email,
+                    imageBytes: [137, 80, 78, 71, 13, 10, 26, 10], // Dummy PNG header
+                  );
+                  _showSnack('ID photo uploaded to database!');
+                  _fetchVerificationStatus(); // Refresh UI
+                } catch (e) {
+                  _showSnack('Error: $e');
+                }
               },
               icon: const Icon(Icons.upload_file),
-              label: Text(alreadyUploaded ? 'Replace Upload' : 'Upload'),
+              label: Text(_hasIdPhoto ? 'Replace Upload' : 'Upload ID'),
             ),
           ],
         ),
@@ -123,27 +157,56 @@ class _SitterHomeScreenState extends State<SitterHomeScreen> {
     );
   }
 
-  void _openIdentityCheckDialog() {
-    _openUploadDialog(
-      title: 'Identity / SA ID Verification',
-      description: 'Upload a clear photo of your South African ID Document or Card.',
-      alreadyUploaded: _idPhotoPath != null,
-      onUploaded: () {
-        _idPhotoPath = 'uploads/id_card_sitter.png';
-        _idCheckStatus = 'pending';
-      },
-    );
-  }
-
-  void _openSapsCheckDialog() {
-    _openUploadDialog(
-      title: 'SAPS Police Clearance',
-      description: 'Upload your SAPS police clearance certificate (issued within the last 6 months).',
-      alreadyUploaded: _sapsCertPath != null,
-      onUploaded: () {
-        _sapsCertPath = 'uploads/saps_certificate.pdf';
-        _sapsCheckStatus = 'pending';
-      },
+  void _openEmergencyCheckDialog() {
+    final nameController = TextEditingController(text: _emergencyName);
+    final phoneController = TextEditingController(text: _emergencyPhone);
+    
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Emergency Contact'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Enter a trusted contact in case of emergency:'),
+            const SizedBox(height: 12),
+            TextField(
+              controller: nameController,
+              decoration: const InputDecoration(labelText: 'Full Name', border: OutlineInputBorder()),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: phoneController,
+              decoration: const InputDecoration(labelText: 'Phone Number', border: OutlineInputBorder()),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.black87,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              try {
+                await SitterService.submitEmergencyCheck(
+                  email: _email,
+                  name: nameController.text,
+                  phoneNumber: phoneController.text,
+                );
+                _showSnack('Emergency contact saved to database!');
+                _fetchVerificationStatus();
+              } catch (e) {
+                _showSnack('Error: $e');
+              }
+            },
+            child: const Text('Save & Confirm'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -175,13 +238,18 @@ class _SitterHomeScreenState extends State<SitterHomeScreen> {
               backgroundColor: Colors.black87,
               foregroundColor: Colors.white,
             ),
-            onPressed: () {
-              setState(() {
-                _homeAddress = controller.text;
-                _addressCheckStatus = 'pending';
-              });
+            onPressed: () async {
               Navigator.pop(ctx);
-              _showSnack('Home address saved! Status set to Pending.');
+              try {
+                await SitterService.submitResidenceCheck(
+                  email: _email,
+                  address: controller.text,
+                );
+                _showSnack('Address saved to database!');
+                _fetchVerificationStatus();
+              } catch (e) {
+                _showSnack('Error: $e');
+              }
             },
             child: const Text('Save & Confirm'),
           ),
@@ -190,112 +258,28 @@ class _SitterHomeScreenState extends State<SitterHomeScreen> {
     );
   }
 
-  void _openSubmitDetailsModal() {
-    final messageController = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Submit Verification Details'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Add an optional message or note for the Admin review team:'),
-            const SizedBox(height: 12),
-            TextField(
-              controller: messageController,
-              maxLines: 3,
-              decoration: const InputDecoration(
-                hintText: 'e.g., Please check my updated proof of residence...',
-                border: OutlineInputBorder(),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.black87,
-              foregroundColor: Colors.white,
-            ),
-            onPressed: () async {
-              // 1. Validate that required fields are not empty
-              final referencesText = messageController.text.trim();
-              final hasPhoto = _idPhotoPath != null && _idPhotoPath!.isNotEmpty;
-
-              if (!hasPhoto || referencesText.isEmpty) {
-                _showSnack('Please complete all checks before submitting.');
-                return;
-              }
-
-              // 2. Validate logged-in sitter session
-              if (_sitterId == null) {
-                _showSnack('Error: No active sitter session found. Please log in again.');
-                return;
-              }
-
-              Navigator.pop(ctx);
-
-              try {
-                await SitterService.submitVerification(
-                  sitterId: _sitterId!,
-                  type: 'id',
-                  idPhotoUrl: _idPhotoPath!,
-                  references: referencesText,
-                );
-                if (!mounted) return;
-                _showSnack('Submitted to admin!');
-              } catch (e) {
-                if (!mounted) return;
-                _showSnack('Error: $e');
-              }
-            },
-            child: const Text('Submit to Admin'),
-          )
-        ],
-      ),
-    );
-  }
-
-  // ---------- Navigation Routing ----------
+  // Navigation Routing
 
   void _handleBottomNavTap(int index) {
     final isSitter = _userRole == 'SITTER';
 
     switch (index) {
       case 0:
-        // HOME
-        if (isSitter) {
-          // Already on Sitter Home Screen
-        } else {
-          _open(const OwnerHomeScreen());
-        }
+        if (!isSitter) _open(const OwnerHomeScreen());
         break;
       case 1:
-        // BOOKINGS / JOBS
-        if (isSitter) {
-          _open(const JobsDashboardScreen());
-        } else {
-          _open(const BookingsDashboardScreen());
-        }
+        _open(isSitter ? const JobsDashboardScreen() : const BookingsDashboardScreen());
         break;
       case 2:
-        // MESSAGES
         _open(const MessagesScreen());
         break;
       case 3:
-        // PROFILE
-        if (isSitter) {
-          _open(const SitterProfileScreen());
-        } else {
-          _open(const OwnerProfileScreen());
-        }
+        _open(isSitter ? const SitterProfileScreen() : const OwnerProfileScreen());
         break;
     }
   }
 
-  // ---------- Build ----------
+  // Build 
 
   @override
   Widget build(BuildContext context) {
@@ -313,19 +297,9 @@ class _SitterHomeScreenState extends State<SitterHomeScreen> {
           children: [
             Icon(Icons.pets, color: AppColors.primaryRust),
             SizedBox(width: 8),
-            Text(
-              'Sit & Stay',
-              style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 22),
-            ),
+            Text('Sit & Stay', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 22)),
           ],
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.shield_outlined, color: Colors.black),
-            tooltip: 'Security & Trust',
-            onPressed: () => _comingSoon('Security & Trust'),
-          ),
-        ],
       ),
       drawer: Drawer(
         backgroundColor: AppColors.background,
@@ -346,17 +320,6 @@ class _SitterHomeScreenState extends State<SitterHomeScreen> {
               title: const Text('Profile'),
               onTap: () => _open(isSitter ? const SitterProfileScreen() : const OwnerProfileScreen()),
             ),
-            ListTile(
-              leading: const Icon(Icons.calendar_today_outlined),
-              title: Text(isSitter ? 'My Jobs' : 'My Bookings'),
-              onTap: () => _open(isSitter ? const JobsDashboardScreen() : const BookingsDashboardScreen()),
-            ),
-            ListTile(
-              leading: const Icon(Icons.settings_outlined),
-              title: const Text('Settings'),
-              onTap: () => _comingSoon('Settings'),
-            ),
-            const Divider(),
             ListTile(
               leading: const Icon(Icons.logout, color: Colors.red),
               title: const Text('Log Out', style: TextStyle(color: Colors.red)),
@@ -392,8 +355,7 @@ class _SitterHomeScreenState extends State<SitterHomeScreen> {
                       Expanded(
                         child: Text(
                           'Complete your outstanding checks to start receiving bookings.',
-                          style: TextStyle(
-                              fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black87),
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black87),
                         ),
                       ),
                     ],
@@ -403,21 +365,21 @@ class _SitterHomeScreenState extends State<SitterHomeScreen> {
                   const SizedBox(height: 12),
                   _buildCheckTile(
                     title: 'Identity / SA ID Verification',
-                    subtitle: _idPhotoPath == null ? 'No ID uploaded' : 'ID uploaded',
+                    subtitle: _hasIdPhoto ? 'ID uploaded' : 'No ID uploaded',
                     status: _idCheckStatus,
                     onTap: _openIdentityCheckDialog,
-                  ),
-                  _buildCheckTile(
-                    title: 'SAPS Police Clearance',
-                    subtitle: _sapsCertPath == null ? 'No certificate uploaded' : 'Certificate uploaded',
-                    status: _sapsCheckStatus,
-                    onTap: _openSapsCheckDialog,
                   ),
                   _buildCheckTile(
                     title: 'Home Address / Proof of Residence',
                     subtitle: _homeAddress.isEmpty ? 'No address added' : _homeAddress,
                     status: _addressCheckStatus,
                     onTap: _openAddressCheckDialog,
+                  ),
+                  _buildCheckTile(
+                    title: 'Emergency Contact',
+                    subtitle: _emergencyName.isEmpty ? 'No emergency contact' : '$_emergencyName • $_emergencyPhone',
+                    status: _emergencyCheckStatus,
+                    onTap: _openEmergencyCheckDialog,
                   ),
                   const SizedBox(height: 16),
                   SizedBox(
@@ -428,11 +390,11 @@ class _SitterHomeScreenState extends State<SitterHomeScreen> {
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                         padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
-                      onPressed: _openSubmitDetailsModal,
-                      child: const Text(
-                        'Submit Documents / Details',
-                        style: TextStyle(color: Colors.white, fontSize: 11),
-                      ),
+                      onPressed: () {
+                         _fetchVerificationStatus();
+                         _showSnack('Status synced with database.');
+                      },
+                      child: const Text('Refresh Status', style: TextStyle(color: Colors.white, fontSize: 11)),
                     ),
                   ),
                 ],
@@ -473,14 +435,18 @@ class _SitterHomeScreenState extends State<SitterHomeScreen> {
     Color statusColor;
     String statusText;
 
-    switch (status) {
-      case 'completed':
+    switch (status.toLowerCase()) {
+      case 'approved':
         statusColor = Colors.green;
-        statusText = 'Completed';
+        statusText = 'Approved';
         break;
       case 'pending':
         statusColor = Colors.amber.shade800;
         statusText = 'Pending Review';
+        break;
+      case 'rejected':
+        statusColor = Colors.red;
+        statusText = 'Update Required';
         break;
       case 'incomplete':
       default:
