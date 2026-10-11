@@ -1,14 +1,14 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 import '../config/api_config.dart';
 import 'package:flutter/foundation.dart'; // Required for debugPrint
 import 'package:http/http.dart' as http;
 
 class SitterService {
-// Android emulator: 10.0.2.2 | Chrome/desktop: localhost | real phone: your PC's IP
+  // Android emulator: 10.0.2.2 | Chrome/desktop: localhost | real phone: your PC's IP
   static String get baseUrl => ApiConfig.baseUrl;
   static const Map<String, String> _jsonHeaders = {'Content-Type': 'application/json'};
-
 
   static Future<Map<String, dynamic>> getSitterProfile(String sitterId) async {
     debugPrint('FRONTEND LOG: Calling GET /api/sitters/$sitterId');
@@ -22,7 +22,7 @@ class SitterService {
     debugPrint('FRONTEND LOG: Backend acknowledged chat initiation.');
   }
 
-// ---------- NEW: helper ----------
+  //  Helpers 
 
   // Throws with the server's error text if the status isn't 200, so failures are visible.
   static http.Response _check(http.Response res) {
@@ -33,37 +33,68 @@ class SitterService {
     return res;
   }
 
-  // ---------- NEW: Browse sitters ----------
+  // Sitter Verification 
 
-  static Future<List<dynamic>> getAllSitters() async {
-    final res = _check(await http.get(Uri.parse('$baseUrl/api/sitters')));
-    return jsonDecode(res.body) as List<dynamic>;
+  static Future<Map<String, dynamic>> getVerificationChecks(String email) async {
+    final encodedEmail = Uri.encodeComponent(email.trim());
+    final res = _check(await http.get(
+      Uri.parse('$baseUrl/api/sitter-verifications/$encodedEmail/get-checks'),
+    ));
+    return jsonDecode(res.body) as Map<String, dynamic>;
   }
 
-  // ---------- NEW: Profile and account ----------
-
-  static Future<Map<String, dynamic>> updateProfile({
-    required int sitterId,
-    required double dayRate,
-    required double nightRate,
-    required int experience,
-    required List<String> preferences,
-    required List<String> services,
+  static Future<Map<String, dynamic>> submitIdentityCheck({
+    required String email,
+    required List<int> imageBytes,
+    String filename = 'id_photo.jpg',
   }) async {
-    final res = _check(await http.put(
-      Uri.parse('$baseUrl/api/sitters/$sitterId/profile'),
+    final uri = Uri.parse('$baseUrl/api/sitter-verifications/identity-check');
+    final request = http.MultipartRequest('POST', uri)
+      ..fields['email'] = email.trim()
+      ..files.add(http.MultipartFile.fromBytes(
+        'idPhoto',
+        imageBytes,
+        filename: filename,
+      ));
+
+    final streamedResponse = await request.send();
+    final res = _check(await http.Response.fromStream(streamedResponse));
+    return jsonDecode(res.body) as Map<String, dynamic>;
+  }
+
+  static Future<Map<String, dynamic>> submitResidenceCheck({
+    required String email,
+    required String address,
+  }) async {
+    final res = _check(await http.post(
+      Uri.parse('$baseUrl/api/sitter-verifications/residence-check'),
       headers: _jsonHeaders,
       body: jsonEncode({
-        'dayRate': dayRate,
-        'nightRate': nightRate,
-        'experience': experience,
-        'prefrences': preferences, // spelled this way to match your backend DTO
-        'services': services,
+        'email': email.trim(),
+        'address': address.trim(),
       }),
     ));
     return jsonDecode(res.body) as Map<String, dynamic>;
   }
 
+  static Future<Map<String, dynamic>> submitEmergencyCheck({
+    required String email,
+    required String name,
+    required String phoneNumber,
+  }) async {
+    final res = _check(await http.post(
+      Uri.parse('$baseUrl/api/sitter-verifications/emergency-check'),
+      headers: _jsonHeaders,
+      body: jsonEncode({
+        'email': email.trim(),
+        'name': name.trim(),
+        'phoneNumber': phoneNumber.trim(),
+      }),
+    ));
+    return jsonDecode(res.body) as Map<String, dynamic>;
+  }
+
+  // Compatibility stub retained so any legacy screen references do not break
   static Future<Map<String, dynamic>> submitVerification({
     required int sitterId,
     required String type,
@@ -82,7 +113,38 @@ class SitterService {
     return jsonDecode(res.body) as Map<String, dynamic>;
   }
 
-  // ---------- NEW: Listings ----------
+  //  Browse sitters 
+
+  static Future<List<dynamic>> getAllSitters() async {
+    final res = _check(await http.get(Uri.parse('$baseUrl/api/sitters')));
+    return jsonDecode(res.body) as List<dynamic>;
+  }
+
+  // Profile and account 
+
+  static Future<Map<String, dynamic>> updateProfile({
+    required int sitterId,
+    required double dayRate,
+    required double nightRate,
+    required int experience,
+    required List<String> preferences,
+    required List<String> services,
+  }) async {
+    final res = _check(await http.put(
+      Uri.parse('$baseUrl/api/sitters/$sitterId/profile'),
+      headers: _jsonHeaders,
+      body: jsonEncode({
+        'dayRate': dayRate,
+        'nightRate': nightRate,
+        'experience': experience,
+        'prefrences': preferences,
+        'services': services,
+      }),
+    ));
+    return jsonDecode(res.body) as Map<String, dynamic>;
+  }
+
+  //  Listings 
 
   static Future<List<dynamic>> findNearbyListings(String suburb) async {
     final uri = Uri.parse('$baseUrl/api/sitters/listings/nearby')
@@ -98,7 +160,7 @@ class SitterService {
     return jsonDecode(res.body) as Map<String, dynamic>;
   }
 
-  // ---------- NEW: Bookings ----------
+  // Bookings 
 
   static Future<List<dynamic>> getSitterSchedule(int sitterId) async {
     final res = _check(await http.get(
@@ -107,7 +169,6 @@ class SitterService {
     return jsonDecode(res.body) as List<dynamic>;
   }
 
-  // status e.g. 'confirmed' or 'declined' (must match what your backend/DB expects)
   static Future<Map<String, dynamic>> respondToBooking({
     required int bookingId,
     required String status,
@@ -118,7 +179,6 @@ class SitterService {
     return jsonDecode(res.body) as Map<String, dynamic>;
   }
 
-  // Backend returns plain text here (not JSON), so we return res.body directly.
   static Future<String> getConfirmedAddress({
     required int sitterId,
     required int bookingId,
@@ -129,12 +189,12 @@ class SitterService {
     return res.body;
   }
 
-  // ---------- NEW: Messages and reviews ----------
+  //  Messages and reviews
 
   static Future<Map<String, dynamic>> sendMessage({
     required int sitterId,
     required int homeownerId,
-    required String sentBy, // e.g. 'sitter'
+    required String sentBy,
     required String content,
   }) async {
     final res = _check(await http.post(
@@ -188,5 +248,4 @@ class SitterService {
     ));
     return jsonDecode(res.body) as Map<String, dynamic>;
   }
-  
 }
