@@ -277,6 +277,7 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
           // Stay Night Toggle
           _buildServiceOption(
             title: 'Stay Night',
+            subtitle: 'Sitter stays at your home overnight (feeding included)',
             icon: Icons.nightlight_round,
             isSelected: _stayNight,
             onTap: () {
@@ -287,9 +288,10 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
             }
           ),
           const SizedBox(height: 8),
-          // Feed Dog Toggle
+          // Drop-in feeding visit Toggle
           _buildServiceOption(
-            title: 'Feed Dog',
+            title: 'Drop-in Feeding Visit',
+            subtitle: 'Sitter drops in just to feed your pets, no overnight stay',
             icon: Icons.restaurant,
             isSelected: _feedDog,
             onTap: () {
@@ -303,6 +305,7 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
           // Walk Dog Toggle (Independent)
           _buildServiceOption(
             title: 'Walk Dog',
+            subtitle: 'Sitter takes your dog out for a walk',
             icon: Icons.directions_walk,
             isSelected: _walkDog,
             onTap: () {
@@ -316,7 +319,13 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
     );
   }
 
-  Widget _buildServiceOption({required String title, required IconData icon, required bool isSelected, required VoidCallback onTap}) {
+  Widget _buildServiceOption({
+    required String title,
+    String? subtitle,
+    required IconData icon,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -326,15 +335,22 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
           borderRadius: BorderRadius.circular(16),
         ),
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Row(
-              children: [
-                Icon(icon, color: isSelected ? Colors.white : AppColors.darkText, size: 20),
-                const SizedBox(width: 12),
-                Text(title, style: TextStyle(color: isSelected ? Colors.white : AppColors.darkText, fontWeight: FontWeight.bold, fontSize: 14)),
-              ],
+            Icon(icon, color: isSelected ? Colors.white : AppColors.darkText, size: 20),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: TextStyle(color: isSelected ? Colors.white : AppColors.darkText, fontWeight: FontWeight.bold, fontSize: 14)),
+                  if (subtitle != null) ...[
+                    const SizedBox(height: 2),
+                    Text(subtitle, style: TextStyle(color: isSelected ? Colors.white70 : Colors.black54, fontSize: 11)),
+                  ],
+                ],
+              ),
             ),
+            const SizedBox(width: 8),
             Icon(
               isSelected ? Icons.check_circle : Icons.circle_outlined, 
               color: isSelected ? Colors.white : Colors.grey.shade400,
@@ -362,43 +378,83 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
           const SizedBox(height: 4),
           const Text('Tap to select your registered companions', style: TextStyle(fontSize: 12, color: Colors.grey)),
           const SizedBox(height: 16),
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, crossAxisSpacing: 12, mainAxisSpacing: 12, childAspectRatio: 2.2),
-            itemCount: draft.companions.length,
-            itemBuilder: (context, index) {
-              final pet = draft.companions[index];
-              return GestureDetector(
-                onTap: () => setState(() => pet.isSelected = !pet.isSelected),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: pet.isSelected ? AppColors.primaryRust : AppColors.background,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.pets, color: pet.isSelected ? Colors.white : Colors.grey, size: 20),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(pet.category, style: TextStyle(color: pet.isSelected ? Colors.white : AppColors.darkText, fontWeight: FontWeight.bold, fontSize: 13)),
-                            Text(pet.details, style: TextStyle(color: pet.isSelected ? Colors.white70 : Colors.grey, fontSize: 10), maxLines: 1, overflow: TextOverflow.ellipsis),
-                          ],
-                        ),
-                      ),
-                      Icon(pet.isSelected ? Icons.check_circle : Icons.add_circle_outline, color: pet.isSelected ? Colors.white : Colors.grey, size: 16),
-                    ],
-                  ),
-                ),
-              );
-            },
-          )
+          for (final pet in draft.companions)
+            _buildPetOption(
+              title: pet.category,
+              details: pet.details,
+              isSelected: pet.isSelected,
+              onTap: () => setState(() => pet.isSelected = !pet.isSelected),
+            ),
         ],
+      ),
+    );
+  }
+
+  // A pet card styled like the pet cards on the homeowner profile, that can be selected.
+  Widget _buildPetOption({
+    required String title,
+    required String details,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: isSelected ? AppColors.lightRustBg : Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: isSelected ? AppColors.primaryRust : Colors.grey.shade200,
+              width: isSelected ? 1.5 : 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  color: isSelected ? AppColors.primaryRust : AppColors.lightRustBg,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  Icons.pets,
+                  color: isSelected ? Colors.white : AppColors.primaryRust,
+                  size: 28,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.darkText),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      details,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 12, color: Colors.black54),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Icon(
+                isSelected ? Icons.check_circle : Icons.circle_outlined,
+                color: isSelected ? AppColors.primaryRust : Colors.grey.shade400,
+                size: 26,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
