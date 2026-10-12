@@ -120,7 +120,7 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
     _showSnack('$title is coming soon');
   }
 
-  Future<void> _LogOut() async {
+  Future<void> _Logout() async {
     await AuthService().clearSession();
     if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
@@ -296,7 +296,7 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
         onBookingsTap: () => _open(const BookingsDashboardScreen()),
         onSavedSittersTap: () => _open(const SavedSittersScreen()),
         onSettingsTap: () => _comingSoon('Settings'),
-        onLogOut: _LogOut,
+        onLogOut: _Logout,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -327,7 +327,7 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
               SitterCard(
                 sitter: sitter,
                 isSaved: _savedSitterIds.contains(sitter.id),
-                onTap: () => _open(const SitterDetailScreen()),
+                onTap: () => _open(SitterDetailScreen(sitterId: sitter.id)),
                 onMessage: () => _open(const DirectChatScreen()),
                 onBook: () => _open(const BookingFlowScreen()),
                 onToggleSave: () => _toggleSaved(sitter),

@@ -6,7 +6,44 @@ import 'package:flutter/foundation.dart'; // Required for debugPrint
 import 'package:http/http.dart' as http;
 
 class SitterService {
-  // Android emulator: 10.0.2.2 | Chrome/desktop: localhost | real phone: your PC's IP
+  final String _baseUrl = ApiConfig.baseUrl;
+  static const _timeout = Duration(seconds: 10);
+
+  Future<Map<String, dynamic>> getSitterDetails({required int sitterId}) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$_baseUrl/api/sitters/$sitterId/get-sitter-details'),
+        headers: {'Content-Type': 'application/json'},
+      ).timeout(_timeout);
+
+      final json = jsonDecode(response.body) as Map<String, dynamic>;
+      final ok = response.statusCode == 200 && json['success'] == true;
+
+      return {
+        'success': ok,
+        'message': json['message'],
+        'name': json['name'],
+        'email': json['email'],
+        'phone': json['phone'],
+        'experience': json['experience'],
+        'dayRate': json['dayRate'],
+        'nightRate': json['nightRate'],
+        'rating': json['rating'],
+        'totalReviews': json['totalReview'],
+        'verification': json['isVerified'],
+        'services' : json['services'],
+        'petPreferences' : json['petPreferences']
+      };
+    } catch (e) {
+      debugPrint('Error fetching checks: $e');
+      return {
+        'success': false,
+        'message': 'Network error. Please try again later',
+      };
+    }
+  }
+  
+// Android emulator: 10.0.2.2 | Chrome/desktop: localhost | real phone: your PC's IP
   static String get baseUrl => ApiConfig.baseUrl;
   static const Map<String, String> _jsonHeaders = {'Content-Type': 'application/json'};
 

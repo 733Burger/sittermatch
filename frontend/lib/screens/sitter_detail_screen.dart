@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/models/sitter_details_model.dart';
 import '../theme/app_colors.dart';
 import '../services/sitter_service.dart';
 import 'direct_chat_screen.dart';
@@ -7,124 +8,49 @@ import 'owner_profile_screen.dart';
 import 'owner_home_screen.dart';
 import 'bookings_dashboard_screen.dart';
 
-// DATA MODEL
-class SitterProfile {
-  final String name;
-  final String location;
-  final double rating;
-  final int reviewCount;
-  final String avatarUrl;
-  final List<String> companions;
-  final int yearsExperience;
-
-  SitterProfile({
-    required this.name,
-    required this.location,
-    required this.rating,
-    required this.reviewCount,
-    required this.avatarUrl,
-    required this.companions,
-    required this.yearsExperience,
-  });
-}
-
-/// One service the sitter offers, with their price.
-class _ServiceRate {
-  final IconData icon;
-  final String title;
-  final String? detail;
-  final String price;
-  final String unit;
-
-  const _ServiceRate({
-    required this.icon,
-    required this.title,
-    this.detail,
-    required this.price,
-    required this.unit,
-  });
-}
-
-class _Review {
-  final String author;
-  final double rating;
-  final String comment;
-  final String date;
-
-  const _Review({
-    required this.author,
-    required this.rating,
-    required this.comment,
-    required this.date,
-  });
-}
-
 class SitterDetailScreen extends StatefulWidget {
-  const SitterDetailScreen({super.key});
+  const SitterDetailScreen({super.key, required this.sitterId});
+
+  final int sitterId;
 
   @override
   State<SitterDetailScreen> createState() => _SitterDetailScreenState();
 }
 
 class _SitterDetailScreenState extends State<SitterDetailScreen> {
+  final SitterService _sitterService = SitterService();
+
+  SitterDetails _details = const SitterDetails();
+
   bool isFavorite = false;
 
   // Detail screen isn't a root tab page, so selected tab state starts unselected (-1)
   int currentNavIndex = -1;
 
-  final SitterProfile sitter = SitterProfile(
-    name: 'Lerato Khumalo',
-    location: 'Camps Bay, Cape Town',
-    rating: 4.95,
-    reviewCount: 38,
-    avatarUrl: 'https://i.pravatar.cc/150?img=44',
-    companions: ['Dogs (All Sizes)', 'Cats', 'Senior Dogs', 'Birds & Parrots'],
-    yearsExperience: 8,
-  );
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
 
-  // Sample details. TODO: load these from the backend.
-  static const String _about =
-      'Canine first aid certified, with 8 years of experience looking after dogs and cats '
-      'in Southern Suburbs homes. Comfortable with alarm systems and load shedding routines.';
+  Future<void> _loadData() async {
+    try {
+      final sitterDetails = await _sitterService.getSitterDetails(sitterId: widget.sitterId);
 
-  static const List<_ServiceRate> _services = [
-    _ServiceRate(
-      icon: Icons.nights_stay_outlined,
-      title: 'Stay over night',
-      price: 'R320',
-      unit: '/ night',
-    ),
-    _ServiceRate(
-      icon: Icons.directions_walk,
-      title: 'Walk dog',
-      detail: '45 minute walks',
-      price: 'R120',
-      unit: '/ walk',
-    ),
-    _ServiceRate(
-      icon: Icons.restaurant_outlined,
-      title: 'Feed dog',
-      price: 'R160',
-      unit: '/ visit',
-    ),
-  ];
+      if (!mounted) return;
 
-  static const List<_Review> _reviews = [
-    _Review(
-      author: 'Michael S.',
-      rating: 5.0,
-      comment:
-          'Lerato was exceptional with our two German Shepherds and managed the alarm system '
-          'and solar backup flawlessly. Total peace of mind while overseas.',
-      date: 'Sep 2026',
-    ),
-    _Review(
-      author: 'Claire V.',
-      rating: 4.9,
-      comment: 'Punctual, caring and sent daily photo updates.',
-      date: 'Aug 2026',
-    ),
-  ];
+      setState(() {
+        _details = SitterDetails.fromJson(sitterDetails);
+      });
+    } catch (e) {
+      if (!mounted) return;
+      _showSnack('Could not load sitter details');
+    }
+  }
+
+  void _showSnack(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
 
   void _onBottomNavTapped(int index) {
     setState(() => currentNavIndex = index);
@@ -147,7 +73,6 @@ class _SitterDetailScreenState extends State<SitterDetailScreen> {
         return;
     }
 
-    // Clear detail screen stack and navigate directly to root destination view
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(builder: (context) => targetScreen),
@@ -192,7 +117,7 @@ class _SitterDetailScreenState extends State<SitterDetailScreen> {
 
   void _shareProfile() {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Sharing profile for ${sitter.name}...')),
+      SnackBar(content: Text('Sharing profile for ${_details.name}...')),
     );
   }
 
@@ -209,8 +134,6 @@ class _SitterDetailScreenState extends State<SitterDetailScreen> {
       ),
     );
   }
-
-  // ---------- Helpers ----------
 
   BoxDecoration _cardDecoration() {
     return BoxDecoration(
@@ -249,7 +172,27 @@ class _SitterDetailScreenState extends State<SitterDetailScreen> {
     );
   }
 
-  // ---------- Build ----------
+  IconData _serviceIcon(String serviceType) {
+    switch (serviceType.toLowerCase()) {
+      case 'stay over night':
+      case 'overnight sitting':
+        return Icons.nights_stay_outlined;
+      case 'walk dog':
+      case 'dog walking':
+        return Icons.directions_walk;
+      case 'feed dog':
+      case 'drop-in visit':
+        return Icons.restaurant_outlined;
+      default:
+        return Icons.pets;
+    }
+  }
+
+  String get _initial {
+    final name = _details.name.trim();
+    if (name.isEmpty) return '?';
+    return name[0].toUpperCase();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -378,45 +321,55 @@ class _SitterDetailScreenState extends State<SitterDetailScreen> {
             children: [
               CircleAvatar(
                 radius: 48,
-                backgroundColor: Colors.grey.shade300,
-                backgroundImage: NetworkImage(sitter.avatarUrl),
-              ),
-              Positioned(
-                bottom: 0,
-                right: 0,
-                child: Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
+                backgroundColor: AppColors.lightRustBg,
+                child: Text(
+                  _initial,
+                  style: const TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
                     color: AppColors.primaryRust,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 2),
                   ),
-                  child: const Icon(Icons.check, size: 14, color: Colors.white),
                 ),
               ),
+              if (_details.isVerified)
+                Positioned(
+                  bottom: 0,
+                  right: 0,
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryRust,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 2),
+                    ),
+                    child: const Icon(Icons.check, size: 14, color: Colors.white),
+                  ),
+                ),
             ],
           ),
           const SizedBox(height: 12),
           Text(
-            sitter.name,
+            _details.name,
             style: const TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.bold,
               color: AppColors.darkText,
             ),
           ),
-          const SizedBox(height: 6),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.location_on_outlined, color: AppColors.primaryRust, size: 16),
-              const SizedBox(width: 4),
-              Text(
-                sitter.location,
-                style: const TextStyle(fontSize: 13, color: Colors.black54),
-              ),
-            ],
-          ),
+          if (_details.email.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              _details.email,
+              style: const TextStyle(fontSize: 13, color: Colors.black54),
+            ),
+          ],
+          if (_details.phoneNumber.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              _details.phoneNumber,
+              style: const TextStyle(fontSize: 13, color: Colors.black54),
+            ),
+          ],
           const SizedBox(height: 8),
           Row(
             mainAxisSize: MainAxisSize.min,
@@ -424,11 +377,11 @@ class _SitterDetailScreenState extends State<SitterDetailScreen> {
               const Icon(Icons.star_rounded, color: AppColors.primaryRust, size: 18),
               const SizedBox(width: 4),
               Text(
-                sitter.rating.toStringAsFixed(2),
+                _details.rating.toStringAsFixed(2),
                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
               ),
               Text(
-                ' (${sitter.reviewCount} reviews)',
+                ' (${_details.totalReviews} reviews)',
                 style: const TextStyle(fontSize: 12, color: Colors.black54),
               ),
             ],
@@ -448,9 +401,9 @@ class _SitterDetailScreenState extends State<SitterDetailScreen> {
         children: [
           _sectionTitle('About & experience'),
           const SizedBox(height: 10),
-          const Text(
-            _about,
-            style: TextStyle(fontSize: 13, height: 1.5, color: Colors.black87),
+          Text(
+            _details.experience,
+            style: const TextStyle(fontSize: 13, height: 1.5, color: Colors.black87),
           ),
         ],
       ),
@@ -470,7 +423,7 @@ class _SitterDetailScreenState extends State<SitterDetailScreen> {
           Wrap(
             spacing: 8,
             runSpacing: 8,
-            children: sitter.companions.map((c) {
+            children: _details.petPreferences.map((pet) {
               return Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
@@ -483,7 +436,7 @@ class _SitterDetailScreenState extends State<SitterDetailScreen> {
                     const Icon(Icons.pets, color: AppColors.primaryRust, size: 14),
                     const SizedBox(width: 6),
                     Text(
-                      c,
+                      pet,
                       style: const TextStyle(
                         color: AppColors.darkText,
                         fontSize: 12,
@@ -514,13 +467,13 @@ class _SitterDetailScreenState extends State<SitterDetailScreen> {
             'Prices are in rand (R).',
             style: TextStyle(fontSize: 12, color: Colors.black54),
           ),
-          ..._services.map(_buildServiceRow),
+          ..._details.services.map(_buildServiceRow),
         ],
       ),
     );
   }
 
-  Widget _buildServiceRow(_ServiceRate service) {
+  Widget _buildServiceRow(SitterServiceItem service) {
     return Container(
       margin: const EdgeInsets.only(top: 10),
       padding: const EdgeInsets.all(14),
@@ -536,47 +489,26 @@ class _SitterDetailScreenState extends State<SitterDetailScreen> {
               color: Colors.white,
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(service.icon, color: AppColors.primaryRust, size: 20),
+            child: Icon(_serviceIcon(service.serviceType), color: AppColors.primaryRust, size: 20),
           ),
           const SizedBox(width: 12),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  service.title,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.darkText,
-                    fontSize: 14,
-                  ),
-                ),
-                if (service.detail != null) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    service.detail!,
-                    style: const TextStyle(fontSize: 11, color: Colors.black54),
-                  ),
-                ],
-              ],
+            child: Text(
+              service.serviceType,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                color: AppColors.darkText,
+                fontSize: 14,
+              ),
             ),
           ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                service.price,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.primaryRust,
-                  fontSize: 16,
-                ),
-              ),
-              Text(
-                service.unit,
-                style: const TextStyle(fontSize: 10, color: Colors.black54),
-              ),
-            ],
+          Text(
+            'R${service.price.toStringAsFixed(0)}',
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              color: AppColors.primaryRust,
+              fontSize: 16,
+            ),
           ),
         ],
       ),
@@ -596,87 +528,22 @@ class _SitterDetailScreenState extends State<SitterDetailScreen> {
           Row(
             children: [
               Text(
-                sitter.rating.toStringAsFixed(1),
+                _details.rating.toStringAsFixed(1),
                 style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
               ),
               const SizedBox(width: 12),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _stars(sitter.rating, size: 18),
+                  _stars(_details.rating, size: 18),
                   const SizedBox(height: 2),
                   Text(
-                    '${sitter.reviewCount} reviews',
+                    '${_details.totalReviews} reviews',
                     style: const TextStyle(fontSize: 12, color: Colors.black54),
                   ),
                 ],
               ),
             ],
-          ),
-          const SizedBox(height: 12),
-          const Divider(height: 1),
-          ..._reviews.map(_buildReviewTile),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildReviewTile(_Review review) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 14),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          CircleAvatar(
-            radius: 16,
-            backgroundColor: AppColors.lightRustBg,
-            child: Text(
-              review.author.isEmpty ? '?' : review.author[0].toUpperCase(),
-              style: const TextStyle(
-                color: AppColors.primaryRust,
-                fontWeight: FontWeight.bold,
-                fontSize: 13,
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Flexible(
-                      child: Text(
-                        review.author,
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                      ),
-                    ),
-                    Row(
-                      children: [
-                        const Icon(Icons.star_rounded, color: AppColors.primaryRust, size: 14),
-                        const SizedBox(width: 2),
-                        Text(
-                          review.rating.toStringAsFixed(1),
-                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  review.comment,
-                  style: const TextStyle(fontSize: 12, color: Colors.black87),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  review.date,
-                  style: const TextStyle(fontSize: 10, color: Colors.black45),
-                ),
-              ],
-            ),
           ),
         ],
       ),

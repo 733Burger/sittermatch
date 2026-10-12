@@ -26,11 +26,12 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
     _chatFuture = ChatService.getChatThread();
   }
 
+  //Lee: Still need to fix this because it is making a problem with the sitter details
   void _openSitterDetails() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const SitterDetailScreen()),
-    );
+    // Navigator.push(
+    //   context,
+    //   MaterialPageRoute(builder: (context) => const SitterDetailScreen()),
+    // );
   }
 
   @override

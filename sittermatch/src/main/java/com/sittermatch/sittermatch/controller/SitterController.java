@@ -6,6 +6,7 @@ import com.sittermatch.sittermatch.dto.SitterReviewPetRequest;
 import com.sittermatch.sittermatch.dto.SitterSendMessageRequest;
 import com.sittermatch.sittermatch.dto.SubmitSitterVerificationRequest;
 import com.sittermatch.sittermatch.dto.UpdateSitterProfileRequest;
+import com.sittermatch.sittermatch.dto.sitterDetails.SitterDetailsResponse;
 import com.sittermatch.sittermatch.model.Booking;
 import com.sittermatch.sittermatch.model.Listing;
 import com.sittermatch.sittermatch.model.Message;
@@ -41,23 +42,32 @@ public class SitterController {
         }
         return ResponseEntity.ok(sitters);
     }
-    
 
-    //Profile and Account Managment
-    @PutMapping("/{sitterId}/profile")
-    public ResponseEntity<Sitter> updateProfile(
-                @PathVariable Integer sitterId,
-        @RequestBody UpdateSitterProfileRequest request){
-            Sitter updatedSitter = sitterService.updateProfile(
-                sitterId,
-                request.dayRate(),
-                request.nightRate(),
-                request.experience(),
-                request.prefrences(),
-                request.services()
-            );
-            return ResponseEntity.ok(updatedSitter);
+    @GetMapping("/{sitterId}/get-sitter-details")
+    public ResponseEntity<SitterDetailsResponse> getSitterDetails(@PathVariable int sitterId) {
+        SitterDetailsResponse sitterDetails = sitterService.getSitterDetails(sitterId);
+        if (!sitterDetails.success()) {
+            return ResponseEntity.badRequest().body(sitterDetails);
         }
+        return ResponseEntity.ok(sitterDetails);
+    }
+    
+    //Profile and Account Managment
+    //Note to fix due to the change to experience from an int to a String text due to frontend changes
+    // @PutMapping("/{sitterId}/profile")
+    // public ResponseEntity<Sitter> updateProfile(
+    //             @PathVariable Integer sitterId,
+    //     @RequestBody UpdateSitterProfileRequest request){
+    //         Sitter updatedSitter = sitterService.updateProfile(
+    //             sitterId,
+    //             request.dayRate(),
+    //             request.nightRate(),
+    //             request.experience(),
+    //             request.prefrences(),
+    //             request.services()
+    //         );
+    //         return ResponseEntity.ok(updatedSitter);
+    //     }
 
         @PostMapping("/{sitterId}/verification")
         public ResponseEntity<SitterCheck> submitVerification(
