@@ -1,14 +1,14 @@
 package com.sittermatch.sittermatch.services;
 
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Set;
 
 import com.sittermatch.sittermatch.model.Listing;
 import com.sittermatch.sittermatch.dto.SitterListResponse;
+import com.sittermatch.sittermatch.dto.sitterDetails.SitterDetailsResponse;
+import com.sittermatch.sittermatch.dto.sitterDetails.SitterDetailsResponse.ServiceProjection;
 import com.sittermatch.sittermatch.model.Booking;
 import com.sittermatch.sittermatch.model.Homeowner;
 import com.sittermatch.sittermatch.model.Message;
@@ -65,30 +65,50 @@ public class SitterService {
     private SitterListResponse toSitterListResponse (Sitter sitter) {
         var sitterUserDetails = sitter.getUser();
         return new SitterListResponse(
-                sitter.getId(),
-                (sitterUserDetails != null) ? sitterUserDetails.getName() : null,
-                sitter.getRating(),
-                sitter.getTotalReviews(),
-                sitter.getDayRate(),
-                sitter.getNightRate(),
-                sitter.getIsVerified()
+            sitter.getId(),
+            (sitterUserDetails != null) ? sitterUserDetails.getName() : null,
+            sitter.getRating(),
+            sitter.getTotalReviews(),
+            sitter.getDayRate(),
+            sitter.getNightRate(),
+            sitter.getIsVerified()
         );
     }
 
-    // Profile and Account Managment
-    @Transactional
-    public Sitter updateProfile(Integer sitterId, Double dayRate, Double nightRate, Integer experiance,
-                    Set<String> preferences, Set<String> services) {
-            Sitter sitter = sitterRepository.findById(sitterId)
-                            .orElseThrow(() -> new RuntimeException("Sitter not found"));
-            sitter.setDayRate(dayRate);
-            sitter.setNightRate(nightRate);
-            sitter.setExperience(experiance);
-            sitter.setPetTypes(preferences);
-            sitter.setServiceTypes(services);
-            return sitterRepository.save(sitter);
+    public SitterDetailsResponse getSitterDetails(int sitterId) {
+        if (sitterId <= 0) {
+            return SitterDetailsResponse.failure("Invalid sitter ID");
+        }
 
+        SitterDetailsResponse.SitterDetailsProjection sitterDetails = sitterRepository.getSitterDetails(sitterId);
+        if (sitterDetails == null) {
+            return SitterDetailsResponse.failure("Sitter not found");
+        }
+
+        List<String> sitterPetPreferences = sitterRepository.findPetPreferences(sitterId);
+        List<ServiceProjection> sitterServices = sitterRepository.findSitterServices(sitterId);
+
+        return SitterDetailsResponse.getResponse(sitterDetails, sitterPetPreferences, sitterServices);
     }
+
+    // Profile and Account Managment
+    //Note to Others, experience needs to change to a String value for a description of their experience
+    //Possible addition of years_of_experience
+//     @Transactional
+//     public Sitter updateProfile(Integer sitterId,
+//                                 Double dayRate,
+//                                 Double nightRate,
+//                                 Integer experiance,
+//                                 Set<String> preferences,
+//                                 Set<String> services) {
+//         Sitter sitter = sitterRepository.findById(sitterId).orElseThrow(() -> new RuntimeException("Sitter not found"));
+//         sitter.setDayRate(dayRate);
+//         sitter.setNightRate(nightRate);
+//         sitter.setExperience(experiance);
+//         sitter.setPetTypes(preferences);
+//         sitter.setServiceTypes(services);
+//         return sitterRepository.save(sitter);
+//     }
 
     @Transactional
     public SitterCheck submitVerification(Integer sitterId, String type, String idPhotoUrl, String references) {

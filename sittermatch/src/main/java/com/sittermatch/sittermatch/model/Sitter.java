@@ -16,7 +16,8 @@ public class Sitter {
     @JoinColumn(name = "id")
     private User user;
 
-    private Integer experience;
+    @Column(name = "experience", columnDefinition = "TEXT")
+    private String experience;
 
     @Column(name = "day_rate")
     private Double dayRate;
@@ -32,25 +33,28 @@ public class Sitter {
     @Column(name = "is_verified")
     private Boolean isVerified = false;
 
-    @ElementCollection
-    @CollectionTable(name = "sitter_service_types", joinColumns = @JoinColumn(name = "sitter_id"))
-    @Column(name = "service_type")
-    private Set<String> serviceTypes = new HashSet<>();
+    @ElementCollection 
+    @CollectionTable (
+        name = "sitter_services",
+        joinColumns = @JoinColumn (name = "sitter_id", nullable = false)
+    )
+    private Set<SitterServices> services = new HashSet<>();
 
     @ElementCollection
-    @CollectionTable(name = "sitter_pet_types", joinColumns = @JoinColumn(name = "sitter_id"))
-    @Column(name = "pet_type")
-    private Set<String> petTypes = new HashSet<>();
+    @CollectionTable (
+        name = "sitter_pet_preferences",
+        joinColumns = @JoinColumn (name = "sitter_id", nullable = false)
+    )
+    @Column(name = "pet_type", nullable = false, length = 45)
+    private Set<String> petPreferences = new HashSet<>();
 
-    // Default constructor
     public Sitter() {
     }
 
-    // Constructor
     public Sitter(
             Integer id,
             User user,
-            Integer experience,
+            String experience,
             Double dayRate,
             Double nightRate,
             Double rating,
@@ -84,11 +88,11 @@ public class Sitter {
         this.user = user;
     }
 
-    public Integer getExperience() {
+    public String getExperience() {
         return experience;
     }
 
-    public void setExperience(Integer experience) {
+    public void setExperience(String experience) {
         this.experience = experience;
     }
 
@@ -132,19 +136,19 @@ public class Sitter {
         this.isVerified = isVerified;
     }
 
-    public Set<String> getServiceTypes() {
-        return serviceTypes;
+    public Set<SitterServices> getServices() {
+        return services;
     }
 
-    public void setServiceTypes(Set<String> serviceTypes) {
-        this.serviceTypes = serviceTypes;
+    public void setServices(Set<SitterServices> services) {
+        this.services = services;
     }
 
-    public Set<String> getPetTypes() {
-        return petTypes;
+    public Set<String> getPetPreferences() {
+        return petPreferences;
     }
 
-    public void setPetTypes(Set<String> petTypes) {
-        this.petTypes = petTypes;
+    public void setPetPreferences(Set<String> petPreferences) {
+        this.petPreferences = petPreferences;
     }
 }

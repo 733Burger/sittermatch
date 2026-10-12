@@ -344,8 +344,11 @@ class _BookingsDashboardScreenState extends State<BookingsDashboardScreen> {
         } else if (status == 'accepted') {
           screen = const AcceptedBookingScreen();
         } else {
-          screen = const SitterDetailScreen();
+          screen = const PreviousBookingsScreen();
         }
+        // } else {
+        //   screen = const SitterDetailScreen();
+        // }
         _open(screen);
       },
       child: Container(

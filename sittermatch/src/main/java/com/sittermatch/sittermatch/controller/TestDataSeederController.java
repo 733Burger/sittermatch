@@ -1,5 +1,6 @@
 package com.sittermatch.sittermatch.controller;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Set;
 
@@ -16,6 +17,7 @@ import com.sittermatch.sittermatch.model.Pet;
 import com.sittermatch.sittermatch.model.PetReview;
 import com.sittermatch.sittermatch.model.Review;
 import com.sittermatch.sittermatch.model.Sitter;
+import com.sittermatch.sittermatch.model.SitterServices;
 import com.sittermatch.sittermatch.model.User;
 import com.sittermatch.sittermatch.repository.BookingRepository;
 import com.sittermatch.sittermatch.repository.HomeownerRepository;
@@ -81,7 +83,7 @@ public ResponseEntity<String> seedDatabase() {
     Sitter sitter = new Sitter(
         null,        // id (mapped from User via @MapsId)
         sitterUser,  // user
-        3,           // experience (Integer)
+        "Filler Experience",           // experience (Integer)
         150.0,       // dayRate (Double)
         250.0,       // nightRate (Double)
         4.8,         // rating (Double)
@@ -90,8 +92,8 @@ public ResponseEntity<String> seedDatabase() {
     );
 
     // Set collections (Set<String>)
-    sitter.setPetTypes(Set.of("DOG")); // or Set.of(PetType.DOG.name()) if using an Enum
-    sitter.setServiceTypes(Set.of("DOG_WALKING")); // or Set.of(ServiceType.DOG_WALKING.name())
+    sitter.setPetPreferences(Set.of("DOG")); // or Set.of(PetType.DOG.name()) if using an Enum
+    sitter.setServices(Set.of(new SitterServices("DOG_WALKING", new BigDecimal("120.00")))); // or Set.of(ServiceType.DOG_WALKING.name())
 
     sitter = sitterRepository.saveAndFlush(sitter);
 
