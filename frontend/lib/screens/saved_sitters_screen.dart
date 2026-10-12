@@ -2,11 +2,8 @@ import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../models/saved_sitter_model.dart';
 import '../services/saved_sitter_service.dart';
-import 'messages_screen.dart';
-import 'bookings_dashboard_screen.dart';
-import 'owner_home_screen.dart';
-import 'owner_profile_screen.dart';
 import 'direct_chat_screen.dart';
+import 'bookings_dashboard_screen.dart';
 
 class SavedSittersScreen extends StatefulWidget {
   const SavedSittersScreen({super.key});
@@ -23,6 +20,8 @@ class _SavedSittersScreenState extends State<SavedSittersScreen> {
     super.initState();
     _sittersFuture = SavedSitterService.getSavedSitters();
   }
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -58,11 +57,17 @@ class _SavedSittersScreenState extends State<SavedSittersScreen> {
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              _buildHeader(),
+              _buildHeader(sitters.length),
               const SizedBox(height: 16),
               _buildFilters(),
               const SizedBox(height: 16),
-              ...sitters.map((sitter) => _buildSitterCard(sitter)),
+              if (sitters.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 32),
+                  child: Center(child: Text('No saved sitters yet.')),
+                )
+              else
+                ...sitters.map((sitter) => _buildSitterCard(sitter)),
               _buildSecurityFooter(),
             ],
           );
@@ -72,7 +77,7 @@ class _SavedSittersScreenState extends State<SavedSittersScreen> {
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(int savedCount) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -84,7 +89,7 @@ class _SavedSittersScreenState extends State<SavedSittersScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(color: AppColors.lightRustBg, borderRadius: BorderRadius.circular(20)),
-              child: const Text('3\nSAVED', textAlign: TextAlign.center, style: TextStyle(color: AppColors.primaryRust, fontWeight: FontWeight.bold, fontSize: 12)),
+              child: Text('$savedCount\nSAVED', textAlign: TextAlign.center, style: const TextStyle(color: AppColors.primaryRust, fontWeight: FontWeight.bold, fontSize: 12)),
             ),
             const SizedBox(width: 8),
             Expanded(
@@ -136,7 +141,11 @@ class _SavedSittersScreenState extends State<SavedSittersScreen> {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.grey.shade200)),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -145,13 +154,12 @@ class _SavedSittersScreenState extends State<SavedSittersScreen> {
             children: [
               Stack(
                 children: [
-                
                   Container(
-                    width: 60, 
+                    width: 60,
                     height: 60,
                     decoration: BoxDecoration(
                       color: Colors.grey.shade300,
-                      borderRadius: BorderRadius.circular(12)
+                      borderRadius: BorderRadius.circular(12),
                     ),
                     child: const Icon(Icons.person, color: Colors.grey, size: 36),
                   ),
@@ -161,9 +169,13 @@ class _SavedSittersScreenState extends State<SavedSittersScreen> {
                     child: CircleAvatar(
                       radius: 10,
                       backgroundColor: AppColors.primaryRust,
-                      child: Icon(sitter.isVetNurse ? Icons.medical_services : Icons.check, color: Colors.white, size: 12),
+                      child: Icon(
+                        sitter.isVetNurse ? Icons.medical_services : Icons.check,
+                        color: Colors.white,
+                        size: 12,
+                      ),
                     ),
-                  )
+                  ),
                 ],
               ),
               const SizedBox(width: 16),
@@ -213,17 +225,11 @@ class _SavedSittersScreenState extends State<SavedSittersScreen> {
                         const SizedBox(width: 4),
                         Text('${sitter.rating} (${sitter.reviewCount})', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                       ],
-                    )
+                    ),
                   ],
                 ),
-              )
+              ),
             ],
-          ),
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(8)),
-            child: Text(sitter.bioSnippet, style: const TextStyle(fontStyle: FontStyle.italic, color: Colors.black87, fontSize: 13)),
           ),
           const SizedBox(height: 12),
           Row(
@@ -242,13 +248,10 @@ class _SavedSittersScreenState extends State<SavedSittersScreen> {
                   ),
                 ),
               ),
-              const SizedBox(width: 12),
-              Container(
-                decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(8)),
-                child: IconButton(icon: const Icon(Icons.bookmark_border, color: Colors.black87), onPressed: () {}),
-              )
+            
+              
             ],
-          )
+          ),
         ],
       ),
     );
@@ -292,9 +295,7 @@ class _SavedSittersScreenState extends State<SavedSittersScreen> {
         if (index == 1) {
           Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const BookingsDashboardScreen()));
         } else if (index == 2) {
-          Navigator.push(context, MaterialPageRoute(builder: (context) => const MessagesScreen()));
-        }else if (index == 3) {
-          Navigator.push(context, MaterialPageRoute(builder: (context) => const OwnerProfileScreen()));
+          Navigator.push(context, MaterialPageRoute(builder: (context) => const DirectChatScreen()));
         }
       },
       items: const [

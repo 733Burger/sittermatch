@@ -1,4 +1,4 @@
-package com.sittermatch.sittermatch.repositories;
+package com.sittermatch.sittermatch.repository;
 
 import com.sittermatch.sittermatch.model.HomeownerVerification;
 import com.sittermatch.sittermatch.model.VerificationStatus;
@@ -12,11 +12,11 @@ public interface HomeownerVerificationRepository extends JpaRepository<Homeowner
 
     Optional<HomeownerVerification> findByHomeownerId(Integer homeownerId);
 
-    default boolean isFullyVerified(Integer homeownerId) {
-        return findByHomeownerId(homeownerId)
-                .map(HomeownerVerification::isApproved)
-                .orElse(false);
-    }
+    // default boolean isFullyVerified(Integer homeownerId) {
+    //     return findByHomeownerId(homeownerId)
+    //             .map(HomeownerVerification::isApproved)
+    //             .orElse(false);
+    // }
 
     @Query("SELECT v FROM HomeownerVerification v"
         + " WHERE v.idStatus = :pending "

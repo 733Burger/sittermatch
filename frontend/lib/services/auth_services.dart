@@ -56,6 +56,11 @@ class AuthService {
     return prefs.getString(PreferenceKeys.userRole);
   }
 
+  Future<int?> getUserId() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt('userId');
+  }
+
   Future<void> setUserRole(String role) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(PreferenceKeys.userRole, role);

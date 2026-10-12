@@ -6,16 +6,16 @@ import java.util.Optional;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.sittermatch.sittermatch.dto.EmergencyCheckResponse;
-import com.sittermatch.sittermatch.dto.HomeownerCheckResponse;
-import com.sittermatch.sittermatch.dto.HomeownerCheckResponse.CheckTile;
-import com.sittermatch.sittermatch.dto.IdentityCheckSubmitResponse;
 import com.sittermatch.sittermatch.dto.ResidenceCheckResponse;
+import com.sittermatch.sittermatch.dto.verificationChecks.EmergencyCheckResponse;
+import com.sittermatch.sittermatch.dto.verificationChecks.HomeownerCheckResponse;
+import com.sittermatch.sittermatch.dto.verificationChecks.IdentityCheckSubmitResponse;
+import com.sittermatch.sittermatch.dto.verificationChecks.HomeownerCheckResponse.CheckTile;
 import com.sittermatch.sittermatch.model.Homeowner;
 import com.sittermatch.sittermatch.model.HomeownerVerification;
 import com.sittermatch.sittermatch.model.VerificationStatus;
-import com.sittermatch.sittermatch.repositories.HomeownerRepository;
-import com.sittermatch.sittermatch.repositories.HomeownerVerificationRepository;
+import com.sittermatch.sittermatch.repository.HomeownerRepository;
+import com.sittermatch.sittermatch.repository.HomeownerVerificationRepository;
 
 @Service
 public class HomeService {
@@ -188,7 +188,6 @@ public class HomeService {
 
             return new HomeownerCheckResponse(
                 true,
-                "Checks retrieved successfully",
                 CheckTile.of(tileStatus(check.getIdStatus()), getIdSubtitle(check)),
                 CheckTile.of(tileStatus(check.getResidenceStatus()), getResidenceSubtitle(check)),
                 CheckTile.of(tileStatus(check.getEmergencyStatus()), getEmergencySubtitle(name, phone)),

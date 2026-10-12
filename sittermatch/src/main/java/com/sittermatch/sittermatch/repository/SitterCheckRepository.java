@@ -1,4 +1,4 @@
-package com.sittermatch.sittermatch.repositories;
+package com.sittermatch.sittermatch.repository;
 
 import com.sittermatch.sittermatch.model.SitterCheck;
 import org.springframework.data.jpa.repository.JpaRepository;

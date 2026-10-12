@@ -16,7 +16,8 @@ public class Sitter {
     @JoinColumn(name = "id")
     private User user;
 
-    private Integer experience;
+    @Column(name = "experience", columnDefinition = "TEXT")
+    private String experience;
 
     @Column(name = "day_rate")
     private Double dayRate;
@@ -32,20 +33,33 @@ public class Sitter {
     @Column(name = "is_verified")
     private Boolean isVerified = false;
 
-    @ElementCollection
-    @CollectionTable(name = "sitter_service_types", joinColumns = @JoinColumn(name = "sitter_id"))
-    @Column(name = "service_type")
-    private Set<String> serviceTypes = new HashSet<>();
+    @ElementCollection 
+    @CollectionTable (
+        name = "sitter_services",
+        joinColumns = @JoinColumn (name = "sitter_id", nullable = false)
+    )
+    private Set<SitterServices> services = new HashSet<>();
 
     @ElementCollection
-    @CollectionTable(name = "sitter_pet_types", joinColumns = @JoinColumn(name = "sitter_id"))
-    @Column(name = "pet_type")
-    private Set<String> petTypes = new HashSet<>();
+    @CollectionTable (
+        name = "sitter_pet_preferences",
+        joinColumns = @JoinColumn (name = "sitter_id", nullable = false)
+    )
+    @Column(name = "pet_type", nullable = false, length = 45)
+    private Set<String> petPreferences = new HashSet<>();
 
-    public Sitter() {}
+    public Sitter() {
+    }
 
-    public Sitter(Integer id, User user, Integer experience, Double dayRate, Double nightRate, 
-                  Double rating, Integer totalReviews, Boolean isVerified) {
+    public Sitter(
+            Integer id,
+            User user,
+            String experience,
+            Double dayRate,
+            Double nightRate,
+            Double rating,
+            Integer totalReviews,
+            Boolean isVerified) {
         this.id = id;
         this.user = user;
         this.experience = experience;
@@ -56,33 +70,85 @@ public class Sitter {
         this.isVerified = isVerified;
     }
 
-    public Integer getId() { return id; }
-    public void setId(Integer id) { this.id = id; }
+    // Getters and Setters
 
-    public User getUser() { return user; }
-    public void setUser(User user) { this.user = user; }
+    public Integer getId() {
+        return id;
+    }
 
-    public Integer getExperience() { return experience; }
-    public void setExperience(Integer experience) { this.experience = experience; }
+    public void setId(Integer id) {
+        this.id = id;
+    }
 
-    public Double getDayRate() { return dayRate; }
-    public void setDayRate(Double dayRate) { this.dayRate = dayRate; }
+    public User getUser() {
+        return user;
+    }
 
-    public Double getNightRate() { return nightRate; }
-    public void setNightRate(Double nightRate) { this.nightRate = nightRate; }
+    public void setUser(User user) {
+        this.user = user;
+    }
 
-    public Double getRating() { return rating; }
-    public void setRating(Double rating) { this.rating = rating; }
+    public String getExperience() {
+        return experience;
+    }
 
-    public Integer getTotalReviews() { return totalReviews; }
-    public void setTotalReviews(Integer totalReviews) { this.totalReviews = totalReviews; }
+    public void setExperience(String experience) {
+        this.experience = experience;
+    }
 
-    public Boolean getIsVerified() { return isVerified; }
-    public void setIsVerified(Boolean isVerified) { this.isVerified = isVerified; }
+    public Double getDayRate() {
+        return dayRate;
+    }
 
-    public Set<String> getServiceTypes() { return serviceTypes; }
-    public void setServiceTypes(Set<String> serviceTypes) { this.serviceTypes = serviceTypes; }
+    public void setDayRate(Double dayRate) {
+        this.dayRate = dayRate;
+    }
 
-    public Set<String> getPetTypes() { return petTypes; }
-    public void setPetTypes(Set<String> petTypes) { this.petTypes = petTypes; }
+    public Double getNightRate() {
+        return nightRate;
+    }
+
+    public void setNightRate(Double nightRate) {
+        this.nightRate = nightRate;
+    }
+
+    public Double getRating() {
+        return rating;
+    }
+
+    public void setRating(Double rating) {
+        this.rating = rating;
+    }
+
+    public Integer getTotalReviews() {
+        return totalReviews;
+    }
+
+    public void setTotalReviews(Integer totalReviews) {
+        this.totalReviews = totalReviews;
+    }
+
+    public Boolean getIsVerified() {
+        return isVerified;
+    }
+
+    public void setIsVerified(Boolean isVerified) {
+        this.isVerified = isVerified;
+    }
+
+    public Set<SitterServices> getServices() {
+        return services;
+    }
+
+    public void setServices(Set<SitterServices> services) {
+        this.services = services;
+    }
+
+    public Set<String> getPetPreferences() {
+        return petPreferences;
+    }
+
+    public void setPetPreferences(Set<String> petPreferences) {
+        this.petPreferences = petPreferences;
+    }
 }

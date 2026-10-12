@@ -5,7 +5,6 @@ import '../services/auth_services.dart';
 import '../services/chat_service.dart';
 import 'sitter_detail_screen.dart';
 
-/// One service in the booking offer, with its price.
 class _OfferItem {
   final String service;
   final String unit; // 'night', 'visit' or 'walk'
@@ -33,10 +32,8 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
 
   bool _isHomeowner = false;
 
-  // 'pending', 'accepted' or 'declined'
   String _offerStatus = 'pending';
 
-  // Sample booking offer. TODO: replace with the real booking from the backend.
   final String _stayTitle = 'Camps Bay Stay';
   final String _dates = 'Nov 24 – 27';
   final int _nights = 3;
@@ -59,12 +56,12 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
     setState(() => _isHomeowner = (role ?? '').toUpperCase() == 'HOMEOWNER');
   }
 
-  // ---------- Helpers ----------
-
   void _openSitterDetails() {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => const SitterDetailScreen()),
+      MaterialPageRoute(
+        builder: (context) => const SitterDetailScreen(sitterId: 2),
+      ),
     );
   }
 

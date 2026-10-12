@@ -1,10 +1,9 @@
-package com.sittermatch.sittermatch.dto;
+package com.sittermatch.sittermatch.dto.verificationChecks;
 
 import com.sittermatch.sittermatch.model.VerificationStatus;
 
 public record HomeownerCheckResponse(
     boolean success,
-    String message,
     CheckTile idCheck,
     CheckTile addressCheck,
     CheckTile emergencyContactCheck,
@@ -22,7 +21,6 @@ public record HomeownerCheckResponse(
     public static HomeownerCheckResponse noChecksFound() {
         return new HomeownerCheckResponse(
                 false,
-                "No checks found for this homeowner",
                 CheckTile.of("incomplete", "No ID Uploaded"),
                 CheckTile.of("incomplete", "No Address Uploaded"),
                 CheckTile.of("incomplete", "No Emergency Contact Uploaded"),
@@ -36,7 +34,6 @@ public record HomeownerCheckResponse(
     public static HomeownerCheckResponse failure(String message) {
         return new HomeownerCheckResponse(
                 false,
-                message,
                 CheckTile.of("error", message),
                 CheckTile.of("error", message),
                 CheckTile.of("error", message),

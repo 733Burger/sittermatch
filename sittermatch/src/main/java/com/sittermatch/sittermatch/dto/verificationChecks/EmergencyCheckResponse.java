@@ -1,4 +1,4 @@
-package com.sittermatch.sittermatch.dto;
+package com.sittermatch.sittermatch.dto.verificationChecks;
 
 public record EmergencyCheckResponse(
     boolean success,

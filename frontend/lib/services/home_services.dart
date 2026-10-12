@@ -18,42 +18,65 @@ class HomeService {
     return prefs.getString(PreferenceKeys.userEmail);
   }
 
-  Future<Map<String, dynamic>> fetchChecks({
-    required String email,
-  }) async {
+  Future<Map<String, dynamic>> fetchChecks({required String email}) async {
     final encodedEmail = Uri.encodeComponent(email);
     try {
       final response = await http.get(
-        Uri.parse('$_baseUrl/api/home/$encodedEmail/checks'),
-        headers: {'Content-Type': 'application/json'},
-      ).timeout(_timeout);
+            Uri.parse('$_baseUrl/api/home/$encodedEmail/get-checks'),
+            headers: {'Content-Type': 'application/json'},
+          ).timeout(_timeout);
 
-      final json = jsonDecode(response.body);
+      final json = jsonDecode(response.body) as Map<String, dynamic>;
+      final ok = response.statusCode == 200 && json['success'] == true;
 
-      if (response.statusCode == 200 && json['success'] == true) {
-        return {
-          'success': true,
-          'idCheck': json['idCheck'],
-          'addressCheck': json['addressCheck'],
-          'emergencyContactCheck': json['emergencyContactCheck'],
-          'emergencyContactName': json['emergencyContactName'],
-          'emergencyContactNumber': json['emergencyContactNumber'],
-          'verificationCount': json['verificationCount'],
-          'verificationStatus': json['verificationStatus']
-        };
-      }
       return {
-        'success': false,
+        'success': ok,
+        'message': json['message'],
         'idCheck': json['idCheck'],
         'addressCheck': json['addressCheck'],
         'emergencyContactCheck': json['emergencyContactCheck'],
         'emergencyContactName': json['emergencyContactName'],
         'emergencyContactNumber': json['emergencyContactNumber'],
-        'verificationCount': json['verificationCount']
+        'verificationCount': json['verificationCount'],
+        'verificationStatus': json['verificationStatus'],
       };
     } catch (e) {
       debugPrint('Error fetching checks: $e');
-      return {'success': false, 'message': 'Network error. Please try again later'};
+      return {
+        'success': false,
+        'message': 'Network error. Please try again later',
+      };
+    }
+  }
+
+  Future<Map<String, dynamic>> fetchSitters() async {
+    try {
+      final response = await http.get(
+            Uri.parse('$_baseUrl/api/sitters/get-sitters'),
+            headers: {'Content-Type': 'application/json'},
+          ).timeout(_timeout);
+
+      final sitters = jsonDecode(response.body) as List<dynamic>;
+      
+      if (response.statusCode == 200) {
+        return {
+          'success': true,
+          'message': 'Sitters retrieved successfully',
+          'sitters': sitters,
+        };
+      }
+      return {
+        'success': false,
+        'message': 'Failed to load sitters',
+        'sitters': <dynamic>[],
+      };
+    } catch (e) {
+      debugPrint('Error fetch sitters: $e');
+      return {
+        'success': false,
+        'message': 'Network error. Please try again later',
+        'sitters': <dynamic>[],
+      };
     }
   }
 
@@ -70,8 +93,7 @@ class HomeService {
     }
 
     try {
-      final request = http.MultipartRequest(
-        'POST',
+      final request = http.MultipartRequest('POST',
         Uri.parse('$_baseUrl/api/home/identity-check'),
       );
       request.fields['email'] = email;
@@ -89,13 +111,11 @@ class HomeService {
 
       if (response.statusCode == 200 && json['success'] == true) {
         return {
-          'success': true,
           'message': json['message'],
           'idCheck': json['idCheck'],
         };
       }
       return {
-        'success': false,
         'message': json['message'] ?? 'Upload failed.',
         'idCheck': json['idCheck'],
       };
@@ -123,13 +143,11 @@ class HomeService {
 
       if (response.statusCode == 200 && json['success'] == true) {
         return {
-          'success': true,
           'message': json['message'],
           'addressCheck': json['addressCheck'],
         };
       }
       return {
-        'success': false,
         'message': json['message'] ?? 'Save failed.',
         'addressCheck': json['addressCheck'],
       };
@@ -159,13 +177,11 @@ class HomeService {
 
       if (response.statusCode == 200 && json['success'] == true) {
         return {
-          'success': true,
           'message': json['message'],
           'emergencyContactCheck': json['emergencyContactCheck'],
         };
       }
       return {
-        'success': false,
         'message': json['message'] ?? 'Save failed.',
         'emergencyContactCheck': json['emergencyContactCheck'],
       };
@@ -174,4 +190,6 @@ class HomeService {
       return {'success': false, 'message': 'Save failed.'};
     }
   }
+
+  
 }
