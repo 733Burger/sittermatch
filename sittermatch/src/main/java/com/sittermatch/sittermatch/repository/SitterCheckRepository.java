@@ -6,4 +6,5 @@ import java.util.List;
 
 public interface SitterCheckRepository extends JpaRepository<SitterCheck, Integer> {
     List<SitterCheck> findBySitterId(Integer sitterId);
+    List<SitterCheck> findByStatusIgnoreCase(String status);
 }

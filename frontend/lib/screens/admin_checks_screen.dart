@@ -15,6 +15,16 @@ class _AdminChecksScreenState extends State<AdminChecksScreen> {
   // 'SITTER', 'HOMEOWNER', or null to show everything.
   String? _roleFilter;
 
+  // 'id', 'saps', 'address', 'emergency', or null to show every type.
+  String? _kindFilter;
+
+  static const List<(String, String)> _kinds = [
+    ('id', 'ID'),
+    ('saps', 'SAPS'),
+    ('address', 'ADDRESS'),
+    ('emergency', 'EMERGENCY CONTACT'),
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -29,6 +39,17 @@ class _AdminChecksScreenState extends State<AdminChecksScreen> {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  /// Works out which type button a check belongs to from its label,
+  /// so no change is needed on the backend or in the UserCheck model.
+  String _kindOf(UserCheck check) {
+    final type = check.checkType.toLowerCase();
+    if (type.contains('saps') || type.contains('police')) return 'saps';
+    if (type.contains('emergency')) return 'emergency';
+    if (type.contains('address') || type.contains('residence')) return 'address';
+    if (type.contains('identity') || type.contains('id ')) return 'id';
+    return 'other'; // only shown under ALL TYPES
   }
 
   Future<void> _approve(UserCheck check) async {
@@ -120,9 +141,10 @@ class _AdminChecksScreenState extends State<AdminChecksScreen> {
           }
 
           final all = snapshot.data!;
-          final visible = _roleFilter == null
-              ? all
-              : all.where((c) => c.role == _roleFilter).toList();
+          final visible = all
+              .where((c) => _roleFilter == null || c.role == _roleFilter)
+              .where((c) => _kindFilter == null || _kindOf(c) == _kindFilter)
+              .toList();
 
           return ListView(
             padding: const EdgeInsets.all(16),
@@ -136,7 +158,9 @@ class _AdminChecksScreenState extends State<AdminChecksScreen> {
                 ),
               ),
               const SizedBox(height: 12),
-              _buildFilterPills(all),
+              _buildRolePills(all),
+              const SizedBox(height: 10),
+              _buildTypePills(all),
               const SizedBox(height: 16),
               if (visible.isEmpty)
                 _buildEmptyState()
@@ -150,14 +174,18 @@ class _AdminChecksScreenState extends State<AdminChecksScreen> {
     );
   }
 
-  Widget _buildFilterPills(List<UserCheck> all) {
-    int count(String role) => all.where((c) => c.role == role).length;
+  // All / Sitters / Homeowners. Counts respect the check type that is selected.
+  Widget _buildRolePills(List<UserCheck> all) {
+    final inKind = _kindFilter == null
+        ? all
+        : all.where((c) => _kindOf(c) == _kindFilter).toList();
+    int count(String role) => inKind.where((c) => c.role == role).length;
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
         children: [
-          _buildPill('ALL (${all.length})', _roleFilter == null, () {
+          _buildPill('ALL (${inKind.length})', _roleFilter == null, () {
             setState(() => _roleFilter = null);
           }),
           const SizedBox(width: 8),
@@ -173,13 +201,49 @@ class _AdminChecksScreenState extends State<AdminChecksScreen> {
     );
   }
 
-  Widget _buildPill(String label, bool isSelected, VoidCallback onTap) {
+  // All types / ID / SAPS / Address / Emergency contact.
+  // Counts respect the sitters / homeowners button that is selected.
+  Widget _buildTypePills(List<UserCheck> all) {
+    final inRole = _roleFilter == null
+        ? all
+        : all.where((c) => c.role == _roleFilter).toList();
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          _buildPill(
+            'ALL TYPES (${inRole.length})',
+            _kindFilter == null,
+            () => setState(() => _kindFilter = null),
+            selectedColor: Colors.black87,
+          ),
+          for (final kind in _kinds) ...[
+            const SizedBox(width: 8),
+            _buildPill(
+              '${kind.$2} (${inRole.where((c) => _kindOf(c) == kind.$1).length})',
+              _kindFilter == kind.$1,
+              () => setState(() => _kindFilter = _kindFilter == kind.$1 ? null : kind.$1),
+              selectedColor: Colors.black87,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPill(
+    String label,
+    bool isSelected,
+    VoidCallback onTap, {
+    Color selectedColor = AppColors.primaryRust,
+  }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.primaryRust : AppColors.expandButtonBg,
+          color: isSelected ? selectedColor : AppColors.expandButtonBg,
           borderRadius: BorderRadius.circular(20),
         ),
         child: Text(
