@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../../models/sitter_listing.dart';
-import '../../theme/app_colors.dart';
+import '../../../models/sitter_listing.dart';
+import '../../../theme/app_colors.dart';
 
 class SitterCard extends StatelessWidget {
   const SitterCard({
