@@ -10,11 +10,11 @@ import '../widgets/homeowner/dialogs/address_check_dialog.dart';
 import '../widgets/homeowner/dialogs/emergency_contact_dialog.dart';
 import '../widgets/homeowner/dialogs/identity_check_dialog.dart';
 import '../widgets/homeowner/homeowner_bottom_nav_bar.dart';
-import '../widgets/homeowner/homeowner_drawer.dart';
-import '../widgets/homeowner/sitter_card.dart';
-import '../widgets/homeowner/sitter_filter_chips.dart';
-import '../widgets/homeowner/sitter_search_field.dart';
-import '../widgets/homeowner/verification_checks_card.dart';
+import '../widgets/homeowner/homepage/homeowner_drawer.dart';
+import '../widgets/homeowner/homepage/sitter_card.dart';
+import '../widgets/homeowner/homepage/sitter_filter_chips.dart';
+import '../widgets/homeowner/homepage/sitter_search_field.dart';
+import '../widgets/homeowner/homepage/verification_checks_card.dart';
 import '../services/saved_sitter_service.dart';
 
 import 'bookings_dashboard_screen.dart';
