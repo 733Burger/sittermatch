@@ -65,18 +65,18 @@ public class SitterController {
     //         return ResponseEntity.ok(updatedSitter);
     //     }
 
-        @PostMapping("/{sitterId}/verification")
-        public ResponseEntity<SitterCheck> submitVerification(
-            @PathVariable Integer sitterId,
-            @RequestBody SubmitSitterVerificationRequest request) {
-                SitterCheck check = sitterService.submitVerification(
-                    sitterId,
-                    request.type(),
-                    request.idPhotoUrl(),
-                    request.references()
-                );
-                return ResponseEntity.ok(check);
-            }
+    // @PostMapping("/{sitterId}/verification")
+    // public ResponseEntity<SitterCheck> submitVerification(
+    //     @PathVariable Integer sitterId,
+    //     @RequestBody SubmitSitterVerificationRequest request) {
+    //         SitterCheck check = sitterService.submitVerification(
+    //             sitterId,
+    //             request.type(),
+    //             request.idPhotoUrl(),
+    //             request.references()
+    //         );
+    //         return ResponseEntity.ok(check);
+    //     }
 
         //Discovery and Listing Interaction
         @GetMapping("/listings/nearby")

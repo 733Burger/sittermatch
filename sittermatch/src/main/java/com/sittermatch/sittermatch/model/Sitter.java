@@ -1,19 +1,24 @@
 package com.sittermatch.sittermatch.model;
 
 import jakarta.persistence.*;
+
+import java.math.BigDecimal;
 import java.util.HashSet;
 import java.util.Set;
+
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 
 @Entity
 @Table(name = "sitters")
 public class Sitter {
-
     @Id
     private Integer id;
 
     @OneToOne
     @MapsId
     @JoinColumn(name = "id")
+    @OnDelete(action = OnDeleteAction.CASCADE)
     private User user;
 
     @Column(name = "experience", columnDefinition = "TEXT")
@@ -32,6 +37,18 @@ public class Sitter {
 
     @Column(name = "is_verified")
     private Boolean isVerified = false;
+
+    @Column(length = 100)
+    private String suburb;
+
+    @Column(length = 100)
+    private String city;
+
+    @Column(precision = 9, scale = 6)
+    private BigDecimal latitude;
+    
+    @Column(precision = 9, scale = 6)
+    private BigDecimal longitude;
 
     @ElementCollection 
     @CollectionTable (
