@@ -43,16 +43,18 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
 
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final HomeService _homeService = HomeService();
+  final AuthService _authService = AuthService();
+  final SavedSitterService _savedSitterService = SavedSitterService();
   final TextEditingController _searchController = TextEditingController();
 
   String _email = '';
   OwnerChecks _checks = const OwnerChecks();
   List<SitterListing> _sitters = [];
+  final Set<int> _savedSitterIds = {};
 
   String? _idPhotoPath;
   String _selectedFilter = _filterTags.first;
-
-  final Set<int> _savedSitterIds = {};
+  bool _isLoading = true;
 
   @override
   void initState() {
@@ -66,7 +68,10 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
     super.dispose();
   }
 
-  Future<void> _loadData() async {
+  // Methods
+  Future<void> _loadData({bool silent = false}) async {
+    if (!silent) setState(() => _isLoading = true);
+
     try {
       final email = await _homeService.getUserEmail();
       if (!mounted) return;
@@ -76,7 +81,7 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
         return;
       }
 
-      final verificationCheck = await _homeService.fetchChecks(email: email);
+      final verificationCheck = await _homeService.fetchChecks();
       final nearbySitters = await _homeService.fetchSitters();
 
       if (!mounted) return;
@@ -87,21 +92,81 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
         return;
       }
 
-      final saved = await SavedSitterService.getSavedSitters();   
-      if (!mounted) return;
+      final sitters = SitterListing.listFromJson(nearbySitters['sitters']);
 
       setState(() {
         _email = email;
         _checks = OwnerChecks.fromJson(verificationCheck);
-        _sitters = SitterListing.listFromJson(nearbySitters['sitters']);
-        _savedSitterIds                                  
+        _sitters = sitters;
+        _savedSitterIds
           ..clear()                                      
-          ..addAll(saved.map((s) => s.id));              
+          ..addAll(sitters.where((sitter) => sitter.isSaved).map((sitter) => sitter.id));
+        _isLoading = false;        
       });
     } catch (e) {
       if (!mounted) return;
       _showSnack('Could not load home data');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  Future<void> _toggleSaved(SitterListing sitter) async {
+    final bool wasSaved = _savedSitterIds.contains(sitter.id);
+
+    setState(() {
+      if (wasSaved) {
+        _savedSitterIds.remove(sitter.id);
+      } else {
+        _savedSitterIds.add(sitter.id);
+      }
+    });
+
+    try {
+      final homeownerId = await _authService.getUserId();
+      if (!mounted) return;
+
+      if (homeownerId == null) {
+        _rollbackState(sitter.id, wasSaved);
+        _showSnack('User session expired. Please log in again.');
+        return;
+      }
+
+      final saveSitter = await _savedSitterService.toggleSavedSitter(
+        homeownerId: homeownerId,
+        sitterId: sitter.id,
+        isCurrentlySaved: wasSaved,
+      );
+
+      if (!mounted) return;
+
+      if (saveSitter['success']) {
+        _showSnack(wasSaved
+            ? '${sitter.name} removed from Saved Sitters.'
+            : '${sitter.name} added to Saved Sitters!');
+      } else {
+        _rollbackState(sitter.id, wasSaved);
+        _showSnack(wasSaved
+            ? 'Failed to remove sitter. Please try again.'
+            : 'Failed to save sitter. Please try again.');
+      }
+    } catch (e) {
+      debugPrint('Error toggling sitter: $e');
+      if (!mounted) return;
+      _rollbackState(sitter.id, wasSaved);
+      _showSnack('Network error occurred.');
+    }
+  }
+
+  void _rollbackState(int sitterId, bool wasSavedBefore) {
+    if (!mounted) return;
+    setState(() {
+      if (wasSavedBefore) {
+        _savedSitterIds.add(sitterId);
+      } else {
+        _savedSitterIds.remove(sitterId);
+      }
+    });
   }
 
   void _closeDrawerIfOpen() {
@@ -110,9 +175,17 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
     }
   }
 
-  void _open(Widget screen) {
+  Future<void> _open(Widget screen, {bool refreshOnReturn = false}) async {
     _closeDrawerIfOpen();
-    Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
+    final result = await Navigator.of(context).push<Object?>(MaterialPageRoute(builder: (_) => screen));
+
+    if (!mounted) return;
+    
+    if (result is Set<int> && result.isNotEmpty) {
+      setState(() => _savedSitterIds.removeAll(result));
+    }
+
+    if (refreshOnReturn) _loadData(silent: true);
   }
 
   void _comingSoon(String title) {
@@ -120,7 +193,7 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
     _showSnack('$title is coming soon');
   }
 
-  Future<void> _Logout() async {
+  Future<void> _logout() async {
     await AuthService().clearSession();
     if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
@@ -128,7 +201,6 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
       (route) => false,
     );
   }
-
 
   void _showSnack(String message) {
     ScaffoldMessenger.of(context)
@@ -155,8 +227,7 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
     }
   }
 
-  // ---------- Dialogs ----------
-
+  // Dialogs
   void _openIdentityCheckDialog() {
     showDialog(
       context: context,
@@ -210,49 +281,7 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
     );
   }
 
-  Future<void> _toggleSaved(SitterListing sitter) async {
-    _showSnack('Processing request...');
-
-    final int? homeownerId = await AuthService().getUserId();
-    if (!mounted) return;
-    if (homeownerId == null) {
-      _showSnack('User session expired. Please log in again.');
-      return;
-    }
-
-    final bool wasSaved = _savedSitterIds.contains(sitter.id);
-
-    try {
-      final success = await SavedSitterService.toggleSaveSitter(
-        homeownerId: homeownerId,
-        sitterId: sitter.id,
-        isCurrentlySaved: wasSaved,
-      );
-      if (!mounted) return;
-
-      if (success) {
-        setState(() {
-          wasSaved
-              ? _savedSitterIds.remove(sitter.id)
-              : _savedSitterIds.add(sitter.id);
-        });
-        _showSnack(wasSaved
-            ? '${sitter.name} removed from Saved Sitters.'
-            : '${sitter.name} added to Saved Sitters!');
-      } else {
-        _showSnack(wasSaved
-            ? 'Failed to remove sitter from database.'
-            : 'Failed to save sitter to database.');
-      }
-    } catch (e) {
-      debugPrint('Error toggling sitter: $e');
-      if (!mounted) return;
-      _showSnack('Network error: $e');
-    }
-  }
-
-  // ---------- Build ----------
-
+  // Main Widget for the Home Screen
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -292,49 +321,54 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
       drawer: OwnerHomeDrawer(
         email: _email,
         savedSittersCount: _savedSitterIds.length,
-        onProfileTap: () => _open(const OwnerProfileScreen()),
-        onBookingsTap: () => _open(const BookingsDashboardScreen()),
-        onSavedSittersTap: () => _open(const SavedSittersScreen()),
+        // onProfileTap: () => _open(const OwnerProfileScreen()),
+        // onBookingsTap: () => _open(const BookingsDashboardScreen()),
+        onSavedSittersTap: () => _open(const SavedSittersScreen(), refreshOnReturn: true),
         onSettingsTap: () => _comingSoon('Settings'),
-        onLogOut: _Logout,
+        onLogOut: _logout,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            VerificationChecksCard(
-              checks: _checks,
-              onIdentityTap: _openIdentityCheckDialog,
-              onAddressTap: _openAddressCheckDialog,
-              onEmergencyContactTap: _openEmergencyContactDialog,
-            ),
-            const SizedBox(height: 24),
-            SitterSearchField(controller: _searchController),
-            const SizedBox(height: 12),
-            SitterFilterChips(
-              tags: _filterTags,
-              selected: _selectedFilter,
-              onSelected: (tag) => setState(() => _selectedFilter = tag),
-            ),
-            const SizedBox(height: 20),
-            const Text(
-              'Available Sitters Nearby',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-            for (final sitter in _sitters)
-              SitterCard(
-                sitter: sitter,
-                isSaved: _savedSitterIds.contains(sitter.id),
-                onTap: () => _open(SitterDetailScreen(sitterId: sitter.id)),
-                onMessage: () => _open(const DirectChatScreen()),
-                onBook: () => _open(const BookingFlowScreen()),
-                onToggleSave: () => _toggleSaved(sitter),
+      body: _isLoading
+          ? const Center(
+            child: CircularProgressIndicator(color: AppColors.primaryRust),
+          )
+          :
+        SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              VerificationChecksCard(
+                checks: _checks,
+                onIdentityTap: _openIdentityCheckDialog,
+                onAddressTap: _openAddressCheckDialog,
+                onEmergencyContactTap: _openEmergencyContactDialog,
               ),
-          ],
+              const SizedBox(height: 24),
+              SitterSearchField(controller: _searchController),
+              const SizedBox(height: 12),
+              SitterFilterChips(
+                tags: _filterTags,
+                selected: _selectedFilter,
+                onSelected: (tag) => setState(() => _selectedFilter = tag),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'Available Sitters Nearby',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 12),
+              for (final sitter in _sitters)
+                SitterCard(
+                  sitter: sitter,
+                  isSaved: _savedSitterIds.contains(sitter.id),
+                  onTap: () => _open(SitterDetailScreen(sitterId: sitter.id)),
+                  onMessage: () => _open(const DirectChatScreen()),
+                  onBook: () => _open(const BookingFlowScreen()),
+                  onToggleSave: () => _toggleSaved(sitter),
+                ),
+            ],
+          ),
         ),
-      ),
       bottomNavigationBar: OwnerBottomNavBar(onTap: _handleBottomNavTap),
     );
   }

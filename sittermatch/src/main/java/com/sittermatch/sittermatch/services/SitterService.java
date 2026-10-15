@@ -4,10 +4,12 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import com.sittermatch.sittermatch.model.Listing;
-import com.sittermatch.sittermatch.dto.SitterListResponse;
 import com.sittermatch.sittermatch.dto.sitterDetails.SitterDetailsResponse;
+import com.sittermatch.sittermatch.dto.sitterDetails.SitterListResponse;
 import com.sittermatch.sittermatch.dto.sitterDetails.SitterDetailsResponse.ServiceProjection;
 import com.sittermatch.sittermatch.model.Booking;
 import com.sittermatch.sittermatch.model.Homeowner;
@@ -24,6 +26,7 @@ import com.sittermatch.sittermatch.repository.MessageRepository;
 import com.sittermatch.sittermatch.repository.PetRepository;
 import com.sittermatch.sittermatch.repository.PetReviewRepository;
 import com.sittermatch.sittermatch.repository.ReviewRepository;
+import com.sittermatch.sittermatch.repository.SavedSitterRepository;
 import com.sittermatch.sittermatch.repository.SitterCheckRepository;
 import com.sittermatch.sittermatch.repository.SitterRepository;
 
@@ -40,8 +43,10 @@ public class SitterService {
     private final HomeownerRepository homeownerRepository;
     private final PetRepository petRepository;
     private final SitterCheckRepository sitterCheckRepository;
+    private final SavedSitterRepository savedSitterRepository;
 
-    public SitterService(SitterRepository sitterRepository, ListingRepository listingRepository,
+    public SitterService(SitterRepository sitterRepository,
+                    ListingRepository listingRepository, SavedSitterRepository savedSitterRepository,
                     BookingRepository bookingRepository, MessageRepository messageRepository,
                     PetReviewRepository petReviewRepository, ReviewRepository reviewRepository,
                     HomeownerRepository homeownerRepository, PetRepository petRepository,
@@ -55,24 +60,7 @@ public class SitterService {
         this.homeownerRepository = homeownerRepository;
         this.petRepository = petRepository;
         this.sitterCheckRepository = sitterCheckRepository;
-    }
-
-    public List<SitterListResponse> getSitters() {
-        List<SitterListResponse> sitters = sitterRepository.findAll().stream().map(this::toSitterListResponse).toList();
-        return sitters;
-    } 
-
-    private SitterListResponse toSitterListResponse (Sitter sitter) {
-        var sitterUserDetails = sitter.getUser();
-        return new SitterListResponse(
-            sitter.getId(),
-            (sitterUserDetails != null) ? sitterUserDetails.getName() : null,
-            sitter.getRating(),
-            sitter.getTotalReviews(),
-            sitter.getDayRate(),
-            sitter.getNightRate(),
-            sitter.getIsVerified()
-        );
+        this.savedSitterRepository = savedSitterRepository;
     }
 
     public SitterDetailsResponse getSitterDetails(int sitterId) {
@@ -90,6 +78,41 @@ public class SitterService {
 
         return SitterDetailsResponse.getResponse(sitterDetails, sitterPetPreferences, sitterServices);
     }
+
+    public List<SitterListResponse> getSitters(int homeownerId) {
+        if (homeownerId <= 0) {
+            return List.of();
+        }
+
+        Set<Integer> savedSitterIds = savedSitterRepository
+                                    .findByHomeownerId(homeownerId)
+                                    .stream()
+                                    .map(savedSitter -> savedSitter.getSitterId())
+                                    .collect(Collectors.toSet());
+
+
+        return sitterRepository
+            .findAll()
+            .stream()
+            .map(sitter -> toSitterListResponse(sitter, savedSitterIds.contains(sitter.getId())))
+            .toList();
+    } 
+
+    private SitterListResponse toSitterListResponse (Sitter sitter, boolean isSaved) {
+        var sitterUserDetails = sitter.getUser();
+        return new SitterListResponse(
+            sitter.getId(),
+            (sitterUserDetails != null) ? sitterUserDetails.getName() : null,
+            sitter.getRating(),
+            sitter.getTotalReviews(),
+            sitter.getDayRate(),
+            sitter.getNightRate(),
+            sitter.getIsVerified(),
+            isSaved
+        );
+    }
+
+    
 
     // Profile and Account Managment
     //Note to Others, experience needs to change to a String value for a description of their experience
