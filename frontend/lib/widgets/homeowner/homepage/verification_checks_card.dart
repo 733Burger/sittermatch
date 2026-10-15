@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../../models/homeowner_checks_model.dart';
-import '../../theme/app_colors.dart';
-import '../verification_check_tile.dart';
+import '../../../models/homeowner_checks_model.dart';
+import '../../../theme/app_colors.dart';
+import '../../verification_check_tile.dart';
 
 class VerificationChecksCard extends StatefulWidget {
   const VerificationChecksCard({

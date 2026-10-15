@@ -20,7 +20,7 @@ public record HomeownerCheckResponse(
 
     public static HomeownerCheckResponse noChecksFound() {
         return new HomeownerCheckResponse(
-                false,
+                true,
                 CheckTile.of("incomplete", "No ID Uploaded"),
                 CheckTile.of("incomplete", "No Address Uploaded"),
                 CheckTile.of("incomplete", "No Emergency Contact Uploaded"),

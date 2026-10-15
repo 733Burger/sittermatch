@@ -4,11 +4,13 @@ import '../theme/app_colors.dart';
 import 'bookings_dashboard_screen.dart';
 import 'messages_screen.dart';
 import 'owner_home_screen.dart';
+import '../services/home_services.dart';
 
 class PetModel {
+  final int? id;
   String name;
   String breed;
-  String size; // Small, Medium, Large
+  String species;
   int age;
   String careNotes;
   double? behaviorScore; // set by sitters after a stay
@@ -16,15 +18,31 @@ class PetModel {
   String? photoUrl;
 
   PetModel({
+    this.id,
     required this.name,
     required this.breed,
-    required this.size,
+    required this.species,
     required this.age,
     required this.careNotes,
     this.behaviorScore,
     this.review,
     this.photoUrl,
   });
+
+  factory PetModel.fromJson(Map<String, dynamic> json) {
+    final reviews = (json['totalReviews'] as num?)?.toInt() ?? 0;
+    final score = (json['behaviourScore'] as num?)?.toDouble();
+    return PetModel(
+      id: (json['id'] as num?)?.toInt(),
+      name: (json['name'] ?? '').toString(),
+      breed: (json['breed'] ?? '').toString(),
+      species: (json['species'] ?? 'Dog').toString(),
+      age: (json['age'] as num?)?.toInt() ?? 0,
+      careNotes: (json['careNotes'] ?? '').toString(),
+      behaviorScore: reviews > 0 ? score : null,
+      photoUrl: json['imageUrl']?.toString(),
+    );
+  }
 }
 
 class OwnerProfileScreen extends StatefulWidget {
@@ -35,47 +53,38 @@ class OwnerProfileScreen extends StatefulWidget {
 }
 
 class _OwnerProfileScreenState extends State<OwnerProfileScreen> {
+  static const List<String> _petTypes = [
+    'LARGE DOG',
+    'SMALL DOG',
+    'CAT',
+    'BIRD',
+    'REPTILE',
+    'FISH',
+    'EXOTIC',
+  ];
+
+  static String _petTypeLabel(String value) {
+    final lower = value.toLowerCase();
+    return lower[0].toUpperCase() + lower.substring(1);
+  }
+
   final _formKey = GlobalKey<FormState>();
 
-  // Read-only user details
-  final String _userName = 'Joshua Stevens'; // TODO: load from the backend
+  final HomeService _homeService = HomeService();
+  String _userName = '';
   String _userEmail = '';
-  final String _userPhone = '+27 82 123 4567'; // TODO: load from the backend
+  String _userPhone = '';
 
   // Editable controllers
-  final TextEditingController _addressController = TextEditingController(
-    text: '123 Beach Road, Sea Point, Cape Town',
-  );
-  final TextEditingController _requirementsController = TextEditingController(
-    text: 'Please water the plants daily and ensure the main gate is locked at 8 PM.',
-  );
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _addressController = TextEditingController();
+  final TextEditingController _requirementsController = TextEditingController();
 
-  final List<PetModel> _pets = [
-    PetModel(
-      name: 'Buster',
-      breed: 'Golden Retriever',
-      size: 'Large',
-      age: 3,
-      careNotes: 'Needs 2 walks a day. Hypoallergenic food only.',
-      behaviorScore: 4.8,
-      review: 'Very friendly and loves playing fetch!',
-    ),
-  ];
+  final List<PetModel> _pets = [];
 
-  final List<Map<String, dynamic>> _ownerReviews = [
-    {
-      'sitterName': 'Sarah Jenkins',
-      'rating': 5.0,
-      'comment': 'Joshua was an amazing host! Great instructions and lovely home.',
-      'date': 'Sep 2026',
-    },
-    {
-      'sitterName': 'Michael Coetzee',
-      'rating': 4.9,
-      'comment': 'Super clear house rules and communication was seamless.',
-      'date': 'Aug 2026',
-    },
-  ];
+  final List<Map<String, dynamic>> _ownerReviews = [];
 
   bool get _isFormValid =>
       _addressController.text.trim().isNotEmpty &&
@@ -89,19 +98,101 @@ class _OwnerProfileScreenState extends State<OwnerProfileScreen> {
   @override
   void initState() {
     super.initState();
-    _loadEmail();
+    _loadProfile();
+    _loadPets();
   }
 
-  Future<void> _loadEmail() async {
-    final email = await AuthService().getUserEmail();
+  Future<void> _loadProfile() async {
+    final userId = await AuthService().getUserId();
     if (!mounted) return;
-    setState(() => _userEmail = email ?? '');
+    if (userId == null) {
+      _showSnack('User session expired. Please log in again.', error: true);
+      return;
+    }
+
+    final result = await _homeService.fetchProfile(userId: userId);
+    if (!mounted) return;
+    if (result['success'] != true) {
+      _showSnack(result['message']?.toString() ?? 'Could not load profile', error: true);
+      return;
+    }
+
+    setState(() {
+      _userName = (result['name'] ?? '').toString();
+      _userEmail = (result['email'] ?? '').toString();
+      _userPhone = (result['phone'] ?? '').toString();
+      _nameController.text = _userName;
+      _emailController.text = _userEmail;
+      _phoneController.text = _userPhone;
+      _addressController.text = (result['address'] ?? '').toString();
+      _requirementsController.text = (result['requirements'] ?? '').toString();
+    });
   }
+
+  Future<void> _loadPets() async {
+    final userId = await AuthService().getUserId();
+    if (!mounted || userId == null) return;
+
+    final result = await _homeService.fetchPets(homeownerId: userId);
+    if (!mounted) return;
+    if (result['success'] != true) {
+      _showSnack(result['message']?.toString() ?? 'Could not load pets', error: true);
+      return;
+    }
+
+    final pets = (result['pets'] as List)
+        .map((e) => PetModel.fromJson(Map<String, dynamic>.from(e as Map)))
+        .toList();
+    setState(() {
+      _pets
+        ..clear()
+        ..addAll(pets);
+    });
+  }
+
+  Future<void> _confirmDeletePet(PetModel pet) async {
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      backgroundColor: Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: Text('Delete ${pet.name}?'),
+      content: const Text(
+        'This removes the pet and any reviews linked to it. This can\'t be undone.',
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+        TextButton(
+          onPressed: () => Navigator.pop(ctx, true),
+          child: const Text('Delete', style: TextStyle(color: Colors.red)),
+        ),
+      ],
+    ),
+  );
+  if (confirmed != true || pet.id == null) return;
+
+  final homeownerId = await AuthService().getUserId();
+  if (!mounted || homeownerId == null) return;
+
+  final result = await _homeService.deletePet(homeownerId: homeownerId, petId: pet.id!);
+  if (!mounted) return;
+
+  if (result['success'] == true) {
+    await _loadPets();
+    if (!mounted) return;
+    _showSnack('Pet entry deleted.');
+  } else {
+    _showSnack(result['message']?.toString() ?? 'Could not delete pet.', error: true);
+  }
+}
 
   @override
   void dispose() {
     _addressController.dispose();
     _requirementsController.dispose();
+    _nameController.dispose();
+    _emailController.dispose();
+    _phoneController.dispose();
     super.dispose();
   }
 
@@ -119,11 +210,47 @@ class _OwnerProfileScreenState extends State<OwnerProfileScreen> {
     _showSnack('Please add your address and house sitting requirements first.', error: true);
   }
 
-  void _save() {
+  Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     FocusScope.of(context).unfocus();
-    // TODO: send the address and requirements to the backend.
-    _showSnack('Profile saved.');
+
+    final userId = await AuthService().getUserId();
+    if (!mounted) return;
+    if (userId == null) {
+      _showSnack('User session expired. Please log in again.', error: true);
+      return;
+    }
+
+    final result = await _homeService.updateProfile(
+      userId: userId,
+      name: _nameController.text.trim(),
+      email: _emailController.text.trim(),
+      phone: _phoneController.text.trim(),
+      address: _addressController.text.trim(),
+      requirements: _requirementsController.text.trim(),
+    );
+    if (!mounted) return;
+
+    if (result['success'] != true) {
+      _showSnack(result['message']?.toString() ?? 'Save failed.', error: true);
+      return;
+    }
+
+    // The app uses the email as its session key, so keep it in sync.
+    final newEmail = (result['email'] ?? '').toString();
+    if (newEmail.isNotEmpty && newEmail != _userEmail) {
+      final auth = AuthService();
+      final role = await auth.getUserRole();
+      await auth.saveSession(newEmail, role ?? '');
+      if (!mounted) return;
+    }
+
+    setState(() {
+      _userName = (result['name'] ?? '').toString();
+      _userEmail = newEmail;
+      _userPhone = (result['phone'] ?? '').toString();
+    });
+    _showSnack('Profile details saved.');
   }
 
   void _handleBottomNavTap(int index) {
@@ -236,148 +363,204 @@ class _OwnerProfileScreenState extends State<OwnerProfileScreen> {
 
   // ---------- Add pet dialog ----------
 
-  void _showAddPetDialog() {
-    final nameCtrl = TextEditingController();
-    final breedCtrl = TextEditingController();
-    final ageCtrl = TextEditingController();
-    final careCtrl = TextEditingController();
-    String selectedSize = 'Medium';
-    String? nameError;
-    String? breedError;
+  void _showPetDialog({PetModel? pet}) {
+  final isEdit = pet != null;
+  final nameCtrl = TextEditingController(text: pet?.name ?? '');
+  final breedCtrl = TextEditingController(text: pet?.breed ?? '');
+  String? selectedSpecies = _petTypes.contains(pet?.species.toUpperCase())
+      ? pet!.species.toUpperCase()
+      : null;
+  final ageCtrl = TextEditingController(text: pet == null ? '' : '${pet.age}');
+  final careCtrl = TextEditingController(text: pet?.careNotes ?? '');
+  String? speciesError;
+  String? nameError;
+  String? breedError;
+  String? ageError;
+  String? saveError;
+  bool saving = false;
 
-    showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          backgroundColor: Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text('Add a pet', style: TextStyle(fontWeight: FontWeight.bold)),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: GestureDetector(
-                    onTap: () => _showSnack('Pet photo upload is coming soon.'),
-                    child: Container(
-                      width: 80,
-                      height: 80,
-                      decoration: BoxDecoration(
-                        color: AppColors.lightRustBg,
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: const Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.add_a_photo_outlined, color: AppColors.primaryRust),
-                          SizedBox(height: 4),
-                          Text(
-                            'Add photo',
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: AppColors.primaryRust,
-                              fontWeight: FontWeight.bold,
-                            ),
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (ctx) => StatefulBuilder(
+      builder: (context, setDialogState) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(isEdit ? 'Edit pet' : 'Add a pet',
+            style: const TextStyle(fontWeight: FontWeight.bold)),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: GestureDetector(
+                  onTap: () => _showSnack('Pet photo upload is coming soon.'),
+                  child: Container(
+                    width: 80,
+                    height: 80,
+                    decoration: BoxDecoration(
+                      color: AppColors.lightRustBg,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: const Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.add_a_photo_outlined, color: AppColors.primaryRust),
+                        SizedBox(height: 4),
+                        Text(
+                          'Add photo',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: AppColors.primaryRust,
+                            fontWeight: FontWeight.bold,
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: nameCtrl,
-                  decoration: _fieldDecoration('Pet name *').copyWith(errorText: nameError),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: breedCtrl,
-                  decoration: _fieldDecoration('Breed *').copyWith(errorText: breedError),
-                ),
-                const SizedBox(height: 16),
-                const Text('Dog size', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-                const SizedBox(height: 6),
-                Wrap(
-                  spacing: 8,
-                  children: ['Small', 'Medium', 'Large'].map((s) {
-                    final selected = selectedSize == s;
-                    return ChoiceChip(
-                      label: Text(s),
-                      selected: selected,
-                      showCheckmark: false,
-                      selectedColor: AppColors.primaryRust,
-                      backgroundColor: AppColors.expandButtonBg,
-                      side: BorderSide.none,
-                      labelStyle: TextStyle(
-                        color: selected ? Colors.white : AppColors.darkText,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 12,
-                      ),
-                      onSelected: (_) => setDialogState(() => selectedSize = s),
-                    );
-                  }).toList(),
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: ageCtrl,
-                  keyboardType: TextInputType.number,
-                  decoration: _fieldDecoration('Age (years)'),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: careCtrl,
-                  maxLines: 2,
-                  decoration: _fieldDecoration('Care notes'),
-                ),
-                const SizedBox(height: 12),
-                const Text(
-                  'Behaviour scores and reviews are added by sitters after a stay.',
-                  style: TextStyle(fontSize: 11, color: Colors.black54),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.black87,
-                foregroundColor: Colors.white,
               ),
-              onPressed: () {
-                final name = nameCtrl.text.trim();
-                final breed = breedCtrl.text.trim();
-                if (name.isEmpty || breed.isEmpty) {
-                  setDialogState(() {
-                    nameError = name.isEmpty ? 'Required' : null;
-                    breedError = breed.isEmpty ? 'Required' : null;
-                  });
-                  return;
-                }
-                setState(() {
-                  _pets.add(
-                    PetModel(
-                      name: name,
-                      breed: breed,
-                      size: selectedSize,
-                      age: int.tryParse(ageCtrl.text.trim()) ?? 1,
-                      careNotes: careCtrl.text.trim(),
-                    ),
-                  );
-                });
-                Navigator.pop(ctx);
-              },
-              child: const Text('Add pet'),
-            ),
-          ],
+              const SizedBox(height: 16),
+              TextField(
+                controller: nameCtrl,
+                maxLength: 255,
+                decoration: _fieldDecoration('Pet name *')
+                    .copyWith(errorText: nameError, counterText: ''),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: breedCtrl,
+                maxLength: 255,
+                decoration: _fieldDecoration('Breed *')
+                    .copyWith(errorText: breedError, counterText: ''),
+              ),
+              const SizedBox(height: 16),
+              const SizedBox(height: 12),
+             DropdownButtonFormField<String>(
+                value: selectedSpecies,
+                isExpanded: true,
+                dropdownColor: Colors.white,
+                decoration: _fieldDecoration('Type of pet *')
+                    .copyWith(errorText: speciesError),
+                items: _petTypes
+                    .map((t) => DropdownMenuItem(value: t, child: Text(_petTypeLabel(t))))
+                    .toList(),
+                onChanged: (v) => setDialogState(() => selectedSpecies = v),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: ageCtrl,
+                keyboardType: TextInputType.number,
+                decoration: _fieldDecoration('Age (years) *').copyWith(errorText: ageError),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: careCtrl,
+                maxLines: 2,
+                maxLength: 255,
+                decoration: _fieldDecoration('Care notes').copyWith(counterText: ''),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Behaviour scores and reviews are added by sitters after a stay.',
+                style: TextStyle(fontSize: 11, color: Colors.black54),
+              ),
+              if (saveError != null) ...[
+                const SizedBox(height: 12),
+                Text(saveError!, style: const TextStyle(color: Colors.red, fontSize: 12)),
+              ],
+            ],
+          ),
         ),
+        actions: [
+          TextButton(
+            onPressed: saving ? null : () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.black87,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: saving
+                ? null
+                : () async {
+                    final name = nameCtrl.text.trim();
+                    final breed = breedCtrl.text.trim();
+                    final species = selectedSpecies ?? '';      
+                    final age = int.tryParse(ageCtrl.text.trim());
+                    final ageOk = age != null && age >= 0 && age <= 40;
+
+                    if (name.isEmpty || breed.isEmpty || species.isEmpty || !ageOk) {   
+                      setDialogState(() {
+                        nameError = name.isEmpty ? 'Required' : null;
+                        breedError = breed.isEmpty ? 'Required' : null;
+                        speciesError = species.isEmpty ? 'Required' : null;             
+                        ageError = ageOk ? null : 'Enter an age from 0 to 40';
+                      });
+                      return;
+                    }
+
+                    final homeownerId = await AuthService().getUserId();
+                    if (homeownerId == null) {
+                      setDialogState(() => saveError = 'Session expired. Please log in again.');
+                      return;
+                    }
+
+                    setDialogState(() {
+                      saving = true;
+                      saveError = null;
+                      nameError = null;
+                      breedError = null;
+                      speciesError = null;                                               
+                      ageError = null;
+                    });
+
+                    final result = isEdit
+                        ? await _homeService.updatePet(
+                            homeownerId: homeownerId,
+                            petId: pet.id!,
+                            name: name,
+                            species: species,
+                            breed: breed,
+                            age: age,
+                            careNotes: careCtrl.text.trim(),
+                          )
+                        : await _homeService.addPet(
+                            homeownerId: homeownerId,
+                            name: name,
+                            species: species,
+                            breed: breed,
+                            age: age,
+                            careNotes: careCtrl.text.trim(),
+                          );
+                    if (!mounted) return;
+
+                    if (result['success'] == true) {
+                      Navigator.pop(ctx);
+                      await _loadPets();
+                      _showSnack(isEdit ? 'Pet details updated.' : '$name added as a pet.');
+                    } else {
+                      setDialogState(() {
+                        saving = false;
+                        saveError = result['message']?.toString() ?? 'Could not add pet.';
+                      });
+                    }
+                  },
+            child: saving
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                  )
+                : Text(isEdit ? 'Save changes' : 'Add pet'),
+          ),
+        ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   // ---------- Build ----------
 
@@ -411,6 +594,8 @@ class _OwnerProfileScreenState extends State<OwnerProfileScreen> {
                 const SizedBox(height: 16),
               ],
               _buildHeaderCard(),
+              const SizedBox(height: 16),
+              _buildPersonalCard(),      
               const SizedBox(height: 16),
               _buildPropertyCard(),
               const SizedBox(height: 24),
@@ -552,6 +737,203 @@ class _OwnerProfileScreenState extends State<OwnerProfileScreen> {
     );
   }
 
+  
+  void _showChangePasswordDialog() {
+  final currentCtrl = TextEditingController();
+  final newCtrl = TextEditingController();
+  final confirmCtrl = TextEditingController();
+  bool hideCurrent = true;
+  bool hideNew = true;
+  bool saving = false;
+  String? errorText;
+
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (ctx) => StatefulBuilder(
+      builder: (context, setDialogState) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Change password', style: TextStyle(fontWeight: FontWeight.bold)),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: currentCtrl,
+                obscureText: hideCurrent,
+                decoration: _fieldDecoration('Current password').copyWith(
+                  suffixIcon: IconButton(
+                    icon: Icon(hideCurrent ? Icons.visibility_off : Icons.visibility, size: 20),
+                    onPressed: () => setDialogState(() => hideCurrent = !hideCurrent),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: newCtrl,
+                obscureText: hideNew,
+                decoration: _fieldDecoration('New password').copyWith(
+                  suffixIcon: IconButton(
+                    icon: Icon(hideNew ? Icons.visibility_off : Icons.visibility, size: 20),
+                    onPressed: () => setDialogState(() => hideNew = !hideNew),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: confirmCtrl,
+                obscureText: hideNew,
+                decoration: _fieldDecoration('Confirm new password'),
+              ),
+              if (errorText != null) ...[
+                const SizedBox(height: 12),
+                Text(errorText!, style: const TextStyle(color: Colors.red, fontSize: 12)),
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: saving ? null : () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.black87,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: saving
+                ? null
+                : () async {
+                    final current = currentCtrl.text;
+                    final next = newCtrl.text;
+
+                    if (current.isEmpty || next.isEmpty || confirmCtrl.text.isEmpty) {
+                      setDialogState(() => errorText = 'Fill in all three fields.');
+                      return;
+                    }
+                    if (next.length < 8) {
+                      setDialogState(() => errorText = 'New password must be at least 8 characters.');
+                      return;
+                    }
+                    if (next != confirmCtrl.text) {
+                      setDialogState(() => errorText = 'New passwords do not match.');
+                      return;
+                    }
+
+                    final userId = await AuthService().getUserId();
+                    if (userId == null) {
+                      setDialogState(() => errorText = 'Session expired. Please log in again.');
+                      return;
+                    }
+
+                    setDialogState(() {
+                      saving = true;
+                      errorText = null;
+                    });
+
+                    final result = await AuthService().changePassword(
+                      userId: userId,
+                      currentPassword: current,
+                      newPassword: next,
+                    );
+                    if (!mounted) return;
+
+                    if (result['success'] == true) {
+                      Navigator.pop(ctx);
+                      _showSnack('Password updated.');
+                    } else {
+                      setDialogState(() {
+                        saving = false;
+                        errorText = result['message']?.toString() ?? 'Could not update password.';
+                      });
+                    }
+                  },
+            child: saving
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                  )
+                : const Text('Update password'),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+  Widget _buildPersonalCard() {
+  return Container(
+    padding: const EdgeInsets.all(16),
+    decoration: _cardDecoration(),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Personal details',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.darkText),
+        ),
+        const SizedBox(height: 2),
+        const Text(
+          'Saved with the "Save details" button below.',
+          style: TextStyle(fontSize: 12, color: Colors.black54),
+        ),
+        const SizedBox(height: 20),
+        _fieldLabel('Full name'),
+        TextFormField(
+          controller: _nameController,
+          maxLength: 100,
+          decoration: _fieldDecoration(null, icon: Icons.person_outline).copyWith(counterText: ''),
+          validator: (val) =>
+              val == null || val.trim().isEmpty ? 'Name is required' : null,
+        ),
+        const SizedBox(height: 20),
+        _fieldLabel('Email'),
+        TextFormField(
+          controller: _emailController,
+          keyboardType: TextInputType.emailAddress,
+          decoration: _fieldDecoration(null, icon: Icons.mail_outline),
+          validator: (val) {
+            final v = val?.trim() ?? '';
+            if (v.isEmpty) return 'Email is required';
+            if (!v.contains('@')) return 'Enter a valid email';
+            return null;
+          },
+        ),
+        const SizedBox(height: 20),
+        _fieldLabel('Phone number'),
+        TextFormField(
+          controller: _phoneController,
+          keyboardType: TextInputType.phone,
+          maxLength: 20,
+          decoration: _fieldDecoration(null, icon: Icons.phone_outlined).copyWith(counterText: ''),
+          validator: (val) =>
+              val == null || val.trim().isEmpty ? 'Phone number is required' : null,
+        ),
+        const SizedBox(height: 20),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: _showChangePasswordDialog,
+            icon: const Icon(Icons.lock_outline, color: AppColors.primaryRust, size: 18),
+            label: const Text(
+              'Change password',
+              style: TextStyle(color: AppColors.darkText, fontSize: 13),
+            ),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              side: BorderSide(color: Colors.grey.shade300),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
   Widget _buildPropertyCard() {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -623,7 +1005,7 @@ class _OwnerProfileScreenState extends State<OwnerProfileScreen> {
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.darkText),
         ),
         TextButton.icon(
-          onPressed: _showAddPetDialog,
+          onPressed: () => _showPetDialog(),
           icon: const Icon(Icons.add_circle_outline, color: AppColors.primaryRust, size: 18),
           label: const Text(
             'Add pet',
@@ -687,12 +1069,24 @@ class _OwnerProfileScreenState extends State<OwnerProfileScreen> {
                       spacing: 6,
                       runSpacing: 6,
                       children: [
-                        _tag('${pet.size.toUpperCase()} DOG'),
+                        _tag(_petTypeLabel(pet.species)),
                         _tag('${pet.age} ${pet.age == 1 ? 'YR' : 'YRS'}'),
                       ],
                     ),
                   ],
                 ),
+              ),
+              PopupMenuButton<String>(
+                icon: const Icon(Icons.more_vert, color: Colors.black54),
+                color: Colors.white,
+                onSelected: (value) {
+                  if (value == 'edit') _showPetDialog(pet: pet);
+                  if (value == 'delete') _confirmDeletePet(pet);
+                },
+                itemBuilder: (_) => const [
+                  PopupMenuItem(value: 'edit', child: Text('Edit')),
+                  PopupMenuItem(value: 'delete', child: Text('Delete')),
+                ],
               ),
             ],
           ),
@@ -701,10 +1095,10 @@ class _OwnerProfileScreenState extends State<OwnerProfileScreen> {
             children: [
               const Icon(Icons.emoji_emotions_outlined, color: AppColors.primaryRust, size: 18),
               const SizedBox(width: 6),
-              const Text(
-                'behaviour score: 4',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.darkText),
-              ),
+              Text(
+              pet.behaviorScore == null ? 'No behaviour score yet' : 'Behaviour score',
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.darkText),
+            ),
             ],
           ),
           if (pet.behaviorScore != null || (pet.review != null && pet.review!.trim().isNotEmpty)) ...[

@@ -5,13 +5,16 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.sittermatch.sittermatch.dto.ProfileResponse;
 import com.sittermatch.sittermatch.dto.ResidenceCheckRequest;
 import com.sittermatch.sittermatch.dto.ResidenceCheckResponse;
+import com.sittermatch.sittermatch.dto.UpdateProfileRequest;
 import com.sittermatch.sittermatch.dto.verificationChecks.EmergencyCheckRequest;
 import com.sittermatch.sittermatch.dto.verificationChecks.EmergencyCheckResponse;
 import com.sittermatch.sittermatch.dto.verificationChecks.HomeownerCheckResponse;
 import com.sittermatch.sittermatch.dto.verificationChecks.IdentityCheckSubmitResponse;
 import com.sittermatch.sittermatch.services.HomeService;
+
 
 @RestController
 @RequestMapping("/api/home")
@@ -23,9 +26,28 @@ public class HomeController {
         this.homeService = homeService;
     }
 
-    @GetMapping("/{email:.+}/get-checks")
-    public ResponseEntity<HomeownerCheckResponse> getChecks(@PathVariable String email) {
-        HomeownerCheckResponse verificationCheck = homeService.getVerificationChecks(email);
+    @GetMapping("/profile/{userId}")
+    public ResponseEntity<ProfileResponse> getProfile(@PathVariable Integer userId) {
+        ProfileResponse profile = homeService.getProfile(userId);
+        if (!profile.success()) {
+            return ResponseEntity.badRequest().body(profile);
+        }
+        return ResponseEntity.ok(profile);
+    }
+
+    @PutMapping("/profile/{userId}")
+    public ResponseEntity<ProfileResponse> updateProfile(@PathVariable Integer userId,
+                                                        @RequestBody UpdateProfileRequest request) {
+        ProfileResponse profile = homeService.updateProfile(userId, request);
+        if (!profile.success()) {
+            return ResponseEntity.badRequest().body(profile);
+        }
+        return ResponseEntity.ok(profile);
+    }
+
+    @GetMapping("/{homeownerId}/get-checks")
+    public ResponseEntity<HomeownerCheckResponse> getChecks(@PathVariable int homeownerId) {
+        HomeownerCheckResponse verificationCheck = homeService.getVerificationChecks(homeownerId);
         if (!verificationCheck.success()) {
             return ResponseEntity.badRequest().body(verificationCheck);
         }

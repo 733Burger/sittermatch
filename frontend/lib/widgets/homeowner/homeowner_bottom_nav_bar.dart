@@ -5,18 +5,25 @@ import '../../theme/app_colors.dart';
 enum OwnerNavTab { home, bookings, messages, profile }
 
 class OwnerBottomNavBar extends StatelessWidget {
-  const OwnerBottomNavBar({super.key, required this.onTap});
+  const OwnerBottomNavBar({
+    super.key,
+    required this.onTap,
+    this.selected = OwnerNavTab.home,
+  });
 
   final ValueChanged<OwnerNavTab> onTap;
+  final OwnerNavTab? selected;
 
   @override
   Widget build(BuildContext context) {
+    final hasSelection = selected != null;
+
     return BottomNavigationBar(
       type: BottomNavigationBarType.fixed,
       backgroundColor: Colors.white,
       elevation: 0,
-      currentIndex: OwnerNavTab.home.index,
-      selectedItemColor: AppColors.primaryRust,
+      currentIndex: selected?.index ?? 0,
+      selectedItemColor: hasSelection ? AppColors.primaryRust : Colors.grey,
       unselectedItemColor: Colors.grey,
       selectedFontSize: 12,
       unselectedFontSize: 12,

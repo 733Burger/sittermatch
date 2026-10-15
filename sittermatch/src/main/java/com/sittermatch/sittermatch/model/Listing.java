@@ -1,5 +1,6 @@
 package com.sittermatch.sittermatch.model;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 import jakarta.persistence.Column;
@@ -39,6 +40,15 @@ public class Listing {
     private LocalDateTime endDate;
 
     private String status;
+
+    @Column(length = 100)
+    private String city;
+
+    @Column(precision = 9, scale = 6)
+    private BigDecimal latitude;
+    
+    @Column(precision = 9, scale = 6)
+    private BigDecimal longitude;
 
     public Listing() {}
 

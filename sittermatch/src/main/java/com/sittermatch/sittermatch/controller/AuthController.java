@@ -5,6 +5,9 @@ import com.sittermatch.sittermatch.dto.LoginResponse;
 import com.sittermatch.sittermatch.dto.SignupRequest;
 import com.sittermatch.sittermatch.dto.SignupResponse;
 import com.sittermatch.sittermatch.services.AuthService;
+import com.sittermatch.sittermatch.dto.ChangePasswordRequest;
+import com.sittermatch.sittermatch.dto.ChangePasswordResponse;
+
 
 import jakarta.validation.Valid;
 
@@ -38,5 +41,16 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
         }
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    
+    @PostMapping("/change-password/{userId}")
+    public ResponseEntity<ChangePasswordResponse> changePassword(@PathVariable Integer userId,
+                                                                @RequestBody ChangePasswordRequest request) {
+        ChangePasswordResponse response = authService.changePassword(userId, request);
+        if (!response.success()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+        }
+        return ResponseEntity.ok(response);
     }
 }

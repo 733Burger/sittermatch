@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data';
+
 import '../config/api_config.dart';
-import 'package:flutter/foundation.dart'; // Required for debugPrint
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 class SitterService {
@@ -132,23 +132,23 @@ class SitterService {
   }
 
   // Compatibility stub retained so any legacy screen references do not break
-  static Future<Map<String, dynamic>> submitVerification({
-    required int sitterId,
-    required String type,
-    required String idPhotoUrl,
-    required String references,
-  }) async {
-    final res = _check(await http.post(
-      Uri.parse('$baseUrl/api/sitters/$sitterId/verification'),
-      headers: _jsonHeaders,
-      body: jsonEncode({
-        'type': type,
-        'idPhotoUrl': idPhotoUrl,
-        'references': references,
-      }),
-    ));
-    return jsonDecode(res.body) as Map<String, dynamic>;
-  }
+  // static Future<Map<String, dynamic>> submitVerification({
+  //   required int sitterId,
+  //   required String type,
+  //   required String idPhotoUrl,
+  //   required String references,
+  // }) async {
+  //   final res = _check(await http.post(
+  //     Uri.parse('$baseUrl/api/sitters/$sitterId/verification'),
+  //     headers: _jsonHeaders,
+  //     body: jsonEncode({
+  //       'type': type,
+  //       'idPhotoUrl': idPhotoUrl,
+  //       'references': references,
+  //     }),
+  //   ));
+  //   return jsonDecode(res.body) as Map<String, dynamic>;
+  // }
 
   //  Browse sitters 
 

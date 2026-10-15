@@ -1,18 +1,16 @@
 package com.sittermatch.sittermatch.controller;
 
-import com.sittermatch.sittermatch.dto.SitterListResponse;
 import com.sittermatch.sittermatch.dto.SitterReviewHomeownerRequest;
 import com.sittermatch.sittermatch.dto.SitterReviewPetRequest;
 import com.sittermatch.sittermatch.dto.SitterSendMessageRequest;
 import com.sittermatch.sittermatch.dto.SubmitSitterVerificationRequest;
-import com.sittermatch.sittermatch.dto.UpdateSitterProfileRequest;
 import com.sittermatch.sittermatch.dto.sitterDetails.SitterDetailsResponse;
+import com.sittermatch.sittermatch.dto.sitterDetails.SitterListResponse;
 import com.sittermatch.sittermatch.model.Booking;
 import com.sittermatch.sittermatch.model.Listing;
 import com.sittermatch.sittermatch.model.Message;
 import com.sittermatch.sittermatch.model.PetReview;
 import com.sittermatch.sittermatch.model.Review;
-import com.sittermatch.sittermatch.model.Sitter;
 import com.sittermatch.sittermatch.model.SitterCheck;
 import com.sittermatch.sittermatch.services.SitterService;
 
@@ -20,8 +18,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 
 
 @RestController
@@ -34,9 +30,9 @@ public class SitterController {
         this.sitterService = sitterService;
     }
 
-    @GetMapping("get-sitters")
-    public ResponseEntity<List<SitterListResponse>> getSitters() {
-        List<SitterListResponse> sitters = sitterService.getSitters();
+    @GetMapping("/{homeownerId}/get-sitters")
+    public ResponseEntity<List<SitterListResponse>> getSitters(@PathVariable int homeownerId) {
+        List<SitterListResponse> sitters = sitterService.getSitters(homeownerId);
         if (sitters == null || sitters.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
@@ -69,18 +65,18 @@ public class SitterController {
     //         return ResponseEntity.ok(updatedSitter);
     //     }
 
-        @PostMapping("/{sitterId}/verification")
-        public ResponseEntity<SitterCheck> submitVerification(
-            @PathVariable Integer sitterId,
-            @RequestBody SubmitSitterVerificationRequest request) {
-                SitterCheck check = sitterService.submitVerification(
-                    sitterId,
-                    request.type(),
-                    request.idPhotoUrl(),
-                    request.references()
-                );
-                return ResponseEntity.ok(check);
-            }
+    // @PostMapping("/{sitterId}/verification")
+    // public ResponseEntity<SitterCheck> submitVerification(
+    //     @PathVariable Integer sitterId,
+    //     @RequestBody SubmitSitterVerificationRequest request) {
+    //         SitterCheck check = sitterService.submitVerification(
+    //             sitterId,
+    //             request.type(),
+    //             request.idPhotoUrl(),
+    //             request.references()
+    //         );
+    //         return ResponseEntity.ok(check);
+    //     }
 
         //Discovery and Listing Interaction
         @GetMapping("/listings/nearby")

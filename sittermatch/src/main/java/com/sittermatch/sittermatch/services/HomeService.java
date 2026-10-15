@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.sittermatch.sittermatch.dto.ResidenceCheckResponse;
+import com.sittermatch.sittermatch.dto.UpdateProfileRequest;
 import com.sittermatch.sittermatch.dto.verificationChecks.EmergencyCheckResponse;
 import com.sittermatch.sittermatch.dto.verificationChecks.HomeownerCheckResponse;
 import com.sittermatch.sittermatch.dto.verificationChecks.IdentityCheckSubmitResponse;
@@ -16,17 +17,87 @@ import com.sittermatch.sittermatch.model.HomeownerVerification;
 import com.sittermatch.sittermatch.model.VerificationStatus;
 import com.sittermatch.sittermatch.repository.HomeownerRepository;
 import com.sittermatch.sittermatch.repository.HomeownerVerificationRepository;
+import com.sittermatch.sittermatch.dto.ProfileResponse;
+import com.sittermatch.sittermatch.model.User;
+import com.sittermatch.sittermatch.repository.UserRepository;
+import org.springframework.transaction.annotation.Transactional;
+
+
 
 @Service
 public class HomeService {
     private static final long MAX_BYTES = 5L * 1024 * 1024;
     private final HomeownerRepository homeownerRepository;
     private final HomeownerVerificationRepository homeownerVerificationRepository;
+    private final UserRepository userRepository;
 
     public HomeService(HomeownerRepository homeownerRepository,
-                       HomeownerVerificationRepository homeownerVerificationRepository) {
+            HomeownerVerificationRepository homeownerVerificationRepository, UserRepository userRepository) {
         this.homeownerRepository = homeownerRepository;
         this.homeownerVerificationRepository = homeownerVerificationRepository;
+        this.userRepository = userRepository;
+    }
+
+    public ProfileResponse getProfile(Integer userId) {
+        Optional<Homeowner> found = homeownerRepository.findById(userId);
+        if (found.isEmpty()) {
+            return ProfileResponse.failure("Homeowner not found");
+        }
+        return toProfileResponse(found.get(), "Profile loaded");
+    }
+
+    @Transactional
+    public ProfileResponse updateProfile(Integer userId, UpdateProfileRequest req) {
+        Optional<Homeowner> found = homeownerRepository.findById(userId);
+        if (found.isEmpty()) {
+            return ProfileResponse.failure("Homeowner not found");
+        }
+
+        String name = req.name() == null ? "" : req.name().trim();
+        String email = req.email() == null ? "" : req.email().trim().toLowerCase();
+        String phone = req.phone() == null ? "" : req.phone().trim();
+        String address = req.address() == null ? "" : req.address().trim();
+        String requirements = req.requirements() == null ? "" : req.requirements().trim();
+
+        if (name.isBlank() || name.length() > 100) {
+            return ProfileResponse.failure("Enter a name under 100 characters.");
+        }
+        if (email.isBlank() || email.length() > 255 || !email.contains("@")) {
+            return ProfileResponse.failure("Enter a valid email address.");
+        }
+        if (phone.length() > 20 || (!phone.isEmpty() && !phone.matches("[0-9+()\\- ]+"))) {
+            return ProfileResponse.failure("Enter a phone number under 20 characters.");
+        }
+        if (address.isBlank() || address.length() > 255) {
+            return ProfileResponse.failure("Enter an address under 255 characters.");
+        }
+        if (requirements.isBlank() || requirements.length() > 255) {
+            return ProfileResponse.failure("Requirements must be 1-255 characters.");
+        }
+
+        Optional<User> emailOwner = userRepository.findByEmailIgnoreCase(email);
+        if (emailOwner.isPresent() && !emailOwner.get().getId().equals(userId)) {
+            return ProfileResponse.failure("That email is already in use.");
+        }
+
+        Homeowner homeowner = found.get();
+        User user = homeowner.getUser();
+        user.setName(name);
+        user.setEmail(email);
+        user.setPhone(phone);
+        homeowner.setAddress(address);
+        homeowner.setRequirements(requirements);
+
+        userRepository.save(user);
+        homeownerRepository.save(homeowner);
+
+        return toProfileResponse(homeowner, "Profile updated");
+    }
+
+    private ProfileResponse toProfileResponse(Homeowner h, String message) {
+        User u = h.getUser();
+        return new ProfileResponse(true, message, u.getName(), u.getEmail(), u.getPhone(),
+                emptyIfNull(h.getAddress()), emptyIfNull(h.getRequirements()));
     }
 
     public IdentityCheckSubmitResponse submitIdentityCheck(String email, MultipartFile idPhoto) {
@@ -163,17 +234,11 @@ public class HomeService {
         homeownerVerificationRepository.save(verification);
     }
 
-    public HomeownerCheckResponse getVerificationChecks(String email) {
-        if (email == null || email.isBlank()) {
-            return HomeownerCheckResponse.failure("Email is required");
-        }
-
-        Optional<Homeowner> homeowner = homeownerRepository.findByUserEmail(email.trim());
-        if (homeowner.isEmpty()) {
+    public HomeownerCheckResponse getVerificationChecks(int homeownerId) {
+        if (homeownerId <= 0) {
             return HomeownerCheckResponse.failure("Homeowner not found");
         }
 
-        int homeownerId = homeowner.get().getId();
         Optional<HomeownerVerification> checks = homeownerVerificationRepository.findByHomeownerId(homeownerId);
         if (checks.isEmpty()) {
             return HomeownerCheckResponse.noChecksFound();

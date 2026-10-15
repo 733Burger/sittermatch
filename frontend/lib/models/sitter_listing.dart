@@ -6,6 +6,7 @@ class SitterListing {
   final int totalReviews;
   final double nightRate;
   final String? imageUrl;
+  final bool isSaved;
   // final List<String> completedChecks;
 
   const SitterListing({
@@ -16,6 +17,7 @@ class SitterListing {
     required this.totalReviews,
     required this.nightRate,
     this.imageUrl,
+    this.isSaved = false,
     // required this.completedChecks,
   });
 
@@ -30,7 +32,8 @@ class SitterListing {
       rating: (json['rating'] as num?)?.toDouble() ?? 0.0,
       totalReviews: (json['totalReviews'] as num?)?.toInt() ?? 0,
       nightRate: (json['nightRate'] as num?)?.toDouble() ?? 0.0,
-      imageUrl: 'https://i.pravatar.cc/150?u=$id', // fake for now
+      imageUrl: 'https://i.pravatar.cc/150?u=$id',// fake for now
+      isSaved: json['isSaved'] as bool? ?? false,
       // completedChecks: [
       //   if (json['isVerified'] == true) 'Verified',
       //   ...serviceTypes.take(2),
