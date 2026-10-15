@@ -25,6 +25,8 @@ public class Homeowner {
 
     private String requirements;
 
+    private String address;
+
     private Double rating = 0.0;
 
     @Column(name = "total_reviews")
@@ -32,12 +34,13 @@ public class Homeowner {
 
     public Homeowner() {}
 
-    public Homeowner(Integer id, User user, Boolean isVerified, String requirements, Double rating,
+    public Homeowner(Integer id, User user, Boolean isVerified, String requirements, String address, Double rating,
             Integer totalReviews) {
         this.id = id;
         this.user = user;
         this.isVerified = isVerified;
         this.requirements = requirements;
+        this.address = address;
         this.rating = rating;
         this.totalReviews = totalReviews;
     }
@@ -74,6 +77,14 @@ public class Homeowner {
         this.requirements = requirements;
     }
 
+    public String getAddress() {
+        return address;
+    }
+
+    public void setAddress(String address) {
+        this.address = address;
+    }
+
     public Double getRating() {
         return rating;
     }
@@ -88,5 +99,7 @@ public class Homeowner {
 
     public void setTotalReviews(Integer totalReviews) {
         this.totalReviews = totalReviews;
-    } 
+    }
+
+    
 }

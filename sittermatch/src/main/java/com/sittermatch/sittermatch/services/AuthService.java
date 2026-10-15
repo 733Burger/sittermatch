@@ -10,6 +10,8 @@ import com.sittermatch.sittermatch.model.User;
 import com.sittermatch.sittermatch.repository.HomeownerRepository;
 import com.sittermatch.sittermatch.repository.SitterRepository;
 import com.sittermatch.sittermatch.repository.UserRepository;
+import com.sittermatch.sittermatch.dto.ChangePasswordRequest;
+import com.sittermatch.sittermatch.dto.ChangePasswordResponse;
 
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -52,6 +54,33 @@ public class AuthService {
             user.getEmail(),
             user.getId() 
         );
+    }
+
+    
+    @Transactional
+    public ChangePasswordResponse changePassword(Integer userId, ChangePasswordRequest req) {
+        Optional<User> found = userRepository.findById(userId);
+        if (found.isEmpty()) {
+            return new ChangePasswordResponse(false, "User not found");
+        }
+
+        String current = req.currentPassword() == null ? "" : req.currentPassword();
+        String next = req.newPassword() == null ? "" : req.newPassword();
+        User user = found.get();
+
+        if (!passwordEncoder.matches(current, user.getPassword())) {
+            return new ChangePasswordResponse(false, "Current password is incorrect");
+        }
+        if (next.length() < 8 || next.length() > 100) {
+            return new ChangePasswordResponse(false, "New password must be 8-100 characters.");
+        }
+        if (passwordEncoder.matches(next, user.getPassword())) {
+            return new ChangePasswordResponse(false, "New password must be different from the current one.");
+        }
+
+        user.setPassword(passwordEncoder.encode(next));
+        userRepository.save(user);
+        return new ChangePasswordResponse(true, "Password updated");
     }
 
     @Transactional
