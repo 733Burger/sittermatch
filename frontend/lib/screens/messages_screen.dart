@@ -1,31 +1,12 @@
 import 'package:flutter/material.dart';
 import '../services/auth_services.dart';
+import '../services/message_service.dart';
 import '../theme/app_colors.dart';
 import 'bookings_dashboard_screen.dart';
 import 'direct_chat_screen.dart';
 import 'jobs_dashboard_screen.dart';
 import 'owner_profile_screen.dart';
 import 'sitter_profile_screen.dart';
-import 'owner_home_screen.dart';
-
-/// One row in the conversation list.
-class _Conversation {
-  final String name;
-  final String lastMessage;
-  final String time; // e.g. '10:30 AM', 'Yesterday', 'Mon'
-  final int unread;
-  final String? imageUrl;
-  final String? bookingLabel; // e.g. 'Camps Bay Stay · Oct 12–18'
-
-  const _Conversation({
-    required this.name,
-    required this.lastMessage,
-    required this.time,
-    this.unread = 0,
-    this.imageUrl,
-    this.bookingLabel,
-  });
-}
 
 class MessagesScreen extends StatefulWidget {
   const MessagesScreen({super.key});
@@ -35,82 +16,19 @@ class MessagesScreen extends StatefulWidget {
 }
 
 class _MessagesScreenState extends State<MessagesScreen> {
-  // Sample conversations so the layout can be seen.
-  // Set to false once real conversations come from the backend.
-  static const bool _useSampleData = true;
-
-  // Homeowners see their conversations with sitters...
-  static const List<_Conversation> _sampleForOwner = [
-    _Conversation(
-      name: 'Lerato Khumalo',
-      lastMessage: 'Hello, I reviewed Luke and Josh care sheet',
-      time: '10:30 AM',
-      unread: 2,
-      imageUrl: 'https://i.pravatar.cc/150?img=44',
-      bookingLabel: 'Camps Bay Stay · Oct 12–18',
-    ),
-    _Conversation(
-      name: 'Michael Tau',
-      lastMessage: 'Perfect, I can confirm the dates tomorrow.',
-      time: 'Yesterday',
-      imageUrl: 'https://i.pravatar.cc/150?img=12',
-    ),
-    _Conversation(
-      name: 'Sarah Jenkins',
-      lastMessage: 'You: Thanks again for looking after Buster!',
-      time: 'Mon',
-      imageUrl: 'https://i.pravatar.cc/150?img=5',
-      bookingLabel: 'Sea Point Apartment · Sep 5–9',
-    ),
-  ];
-
-  // ...and sitters see their conversations with homeowners.
-  static const List<_Conversation> _sampleForSitter = [
-    _Conversation(
-      name: 'Joshua Stevens',
-      lastMessage: 'Hi Sarah, are you free from 24 to 27 Nov?',
-      time: '9:12 AM',
-      unread: 1,
-      bookingLabel: 'Camps Bay Stay · Nov 24–27',
-    ),
-    _Conversation(
-      name: 'Claire Vance',
-      lastMessage: 'You: Happy to do two walks a day.',
-      time: 'Yesterday',
-    ),
-    _Conversation(
-      name: 'Thandi Mokoena',
-      lastMessage: 'Thank you for the update photos!',
-      time: 'Tue',
-      bookingLabel: 'Claremont Cottage · Sep 20–22',
-    ),
-  ];
-
   final TextEditingController _searchController = TextEditingController();
+
   bool _loading = true;
+  String? _error;
   bool _isSitter = false;
   bool _unreadOnly = false;
   String _query = '';
-  List<_Conversation> _conversations = [];
+  List<Conversation> _conversations = [];
 
   @override
   void initState() {
     super.initState();
     _loadData();
-  }
-
-  Future<void> _loadData() async {
-    final role = await AuthService().getUserRole();
-    if (!mounted) return;
-    final isSitter = (role ?? '').toUpperCase() == 'SITTER';
-    setState(() {
-      _isSitter = isSitter;
-      // TODO: load the real conversations from the backend.
-      _conversations = _useSampleData
-          ? (isSitter ? _sampleForSitter : _sampleForOwner)
-          : <_Conversation>[];
-      _loading = false;
-    });
   }
 
   @override
@@ -119,29 +37,80 @@ class _MessagesScreenState extends State<MessagesScreen> {
     super.dispose();
   }
 
+  // ---------- Data ----------
+
+  Future<void> _loadData({bool showSpinner = true}) async {
+    if (showSpinner) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
+
+    try {
+      final role = (await AuthService().getUserRole() ?? '').toUpperCase();
+      final userId = await AuthService().getUserId();
+      if (!mounted) return;
+
+      if (userId == null) {
+        setState(() {
+          _loading = false;
+          _error = 'Please log in again to see your messages.';
+        });
+        return;
+      }
+
+      final conversations = await MessageService.fetchConversations(
+        userId: userId,
+        role: role,
+      );
+      if (!mounted) return;
+
+      setState(() {
+        _isSitter = role == 'SITTER';
+        _conversations = conversations;
+        _loading = false;
+        _error = null;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = 'Could not load your messages. Check your connection and try again.';
+      });
+    }
+  }
+
   // ---------- Helpers ----------
 
   int get _unreadCount => _conversations.where((c) => c.unread > 0).length;
 
-  List<_Conversation> get _visible {
+  List<Conversation> get _visible {
     final q = _query.trim().toLowerCase();
     return _conversations.where((c) {
       if (_unreadOnly && c.unread == 0) return false;
-      if (q.isNotEmpty && !c.name.toLowerCase().contains(q)) return false;
+      if (q.isNotEmpty && !c.partnerName.toLowerCase().contains(q)) return false;
       return true;
     }).toList();
   }
 
-  void _openChat() {
-    // TODO: pass the selected conversation once DirectChatScreen accepts one.
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const DirectChatScreen()),
+  Future<void> _openChat(Conversation convo) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => DirectChatScreen(
+          partnerId: convo.partnerId,
+          partnerName: convo.partnerName,
+        ),
+      ),
     );
+    // Refresh so unread counts and previews are up to date.
+    if (mounted) _loadData(showSpinner: false);
   }
 
   void _handleBottomNavTap(int index) {
     switch (index) {
       case 0:
+        // Home is the first screen in the stack after login.
         Navigator.of(context).popUntil((route) => route.isFirst);
         break;
       case 1:
@@ -169,8 +138,6 @@ class _MessagesScreenState extends State<MessagesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final visible = _visible;
-
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -183,22 +150,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
           style: TextStyle(color: AppColors.darkText, fontWeight: FontWeight.bold),
         ),
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.primaryRust))
-          : ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                _buildSearchField(),
-                const SizedBox(height: 12),
-                _buildFilterPills(),
-                const SizedBox(height: 16),
-                if (visible.isEmpty)
-                  _buildEmptyState()
-                else
-                  ...visible.map(_buildConversationTile),
-                const SizedBox(height: 24),
-              ],
-            ),
+      body: _buildBody(),
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
         backgroundColor: Colors.white,
@@ -220,6 +172,61 @@ class _MessagesScreenState extends State<MessagesScreen> {
             label: 'MESSAGES',
           ),
           const BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: 'PROFILE'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBody() {
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator(color: AppColors.primaryRust));
+    }
+
+    if (_error != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                _error!,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 13, color: Colors.black54),
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: _loadData,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.black87,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('Try again'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final visible = _visible;
+
+    return RefreshIndicator(
+      color: AppColors.primaryRust,
+      onRefresh: () => _loadData(showSpinner: false),
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16),
+        children: [
+          _buildSearchField(),
+          const SizedBox(height: 12),
+          _buildFilterPills(),
+          const SizedBox(height: 16),
+          if (visible.isEmpty)
+            _buildEmptyState()
+          else
+            ...visible.map(_buildConversationTile),
+          const SizedBox(height: 24),
         ],
       ),
     );
@@ -337,20 +344,13 @@ class _MessagesScreenState extends State<MessagesScreen> {
     );
   }
 
-  Widget _avatarPlaceholder() {
-    return Container(
-      color: Colors.grey.shade300,
-      child: const Icon(Icons.person, color: Colors.grey, size: 28),
-    );
-  }
-
-  Widget _buildConversationTile(_Conversation convo) {
+  Widget _buildConversationTile(Conversation convo) {
     final hasUnread = convo.unread > 0;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: InkWell(
-        onTap: _openChat,
+        onTap: () => _openChat(convo),
         borderRadius: BorderRadius.circular(16),
         child: Container(
           padding: const EdgeInsets.all(14),
@@ -362,19 +362,14 @@ class _MessagesScreenState extends State<MessagesScreen> {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(14),
-                child: SizedBox(
-                  width: 52,
-                  height: 52,
-                  child: convo.imageUrl != null
-                      ? Image.network(
-                          convo.imageUrl!,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, _, _) => _avatarPlaceholder(),
-                        )
-                      : _avatarPlaceholder(),
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(14),
                 ),
+                child: const Icon(Icons.person, color: Colors.grey, size: 28),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -385,7 +380,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                       children: [
                         Expanded(
                           child: Text(
-                            convo.name,
+                            convo.partnerName,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
@@ -393,7 +388,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          convo.time,
+                          formatChatTime(convo.lastSentAt),
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: hasUnread ? FontWeight.bold : FontWeight.normal,
@@ -439,39 +434,6 @@ class _MessagesScreenState extends State<MessagesScreen> {
                         ],
                       ],
                     ),
-                    if (convo.bookingLabel != null) ...[
-                      const SizedBox(height: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: AppColors.lightRustBg,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(
-                              Icons.event_note_outlined,
-                              color: AppColors.primaryRust,
-                              size: 12,
-                            ),
-                            const SizedBox(width: 4),
-                            Flexible(
-                              child: Text(
-                                convo.bookingLabel!,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: AppColors.primaryRust,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
                   ],
                 ),
               ),

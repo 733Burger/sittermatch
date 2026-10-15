@@ -2,10 +2,11 @@ package com.sittermatch.sittermatch.controller;
 
 import com.sittermatch.sittermatch.dto.admin.AdminUserCheckDto;
 import com.sittermatch.sittermatch.model.HomeownerVerification;
+import com.sittermatch.sittermatch.model.SitterVerification;
 import com.sittermatch.sittermatch.model.VerificationStatus;
 import com.sittermatch.sittermatch.repository.HomeownerRepository;
 import com.sittermatch.sittermatch.repository.HomeownerVerificationRepository;
-import com.sittermatch.sittermatch.repository.SitterCheckRepository;
+import com.sittermatch.sittermatch.repository.SitterVerificationRepository;
 import com.sittermatch.sittermatch.repository.SitterRepository;
 import com.sittermatch.sittermatch.repository.UserRepository;
 
@@ -28,7 +29,7 @@ public class AdminController {
     @Autowired
     private HomeownerVerificationRepository homeownerVerificationRepository;
     @Autowired
-    private SitterCheckRepository sitterCheckRepository;
+    private SitterVerificationRepository sitterVerificationRepository;
     @Autowired private UserRepository userRepository;
     @Autowired private SitterRepository sitterRepository;
     @Autowired private HomeownerRepository homeownerRepository;
@@ -88,10 +89,47 @@ public class AdminController {
             }
         }
 
-        // 2. Fetch pending sitter checks (if your SitterCheckRepository has a status field/method)
-        // var sitterChecks = sitterCheckRepository.findByStatusIgnoreCase("pending");
-        // ... map sitter checks similarly if applicable
+                // 2. Sitter checks. Sitter check ids are sitterId * 10 + 4 (ID), 5 (address), 6 (emergency contact)
+        List<SitterVerification> sitterVerifs = sitterVerificationRepository.findAwaitingReview(VerificationStatus.PENDING);
+        for (SitterVerification v : sitterVerifs) {
+            if (v.getSitter() == null) continue;
 
+            long sitterId = v.getSitter().getId();
+            String userName = v.getSitter().getUser() != null
+                ? v.getSitter().getUser().getName()
+                : "Unknown Sitter";
+
+            if (v.getIdStatus() == VerificationStatus.PENDING) {
+                pendingList.add(new AdminUserCheckDto(
+                    sitterId * 10 + 4,
+                    userName,
+                    "SITTER",
+                    "Identity / SA ID",
+                    "ID photo uploaded",
+                    "Recently"
+                ));
+            }
+            if (v.getResidenceStatus() == VerificationStatus.PENDING) {
+                pendingList.add(new AdminUserCheckDto(
+                    sitterId * 10 + 5,
+                    userName,
+                    "SITTER",
+                    "Home Address / Proof of Residence",
+                    v.getResidenceAddress() != null ? v.getResidenceAddress() : "Address provided",
+                    "Recently"
+                ));
+            }
+            if (v.getEmergencyStatus() == VerificationStatus.PENDING) {
+                pendingList.add(new AdminUserCheckDto(
+                    sitterId * 10 + 6,
+                    userName,
+                    "SITTER",
+                    "Emergency Contact Details",
+                    v.getEmergencyContactName() + " (" + v.getEmergencyContactPhoneNumber() + ")",
+                    "Recently"
+                ));
+            }
+        }
         return ResponseEntity.ok(pendingList);
     }
 

@@ -15,12 +15,11 @@ class _AdminChecksScreenState extends State<AdminChecksScreen> {
   // 'SITTER', 'HOMEOWNER', or null to show everything.
   String? _roleFilter;
 
-  // 'id', 'saps', 'address', 'emergency', or null to show every type.
+  // 'id', 'address', 'emergency', or null to show every type.
   String? _kindFilter;
 
   static const List<(String, String)> _kinds = [
     ('id', 'ID'),
-    ('saps', 'SAPS'),
     ('address', 'ADDRESS'),
     ('emergency', 'EMERGENCY CONTACT'),
   ];

@@ -328,7 +328,10 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
                 sitter: sitter,
                 isSaved: _savedSitterIds.contains(sitter.id),
                 onTap: () => _open(SitterDetailScreen(sitterId: sitter.id)),
-                onMessage: () => _open(const DirectChatScreen()),
+                onMessage: () => _open(DirectChatScreen(
+                  partnerId: sitter.id,
+                  partnerName: sitter.name,
+               )),
                 onBook: () => _open(const BookingFlowScreen()),
                 onToggleSave: () => _toggleSaved(sitter),
               ),

@@ -11,7 +11,6 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
-
 @Entity
 @Table(name = "messages")
 public class Message {
@@ -36,69 +35,30 @@ public class Message {
     @Column(name = "sent_at")
     private LocalDateTime sentAt;
 
+    @Column(name = "is_read")
+    private Boolean isRead = false;
+
     public Message() {}
 
-    public Message(Integer id, Sitter sitter, Homeowner homeowner, String sentBy, String message,
-            LocalDateTime sentAt) {
-        this.id = id;
-        this.sitter = sitter;
-        this.homeowner = homeowner;
-        this.sentBy = sentBy;
-        this.message = message;
-        this.sentAt = sentAt;
-    }
+    // Getters and Setters
+    public Integer getId() { return id; }
+    public void setId(Integer id) { this.id = id; }
 
-    public Integer getId() {
-        return id;
-    }
+    public Sitter getSitter() { return sitter; }
+    public void setSitter(Sitter sitter) { this.sitter = sitter; }
 
-    public void setId(Integer id) {
-        this.id = id;
-    }
+    public Homeowner getHomeowner() { return homeowner; }
+    public void setHomeowner(Homeowner homeowner) { this.homeowner = homeowner; }
 
-    public Sitter getSitter() {
-        return sitter;
-    }
+    public String getSentBy() { return sentBy; }
+    public void setSentBy(String sentBy) { this.sentBy = sentBy; }
 
-    public void setSitter(Sitter sitter) {
-        this.sitter = sitter;
-    }
+    public String getMessage() { return message; }
+    public void setMessage(String message) { this.message = message; }
 
-    public Homeowner getHomeowner() {
-        return homeowner;
-    }
+    public LocalDateTime getSentAt() { return sentAt; }
+    public void setSentAt(LocalDateTime sentAt) { this.sentAt = sentAt; }
 
-    public void setHomeowner(Homeowner homeowner) {
-        this.homeowner = homeowner;
-    }
-
-    public String getSentBy() {
-        return sentBy;
-    }
-
-    public void setSentBy(String sentBy) {
-        this.sentBy = sentBy;
-    }
-
-    public String getMessage() {
-        return message;
-    }
-
-    public void setMessage(String message) {
-        this.message = message;
-    }
-
-    public LocalDateTime getSentAt() {
-        return sentAt;
-    }
-
-    public void setSentAt(LocalDateTime sentAt) {
-        this.sentAt = sentAt;
-    }
-
-    
-
-    
-
-    
+    public Boolean getIsRead() { return isRead; }
+    public void setIsRead(Boolean isRead) { this.isRead = isRead; }
 }
