@@ -163,17 +163,11 @@ public class HomeService {
         homeownerVerificationRepository.save(verification);
     }
 
-    public HomeownerCheckResponse getVerificationChecks(String email) {
-        if (email == null || email.isBlank()) {
-            return HomeownerCheckResponse.failure("Email is required");
-        }
-
-        Optional<Homeowner> homeowner = homeownerRepository.findByUserEmail(email.trim());
-        if (homeowner.isEmpty()) {
+    public HomeownerCheckResponse getVerificationChecks(int homeownerId) {
+        if (homeownerId <= 0) {
             return HomeownerCheckResponse.failure("Homeowner not found");
         }
 
-        int homeownerId = homeowner.get().getId();
         Optional<HomeownerVerification> checks = homeownerVerificationRepository.findByHomeownerId(homeownerId);
         if (checks.isEmpty()) {
             return HomeownerCheckResponse.noChecksFound();

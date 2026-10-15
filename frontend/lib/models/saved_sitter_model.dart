@@ -2,40 +2,42 @@ class SavedSitterModel {
   final int id;
   final String name;
   final String location;
-  final String verificationBadge;
-  final int price;
+  final double dayRate;
+  final double nightRate;
   final double rating;
-  final String bioSnippet;
-  final bool isVetNurse;
   final int reviewCount;
   bool isSaved;
 
-
-SavedSitterModel({
+  SavedSitterModel({
     required this.id,
     required this.name,
-    required this.price,
+    required this.dayRate,
+    required this.nightRate,
     required this.location,
-    required this.verificationBadge,
     required this.rating,
     required this.reviewCount,
-    required this.bioSnippet,
-    this.isVetNurse = false,
     this.isSaved = false,
   });
 
   factory SavedSitterModel.fromJson(Map<String, dynamic> json) {
-  final user = json['user'] as Map<String, dynamic>?;
-  return SavedSitterModel(
-    id: (json['id'] as num?)?.toInt() ?? 0,
-    name: (user?['name'] ?? json['name'] ?? 'Sitter').toString(),
-    price: (json['nightRate'] as num?)?.toInt() ?? 0,
-    location: json['suburb']?.toString() ?? 'Location TBD',
-    verificationBadge: json['isVerified'] == true ? 'VERIFIED' : 'UNVERIFIED',
-    rating: (json['rating'] as num?)?.toDouble() ?? 0.0,
-    reviewCount: (json['totalReviews'] as num?)?.toInt() ?? 0,
-    bioSnippet: '',
-    isSaved: true,
-  );
-}
+    final id = (json['id'] as num?)?.toInt() ?? 0;
+    return SavedSitterModel(
+      id: id,
+      name: json['name']?.toString() ?? 'Sitter',
+      dayRate: (json['dayRate'] as num?)?.toDouble() ?? 0.0,
+      nightRate: (json['nightRate'] as num?)?.toDouble() ?? 0.0,
+      location: json['suburb']?.toString() ?? 'Location TBD',
+      rating: (json['rating'] as num?)?.toDouble() ?? 0.0,
+      reviewCount: (json['totalReviews'] as num?)?.toInt() ?? 0,
+      isSaved: json['isSaved'] as bool? ?? false,
+    );
+  }
+
+  static List<SavedSitterModel> listFromJson(Object? raw) {
+    if (raw is! List) return [];
+    return raw
+        .map((item) =>
+            SavedSitterModel.fromJson(Map<String, dynamic>.from(item as Map)))
+        .toList();
+  }
 }

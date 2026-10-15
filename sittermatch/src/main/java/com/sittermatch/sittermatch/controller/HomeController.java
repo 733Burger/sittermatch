@@ -23,9 +23,9 @@ public class HomeController {
         this.homeService = homeService;
     }
 
-    @GetMapping("/{email:.+}/get-checks")
-    public ResponseEntity<HomeownerCheckResponse> getChecks(@PathVariable String email) {
-        HomeownerCheckResponse verificationCheck = homeService.getVerificationChecks(email);
+    @GetMapping("/{homeownerId}/get-checks")
+    public ResponseEntity<HomeownerCheckResponse> getChecks(@PathVariable int homeownerId) {
+        HomeownerCheckResponse verificationCheck = homeService.getVerificationChecks(homeownerId);
         if (!verificationCheck.success()) {
             return ResponseEntity.badRequest().body(verificationCheck);
         }

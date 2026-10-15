@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data';
+
 import '../config/api_config.dart';
-import 'package:flutter/foundation.dart'; // Required for debugPrint
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 class SitterService {

@@ -7,8 +7,8 @@ class OwnerHomeDrawer extends StatelessWidget {
     super.key,
     required this.email,
     required this.savedSittersCount,
-    required this.onProfileTap,
-    required this.onBookingsTap,
+    // required this.onProfileTap,
+    // required this.onBookingsTap,
     required this.onSavedSittersTap,
     required this.onSettingsTap,
     required this.onLogOut,
@@ -16,8 +16,8 @@ class OwnerHomeDrawer extends StatelessWidget {
 
   final String email;
   final int savedSittersCount;
-  final VoidCallback onProfileTap;
-  final VoidCallback onBookingsTap;
+  // final VoidCallback onProfileTap;
+  // final VoidCallback onBookingsTap;
   final VoidCallback onSavedSittersTap;
   final VoidCallback onSettingsTap;
   final VoidCallback onLogOut;
@@ -38,16 +38,16 @@ class OwnerHomeDrawer extends StatelessWidget {
               child: Icon(Icons.person, color: AppColors.primaryRust),
             ),
           ),
-          ListTile(
-            leading: const Icon(Icons.person_outline),
-            title: const Text('Profile'),
-            onTap: onProfileTap,
-          ),
-          ListTile(
-            leading: const Icon(Icons.calendar_today_outlined),
-            title: const Text('My Bookings'),
-            onTap: onBookingsTap,
-          ),
+          // ListTile(
+          //   leading: const Icon(Icons.person_outline),
+          //   title: const Text('Profile'),
+          //   onTap: onProfileTap,
+          // ),
+          // ListTile(
+          //   leading: const Icon(Icons.calendar_today_outlined),
+          //   title: const Text('My Bookings'),
+          //   onTap: onBookingsTap,
+          // ),
           ListTile(
             leading: const Icon(Icons.bookmark_border_outlined),
             title: const Text('Saved Sitters'),

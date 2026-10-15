@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 import 'dart:convert';
 
+import 'package:frontend/services/auth_services.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -8,6 +9,8 @@ import '../storage/preference_keys.dart';
 import '../config/api_config.dart';
 
 class HomeService {
+  final AuthService _authService = AuthService();
+
   final String _baseUrl = ApiConfig.baseUrl;
   static const _timeout = Duration(seconds: 10);
   static const _uploadTimeout = Duration(seconds: 30);
@@ -18,11 +21,11 @@ class HomeService {
     return prefs.getString(PreferenceKeys.userEmail);
   }
 
-  Future<Map<String, dynamic>> fetchChecks({required String email}) async {
-    final encodedEmail = Uri.encodeComponent(email);
+  Future<Map<String, dynamic>> fetchChecks() async {
+    final homeownerId = await _authService.getUserId();
     try {
       final response = await http.get(
-            Uri.parse('$_baseUrl/api/home/$encodedEmail/get-checks'),
+            Uri.parse('$_baseUrl/api/home/$homeownerId/get-checks'),
             headers: {'Content-Type': 'application/json'},
           ).timeout(_timeout);
 
@@ -50,9 +53,10 @@ class HomeService {
   }
 
   Future<Map<String, dynamic>> fetchSitters() async {
+    final homeownerId = await _authService.getUserId();
     try {
       final response = await http.get(
-            Uri.parse('$_baseUrl/api/sitters/get-sitters'),
+            Uri.parse('$_baseUrl/api/sitters/$homeownerId/get-sitters'),
             headers: {'Content-Type': 'application/json'},
           ).timeout(_timeout);
 
