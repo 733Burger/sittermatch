@@ -131,6 +131,33 @@ class AuthService {
     }
   }
 
+  
+  Future<Map<String, dynamic>> changePassword({
+    required int userId,
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$_baseUrl/api/auth/change-password/$userId'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'currentPassword': currentPassword,
+          'newPassword': newPassword,
+        }),
+      ).timeout(const Duration(seconds: 10));
+
+      final json = jsonDecode(response.body);
+      return {
+        'success': response.statusCode == 200 && json['success'] == true,
+        'message': json['message'] ?? 'Password change failed.',
+      };
+    } catch (e) {
+      debugPrint('Change password error: $e');
+      return {'success': false, 'message': 'Network error. Please try again later'};
+    }
+  }
+
   Future<Map<String, dynamic>> signup({required String fullName, required String email, required String phoneNumber, required String password,required String role,}) async {
     try {
       final response = await http.post(
