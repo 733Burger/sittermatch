@@ -1,8 +1,7 @@
-// Admin data for the dashboard and the three admin tools.
-//
-// Everything here is SAMPLE data held in memory so the screens can be tried out.
-// TODO: replace each method with a real call to the backend (and keep the
-// method names, so the screens do not need to change).
+import 'dart:convert';
+import 'package:flutter/widgets.dart';
+import 'package:http/http.dart' as http;
+import '../config/api_config.dart';
 
 class AdminStats {
   final int totalUsers;
@@ -28,9 +27,23 @@ class AdminStats {
     required this.pendingReviews,
     required this.cancellationRequests,
   });
+
+  factory AdminStats.fromJson(Map<String, dynamic> json) {
+    return AdminStats(
+      totalUsers: json['totalUsers'] ?? 0,
+      sitters: json['sitters'] ?? 0,
+      homeowners: json['homeowners'] ?? 0,
+      ongoingBookings: json['ongoingBookings'] ?? 0,
+      acceptedBookings: json['acceptedBookings'] ?? 0,
+      searchingBookings: json['searchingBookings'] ?? 0,
+      completedBookings: json['completedBookings'] ?? 0,
+      pendingChecks: json['pendingChecks'] ?? 0,
+      pendingReviews: json['pendingReviews'] ?? 0,
+      cancellationRequests: json['cancellationRequests'] ?? 0,
+    );
+  }
 }
 
-/// A check (ID, SAPS, address...) a user has submitted and is waiting to be verified.
 class UserCheck {
   final int id;
   final String userName;
@@ -47,18 +60,28 @@ class UserCheck {
     required this.detail,
     required this.submittedOn,
   });
+
+  factory UserCheck.fromJson(Map<String, dynamic> json) {
+    return UserCheck(
+      id: json['id'] ?? 0,
+      userName: json['userName'] ?? 'Unknown',
+      role: json['role'] ?? 'SITTER',
+      checkType: json['checkType'] ?? 'Identity Verification',
+      detail: json['detail'] ?? '',
+      submittedOn: json['submittedOn'] ?? 'Recently',
+    );
+  }
 }
 
-/// A review waiting to be approved (or removed) before it is shown on a profile.
 class ReviewItem {
   final int id;
   final String reviewerName;
-  final String reviewerRole; // 'SITTER' or 'HOMEOWNER'
+  final String reviewerRole;
   final String revieweeName;
   final double rating;
   final String comment;
   final String date;
-  final String? flagReason; // set when another user reported the review
+  final String? flagReason;
 
   const ReviewItem({
     required this.id,
@@ -70,16 +93,28 @@ class ReviewItem {
     required this.date,
     this.flagReason,
   });
+
+  factory ReviewItem.fromJson(Map<String, dynamic> json) {
+    return ReviewItem(
+      id: json['id'] ?? 0,
+      reviewerName: json['reviewerName'] ?? '',
+      reviewerRole: json['reviewerRole'] ?? '',
+      revieweeName: json['revieweeName'] ?? '',
+      rating: (json['rating'] ?? 0.0).toDouble(),
+      comment: json['comment'] ?? '',
+      date: json['date'] ?? '',
+      flagReason: json['flagReason'],
+    );
+  }
 }
 
-/// A request from a homeowner or sitter to cancel a booking.
 class CancellationRequest {
   final int id;
   final String bookingTitle;
   final String dates;
   final String homeownerName;
   final String sitterName;
-  final String requestedBy; // 'Homeowner' or 'Sitter'
+  final String requestedBy;
   final String reason;
   final String requestedOn;
 
@@ -93,167 +128,156 @@ class CancellationRequest {
     required this.reason,
     required this.requestedOn,
   });
+
+  factory CancellationRequest.fromJson(Map<String, dynamic> json) {
+    return CancellationRequest(
+      id: json['id'] ?? 0,
+      bookingTitle: json['bookingTitle'] ?? '',
+      dates: json['dates'] ?? '',
+      homeownerName: json['homeownerName'] ?? '',
+      sitterName: json['sitterName'] ?? '',
+      requestedBy: json['requestedBy'] ?? '',
+      reason: json['reason'] ?? '',
+      requestedOn: json['requestedOn'] ?? '',
+    );
+  }
 }
 
 class AdminService {
-  // ---------- Sample data ----------
-
-  static const int _sitters = 47;
-  static const int _homeowners = 81;
-
-  static final List<UserCheck> _checks = [
-    const UserCheck(
-      id: 1,
-      userName: 'Thabo Mokoena',
-      role: 'SITTER',
-      checkType: 'SAPS Police Clearance',
-      detail: 'Certificate uploaded',
-      submittedOn: 'Oct 4',
-    ),
-    const UserCheck(
-      id: 2,
-      userName: 'Joshua Stevens',
-      role: 'HOMEOWNER',
-      checkType: 'Identity / SA ID',
-      detail: 'ID photo uploaded',
-      submittedOn: 'Oct 5',
-    ),
-    const UserCheck(
-      id: 3,
-      userName: 'Claire Vance',
-      role: 'HOMEOWNER',
-      checkType: 'Home Address / Proof of Residence',
-      detail: '12 Main Road, Rondebosch',
-      submittedOn: 'Oct 3',
-    ),
-    const UserCheck(
-      id: 4,
-      userName: 'Lerato Khumalo',
-      role: 'SITTER',
-      checkType: 'Identity / SA ID',
-      detail: 'ID photo uploaded',
-      submittedOn: 'Oct 2',
-    ),
-    const UserCheck(
-      id: 5,
-      userName: 'Thandi Mokoena',
-      role: 'HOMEOWNER',
-      checkType: 'Emergency Contact Details',
-      detail: '+27 82 123 4567',
-      submittedOn: 'Oct 1',
-    ),
-  ];
-
-  static final List<ReviewItem> _reviews = [
-    const ReviewItem(
-      id: 1,
-      reviewerName: 'Joshua Stevens',
-      reviewerRole: 'HOMEOWNER',
-      revieweeName: 'Sarah Jenkins',
-      rating: 5.0,
-      comment: 'Sarah was brilliant with Buster! Daily updates and everything spotless.',
-      date: 'Oct 4',
-    ),
-    const ReviewItem(
-      id: 2,
-      reviewerName: 'Michael Tau',
-      reviewerRole: 'SITTER',
-      revieweeName: 'Claire Vance',
-      rating: 1.0,
-      comment: 'Terrible host, would not recommend to anyone.',
-      date: 'Oct 3',
-      flagReason: 'Reported as unfair by the homeowner',
-    ),
-    const ReviewItem(
-      id: 3,
-      reviewerName: 'Claire Vance',
-      reviewerRole: 'HOMEOWNER',
-      revieweeName: 'Michael Tau',
-      rating: 4.5,
-      comment: 'Reliable and friendly. Would book again.',
-      date: 'Oct 2',
-    ),
-  ];
-
-  static final List<CancellationRequest> _cancellations = [
-    const CancellationRequest(
-      id: 1,
-      bookingTitle: 'Camps Bay Stay',
-      dates: 'Oct 12 – 18',
-      homeownerName: 'Joshua Stevens',
-      sitterName: 'Lerato Khumalo',
-      requestedBy: 'Homeowner',
-      reason: 'Family emergency, I need to cancel the trip.',
-      requestedOn: 'Oct 5',
-    ),
-    const CancellationRequest(
-      id: 2,
-      bookingTitle: 'Claremont Cottage',
-      dates: 'Nov 24 – 27',
-      homeownerName: 'Claire Vance',
-      sitterName: 'Michael Tau',
-      requestedBy: 'Sitter',
-      reason: 'I was double booked by mistake.',
-      requestedOn: 'Oct 6',
-    ),
-    const CancellationRequest(
-      id: 3,
-      bookingTitle: 'Constantia Villa',
-      dates: 'Dec 15 – 20',
-      homeownerName: 'Thandi Mokoena',
-      sitterName: 'Jessica Daniels',
-      requestedBy: 'Homeowner',
-      reason: 'Plans changed.',
-      requestedOn: 'Oct 6',
-    ),
-  ];
+  static final String _baseUrl = ApiConfig.baseUrl;
+  static const _timeout = Duration(seconds: 10);
 
   // ---------- Dashboard ----------
 
-  static Future<AdminStats> fetchStats() async {
-    // TODO: load the real counts from the backend.
+    static Future<AdminStats> fetchStats() async {
+    final response = await http
+        .get(Uri.parse('$_baseUrl/api/admin/stats'))
+        .timeout(_timeout);
+
+    if (response.statusCode != 200) {
+      throw Exception('Could not load stats (${response.statusCode})');
+    }
+
+    final json = jsonDecode(response.body) as Map<String, dynamic>;
+    int read(String key) => (json[key] as num?)?.toInt() ?? 0;
+
+    // Fetch live list lengths to guarantee absolute accuracy
+    final checks = await fetchPendingChecks();
+    final reviews = await fetchPendingReviews();
+    final cancellations = await fetchCancellationRequests();
+
     return AdminStats(
-      totalUsers: _sitters + _homeowners,
-      sitters: _sitters,
-      homeowners: _homeowners,
-      ongoingBookings: 6,
-      acceptedBookings: 9,
-      searchingBookings: 4,
-      completedBookings: 112,
-      pendingChecks: _checks.length,
-      pendingReviews: _reviews.length,
-      cancellationRequests: _cancellations.length,
+      totalUsers: read('totalUsers'),
+      sitters: read('sitters'),
+      homeowners: read('homeowners'),
+      pendingChecks: checks.length, // <-- Updated to use actual fetched checks count
+      ongoingBookings: read('ongoingBookings'),
+      acceptedBookings: read('acceptedBookings'),
+      searchingBookings: read('searchingBookings'),
+      completedBookings: read('completedBookings'),
+      pendingReviews: reviews.length,
+      cancellationRequests: cancellations.length,
     );
   }
 
   // ---------- User checks verifier ----------
 
-  static Future<List<UserCheck>> fetchPendingChecks() async => List.of(_checks);
+  static Future<List<UserCheck>> fetchPendingChecks() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$_baseUrl/api/admin/pending-checks'),
+        headers: {'Content-Type': 'application/json'},
+      ).timeout(_timeout);
+
+      if (response.statusCode == 200) {
+        final List<dynamic> list = jsonDecode(response.body);
+        return list.map((item) => UserCheck.fromJson(item)).toList();
+      }
+      return [];
+    } catch (e) {
+      debugPrint('Error fetching pending checks: $e');
+      return [];
+    }
+  }
 
   /// Approving marks the check as verified; rejecting asks the user to resubmit.
   static Future<void> resolveCheck(int id, {required bool approved, String? reason}) async {
-    // TODO: update the check's status in the backend (and save the reason).
-    _checks.removeWhere((c) => c.id == id);
+    try {
+      await http.post(
+        Uri.parse('$_baseUrl/api/admin/resolve-check'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'checkId': id,
+          'approved': approved,
+          'reason': reason ?? '',
+        }),
+      ).timeout(_timeout);
+    } catch (e) {
+      debugPrint('Error resolving check: $e');
+    }
   }
 
   // ---------- Review verifier ----------
 
-  static Future<List<ReviewItem>> fetchPendingReviews() async => List.of(_reviews);
+  static Future<List<ReviewItem>> fetchPendingReviews() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$_baseUrl/api/admin/pending-reviews'),
+        headers: {'Content-Type': 'application/json'},
+      ).timeout(_timeout);
 
-  /// Approving publishes the review; rejecting removes it.
+      if (response.statusCode == 200) {
+        final List<dynamic> list = jsonDecode(response.body);
+        return list.map((item) => ReviewItem.fromJson(item)).toList();
+      }
+      return [];
+    } catch (e) {
+      debugPrint('Error fetching pending reviews: $e');
+      return [];
+    }
+  }
+
   static Future<void> resolveReview(int id, {required bool approved}) async {
-    // TODO: update the review in the backend.
-    _reviews.removeWhere((r) => r.id == id);
+    try {
+      await http.post(
+        Uri.parse('$_baseUrl/api/admin/resolve-review'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'reviewId': id, 'approved': approved}),
+      ).timeout(_timeout);
+    } catch (e) {
+      debugPrint('Error resolving review: $e');
+    }
   }
 
   // ---------- Cancellations ----------
 
-  static Future<List<CancellationRequest>> fetchCancellationRequests() async =>
-      List.of(_cancellations);
+  static Future<List<CancellationRequest>> fetchCancellationRequests() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$_baseUrl/api/admin/cancellation-requests'),
+        headers: {'Content-Type': 'application/json'},
+      ).timeout(_timeout);
 
-  /// Approving cancels the booking for both people; declining keeps the booking.
+      if (response.statusCode == 200) {
+        final List<dynamic> list = jsonDecode(response.body);
+        return list.map((item) => CancellationRequest.fromJson(item)).toList();
+      }
+      return [];
+    } catch (e) {
+      debugPrint('Error fetching cancellation requests: $e');
+      return [];
+    }
+  }
+
   static Future<void> resolveCancellation(int id, {required bool approved}) async {
-    // TODO: cancel the booking (and notify both people) in the backend.
-    _cancellations.removeWhere((c) => c.id == id);
+    try {
+      await http.post(
+        Uri.parse('$_baseUrl/api/admin/resolve-cancellation'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'requestId': id, 'approved': approved}),
+      ).timeout(_timeout);
+    } catch (e) {
+      debugPrint('Error resolving cancellation: $e');
+    }
   }
 }

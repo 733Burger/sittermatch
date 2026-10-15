@@ -131,7 +131,13 @@ public ResponseEntity<String> seedDatabase() {
     petReviewRepository.save(petReview);
 
     // 9. Create Message
-    Message message = new Message(null, sitter, homeowner, "HOMEOWNER", "Hi Carl, Looking forward to the dog walk", LocalDateTime.now());
+    Message message = new Message();
+    message.setSitter(sitter);
+    message.setHomeowner(homeowner);
+    message.setSentBy("HOMEOWNER");
+    message.setMessage("Hi Carl, Looking forward to the dog walk");
+    message.setSentAt(LocalDateTime.now());
+    message.setIsRead(false);
     messageRepository.save(message);
 
     return ResponseEntity.ok("Database successfully seeded with test data!");

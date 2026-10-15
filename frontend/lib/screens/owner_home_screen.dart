@@ -99,7 +99,7 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
         _checks = OwnerChecks.fromJson(verificationCheck);
         _sitters = sitters;
         _savedSitterIds
-          ..clear()                                      
+          ..clear()                          
           ..addAll(sitters.where((sitter) => sitter.isSaved).map((sitter) => sitter.id));
         _isLoading = false;        
       });
@@ -321,54 +321,54 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
       drawer: OwnerHomeDrawer(
         email: _email,
         savedSittersCount: _savedSitterIds.length,
-        // onProfileTap: () => _open(const OwnerProfileScreen()),
-        // onBookingsTap: () => _open(const BookingsDashboardScreen()),
         onSavedSittersTap: () => _open(const SavedSittersScreen(), refreshOnReturn: true),
         onSettingsTap: () => _comingSoon('Settings'),
         onLogOut: _logout,
       ),
       body: _isLoading
           ? const Center(
-            child: CircularProgressIndicator(color: AppColors.primaryRust),
-          )
-          :
-        SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              VerificationChecksCard(
-                checks: _checks,
-                onIdentityTap: _openIdentityCheckDialog,
-                onAddressTap: _openAddressCheckDialog,
-                onEmergencyContactTap: _openEmergencyContactDialog,
+              child: CircularProgressIndicator(color: AppColors.primaryRust),
+            )
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  VerificationChecksCard(
+                    checks: _checks,
+                    onIdentityTap: _openIdentityCheckDialog,
+                    onAddressTap: _openAddressCheckDialog,
+                    onEmergencyContactTap: _openEmergencyContactDialog,
+                  ),
+                  const SizedBox(height: 24),
+                  SitterSearchField(controller: _searchController),
+                  const SizedBox(height: 12),
+                  SitterFilterChips(
+                    tags: _filterTags,
+                    selected: _selectedFilter,
+                    onSelected: (tag) => setState(() => _selectedFilter = tag),
+                  ),
+                  const SizedBox(height: 20),
+                  const Text(
+                    'Available Sitters Nearby',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 12),
+                  for (final sitter in _sitters)
+                    SitterCard(
+                      sitter: sitter,
+                      isSaved: _savedSitterIds.contains(sitter.id),
+                      onTap: () => _open(SitterDetailScreen(sitterId: sitter.id)),
+                      onMessage: () => _open(DirectChatScreen(
+                        partnerId: sitter.id,
+                        partnerName: sitter.name,
+                      )),
+                      onBook: () => _open(const BookingFlowScreen()),
+                      onToggleSave: () => _toggleSaved(sitter),
+                    ),
+                ],
               ),
-              const SizedBox(height: 24),
-              SitterSearchField(controller: _searchController),
-              const SizedBox(height: 12),
-              SitterFilterChips(
-                tags: _filterTags,
-                selected: _selectedFilter,
-                onSelected: (tag) => setState(() => _selectedFilter = tag),
-              ),
-              const SizedBox(height: 20),
-              const Text(
-                'Available Sitters Nearby',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 12),
-              for (final sitter in _sitters)
-                SitterCard(
-                  sitter: sitter,
-                  isSaved: _savedSitterIds.contains(sitter.id),
-                  onTap: () => _open(SitterDetailScreen(sitterId: sitter.id)),
-                  onMessage: () => _open(const DirectChatScreen()),
-                  onBook: () => _open(const BookingFlowScreen()),
-                  onToggleSave: () => _toggleSaved(sitter),
-                ),
-            ],
-          ),
-        ),
+            ),
       bottomNavigationBar: OwnerBottomNavBar(onTap: _handleBottomNavTap),
     );
   }
