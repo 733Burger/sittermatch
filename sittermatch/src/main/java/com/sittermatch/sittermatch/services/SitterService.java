@@ -90,7 +90,6 @@ public class SitterService {
                                     .map(savedSitter -> savedSitter.getSitterId())
                                     .collect(Collectors.toSet());
 
-
         return sitterRepository
             .findAll()
             .stream()
@@ -112,8 +111,6 @@ public class SitterService {
         );
     }
 
-    
-
     // Profile and Account Managment
     //Note to Others, experience needs to change to a String value for a description of their experience
     //Possible addition of years_of_experience
@@ -133,26 +130,26 @@ public class SitterService {
 //         return sitterRepository.save(sitter);
 //     }
 
-    @Transactional
-    public SitterCheck submitVerification(Integer sitterId, String type, String idPhotoUrl, String references) {
-            Sitter sitter = sitterRepository.findById(sitterId)
-                            .orElseThrow(() -> new RuntimeException("Sitter not found with id: " + sitterId));
+//     @Transactional
+//     public SitterCheck submitVerification(Integer sitterId, String type, String idPhotoUrl, String references) {
+//             Sitter sitter = sitterRepository.findById(sitterId)
+//                             .orElseThrow(() -> new RuntimeException("Sitter not found with id: " + sitterId));
 
-            SitterCheck check = new SitterCheck();
-            check.setSitterId(sitter.getId());
-            check.setType(type != null ? type : "id");
-            check.setIdPhoto(idPhotoUrl != null ? idPhotoUrl : "");
-            check.setReferences(references != null ? references : "");
-            check.setStatus("pending");
+//             SitterCheck check = new SitterCheck();
+//             check.setSitterId(sitter.getId());
+//             check.setType(type != null ? type : "id");
+//             check.setIdPhoto(idPhotoUrl != null ? idPhotoUrl : "");
+//             check.setReferences(references != null ? references : "");
+//             check.setStatus("pending");
 
-            try {
-                    return sitterCheckRepository.save(check);
-            } catch (Exception e) {
-                    System.err.println("=== VERIFICATION SAVE ERROR ===");
-                    e.printStackTrace(); // BRINGS THE EXACT DB CAUSE TO THE VERY BOTTOM OF TERMINAL
-                    throw e;
-            }
-    }
+//             try {
+//                     return sitterCheckRepository.save(check);
+//             } catch (Exception e) {
+//                     System.err.println("=== VERIFICATION SAVE ERROR ===");
+//                     e.printStackTrace(); // BRINGS THE EXACT DB CAUSE TO THE VERY BOTTOM OF TERMINAL
+//                     throw e;
+//             }
+//     }
 
     // Discovery and Listing Interaction
     public List<Listing> findNearbyListings(String suburb) {

@@ -132,23 +132,23 @@ class SitterService {
   }
 
   // Compatibility stub retained so any legacy screen references do not break
-  static Future<Map<String, dynamic>> submitVerification({
-    required int sitterId,
-    required String type,
-    required String idPhotoUrl,
-    required String references,
-  }) async {
-    final res = _check(await http.post(
-      Uri.parse('$baseUrl/api/sitters/$sitterId/verification'),
-      headers: _jsonHeaders,
-      body: jsonEncode({
-        'type': type,
-        'idPhotoUrl': idPhotoUrl,
-        'references': references,
-      }),
-    ));
-    return jsonDecode(res.body) as Map<String, dynamic>;
-  }
+  // static Future<Map<String, dynamic>> submitVerification({
+  //   required int sitterId,
+  //   required String type,
+  //   required String idPhotoUrl,
+  //   required String references,
+  // }) async {
+  //   final res = _check(await http.post(
+  //     Uri.parse('$baseUrl/api/sitters/$sitterId/verification'),
+  //     headers: _jsonHeaders,
+  //     body: jsonEncode({
+  //       'type': type,
+  //       'idPhotoUrl': idPhotoUrl,
+  //       'references': references,
+  //     }),
+  //   ));
+  //   return jsonDecode(res.body) as Map<String, dynamic>;
+  // }
 
   //  Browse sitters 
 

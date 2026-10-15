@@ -1,5 +1,10 @@
 package com.sittermatch.sittermatch.model;
 
+import java.math.BigDecimal;
+
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -18,6 +23,7 @@ public class Homeowner {
     @OneToOne
     @MapsId
     @JoinColumn(name = "id")
+    @OnDelete(action = OnDeleteAction.CASCADE)
     private User user;
 
     @Column(name = "is_verified")
@@ -31,6 +37,18 @@ public class Homeowner {
 
     @Column(name = "total_reviews")
     private Integer totalReviews = 0;
+
+    @Column(length = 100)
+    private String suburb;
+
+    @Column(length = 100)
+    private String city;
+
+    @Column(precision = 9, scale = 6)
+    private BigDecimal latitude;
+    
+    @Column(precision = 9, scale = 6)
+    private BigDecimal longitude;
 
     public Homeowner() {}
 

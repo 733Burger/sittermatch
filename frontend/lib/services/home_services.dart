@@ -115,11 +115,13 @@ class HomeService {
 
       if (response.statusCode == 200 && json['success'] == true) {
         return {
+          'success': true,
           'message': json['message'],
           'idCheck': json['idCheck'],
         };
       }
       return {
+        'success': false,
         'message': json['message'] ?? 'Upload failed.',
         'idCheck': json['idCheck'],
       };
@@ -147,11 +149,13 @@ class HomeService {
 
       if (response.statusCode == 200 && json['success'] == true) {
         return {
+          'success': true,
           'message': json['message'],
           'addressCheck': json['addressCheck'],
         };
       }
       return {
+        'success': false,
         'message': json['message'] ?? 'Save failed.',
         'addressCheck': json['addressCheck'],
       };
@@ -181,11 +185,13 @@ class HomeService {
 
       if (response.statusCode == 200 && json['success'] == true) {
         return {
+          'success': true,
           'message': json['message'],
           'emergencyContactCheck': json['emergencyContactCheck'],
         };
       }
       return {
+        'success': false,
         'message': json['message'] ?? 'Save failed.',
         'emergencyContactCheck': json['emergencyContactCheck'],
       };
