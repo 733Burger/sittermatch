@@ -149,7 +149,7 @@ class AdminService {
 
   // ---------- Dashboard ----------
 
-      static Future<AdminStats> fetchStats() async {
+    static Future<AdminStats> fetchStats() async {
     final response = await http
         .get(Uri.parse('$_baseUrl/api/admin/stats'))
         .timeout(_timeout);
@@ -161,7 +161,8 @@ class AdminService {
     final json = jsonDecode(response.body) as Map<String, dynamic>;
     int read(String key) => (json[key] as num?)?.toInt() ?? 0;
 
-    // These use the same endpoints as the review and cancellation screens.
+    // Fetch live list lengths to guarantee absolute accuracy
+    final checks = await fetchPendingChecks();
     final reviews = await fetchPendingReviews();
     final cancellations = await fetchCancellationRequests();
 
@@ -169,7 +170,7 @@ class AdminService {
       totalUsers: read('totalUsers'),
       sitters: read('sitters'),
       homeowners: read('homeowners'),
-      pendingChecks: read('pendingChecks'),
+      pendingChecks: checks.length, // <-- Updated to use actual fetched checks count
       ongoingBookings: read('ongoingBookings'),
       acceptedBookings: read('acceptedBookings'),
       searchingBookings: read('searchingBookings'),

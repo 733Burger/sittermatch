@@ -51,10 +51,29 @@ class _AdminChecksScreenState extends State<AdminChecksScreen> {
     return 'other'; // only shown under ALL TYPES
   }
 
+  /// Turns an error into a short message for the admin.
+  String _errorText(Object error) {
+    final text = error.toString();
+    return text.startsWith('Exception: ')
+        ? text.substring('Exception: '.length)
+        : 'Could not reach the server.';
+  }
+
   Future<void> _approve(UserCheck check) async {
-    await AdminService.resolveCheck(check.id, approved: true);
+    try {
+      await AdminService.resolveCheck(check.id, approved: true);
+    } catch (e) {
+      if (!mounted) return;
+      _showSnack(_errorText(e));
+      return;
+    }
     if (!mounted) return;
-    _reload();
+    
+    // FIX: Wrap _reload() inside setState so the UI updates immediately
+    setState(() {
+      _future = AdminService.fetchPendingChecks();
+    });
+    
     _showSnack('${check.checkType} approved for ${check.userName}.');
   }
 
@@ -88,17 +107,27 @@ class _AdminChecksScreenState extends State<AdminChecksScreen> {
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Go back')),
           TextButton(
             onPressed: () async {
               Navigator.pop(ctx);
-              await AdminService.resolveCheck(
-                check.id,
-                approved: false,
-                reason: reasonCtrl.text.trim(),
-              );
+              try {
+                await AdminService.resolveCheck(
+                  check.id,
+                  approved: false,
+                  reason: reasonCtrl.text.trim(),
+                );
+              } catch (e) {
+                if (!mounted) return;
+                _showSnack(_errorText(e));
+                return;
+              }
               if (!mounted) return;
-              _reload();
+              
+              // FIX: Wrap _reload() inside setState here too
+              setState(() {
+                _future = AdminService.fetchPendingChecks();
+              });
+              
               _showSnack('Check rejected.');
             },
             child: const Text('Reject', style: TextStyle(color: Colors.red)),

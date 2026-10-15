@@ -140,30 +140,55 @@ public class AdminController {
         boolean approved = (Boolean) request.get("approved");
         String reason = (String) request.get("reason");
 
-        Integer homeownerId = (int) (compositeId / 10);
+        long entityId = compositeId / 10;
         int checkTypeDiscriminator = (int) (compositeId % 10);
+        VerificationStatus targetStatus = approved ? VerificationStatus.APPROVED : VerificationStatus.REJECTED;
 
-        Optional<HomeownerVerification> optVerification = homeownerVerificationRepository.findById(homeownerId);
-        if (optVerification.isPresent()) {
-            HomeownerVerification v = optVerification.get();
-            VerificationStatus targetStatus = approved ? VerificationStatus.APPROVED : VerificationStatus.REJECTED;
+        // Check if it's a Homeowner verification (discriminator 1, 2, 3)
+        if (checkTypeDiscriminator >= 1 && checkTypeDiscriminator <= 3) {
+            Optional<HomeownerVerification> optVerification = homeownerVerificationRepository.findById((int) entityId);
+            if (optVerification.isPresent()) {
+                HomeownerVerification v = optVerification.get();
+                if (checkTypeDiscriminator == 1) {
+                    v.setIdStatus(targetStatus);
+                    if (!approved) v.setIdRejectionReason(reason);
+                } else if (checkTypeDiscriminator == 2) {
+                    v.setResidenceStatus(targetStatus);
+                    if (!approved) v.setResidenceRejectionReason(reason);
+                } else if (checkTypeDiscriminator == 3) {
+                    v.setEmergencyStatus(targetStatus);
+                    if (!approved) v.setEmergencyRejectionReason(reason);
+                }
 
-            if (checkTypeDiscriminator == 1) {
-                v.setIdStatus(targetStatus);
-                if (!approved) v.setIdRejectionReason(reason);
-            } else if (checkTypeDiscriminator == 2) {
-                v.setResidenceStatus(targetStatus);
-                if (!approved) v.setResidenceRejectionReason(reason);
-            } else if (checkTypeDiscriminator == 3) {
-                v.setEmergencyStatus(targetStatus);
-                if (!approved) v.setEmergencyRejectionReason(reason);
+                v.refreshOverallStatus();
+                v.setReviewedAt(LocalDateTime.now());
+                homeownerVerificationRepository.save(v);
+
+                return ResponseEntity.ok(Map.of("success", true, "message", "Check updated successfully"));
             }
+        } 
+        // Check if it's a Sitter verification (discriminator 4, 5, 6)
+        else if (checkTypeDiscriminator >= 4 && checkTypeDiscriminator <= 6) {
+            Optional<SitterVerification> optVerification = sitterVerificationRepository.findById((int) entityId);
+            if (optVerification.isPresent()) {
+                SitterVerification v = optVerification.get();
+                if (checkTypeDiscriminator == 4) {
+                    v.setIdStatus(targetStatus);
+                    if (!approved) v.setIdRejectionReason(reason);
+                } else if (checkTypeDiscriminator == 5) {
+                    v.setResidenceStatus(targetStatus);
+                    if (!approved) v.setResidenceRejectionReason(reason);
+                } else if (checkTypeDiscriminator == 6) {
+                    v.setEmergencyStatus(targetStatus);
+                    if (!approved) v.setEmergencyRejectionReason(reason);
+                }
 
-            v.refreshOverallStatus();
-            v.setReviewedAt(LocalDateTime.now());
-            homeownerVerificationRepository.save(v);
+                v.refreshOverallStatus();
+                v.setReviewedAt(LocalDateTime.now());
+                sitterVerificationRepository.save(v);
 
-            return ResponseEntity.ok(Map.of("success", true, "message", "Check updated successfully"));
+                return ResponseEntity.ok(Map.of("success", true, "message", "Check updated successfully"));
+            }
         }
 
         return ResponseEntity.status(404).body(Map.of("success", false, "message", "Verification record not found"));
