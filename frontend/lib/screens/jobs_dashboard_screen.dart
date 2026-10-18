@@ -1,27 +1,13 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
+import '../models/booking_model.dart';
+import '../services/booking_service.dart';
 import 'accepted_booking_screen.dart';
 import 'direct_chat_screen.dart';
 import 'messages_screen.dart';
 import 'ongoing_booking_screen.dart';
 import 'previous_booking_screen.dart';
 import 'sitter_profile_screen.dart';
-
-/// One job on the sitter's dashboard.
-/// status: 'ongoing' | 'accepted' | 'requested' | 'completed'
-class _Job {
-  final String status;
-  final String title;
-  final String dates;
-  final String homeownerName;
-
-  const _Job({
-    required this.status,
-    required this.title,
-    required this.dates,
-    required this.homeownerName,
-  });
-}
 
 class JobsDashboardScreen extends StatefulWidget {
   const JobsDashboardScreen({super.key});
@@ -31,42 +17,22 @@ class JobsDashboardScreen extends StatefulWidget {
 }
 
 class _JobsDashboardScreenState extends State<JobsDashboardScreen> {
-  // Sample jobs so the layout can be seen.
-  // Set to false once real jobs come from the backend.
-  static const bool _useSampleData = true;
-
-  static const List<_Job> _sampleJobs = [
-    _Job(
-      status: 'ongoing',
-      title: 'Camps Bay Stay',
-      dates: 'Oct 12 – 18',
-      homeownerName: 'Joshua Stevens',
-    ),
-    _Job(
-      status: 'accepted',
-      title: 'Claremont Cottage',
-      dates: 'Nov 24 – 27',
-      homeownerName: 'Claire Vance',
-    ),
-    _Job(
-      status: 'requested',
-      title: 'Constantia Villa',
-      dates: 'Dec 15 – 20',
-      homeownerName: 'Thandi Mokoena',
-    ),
-    _Job(
-      status: 'completed',
-      title: 'Sea Point Apartment',
-      dates: 'Sep 5 – 9',
-      homeownerName: 'Joshua Stevens',
-    ),
-  ];
-
-  // 'accepted', 'requested', 'completed', or null to show everything.
+  late Future<List<BookingModel>> _jobsFuture;
   String? _selectedFilter;
+  bool _isLoadingAction = false;
 
-  // TODO: replace with jobs loaded from the backend.
-  List<_Job> get _jobs => _useSampleData ? _sampleJobs : const <_Job>[];
+  @override
+  void initState() {
+    super.initState();
+    _loadJobs();
+  }
+
+  void _loadJobs() {
+    // Fetching all bookings for testing. In production, pass sitterId: user.id
+    setState(() {
+      _jobsFuture = BookingService.fetchDashboardBookings();
+    });
+  }
 
   // ---------- Helpers ----------
 
@@ -78,11 +44,30 @@ class _JobsDashboardScreenState extends State<JobsDashboardScreen> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
+  // Parses the 'B-12' string back into an integer ID for the backend
+  int _parseBookingId(String rawId) {
+    return int.tryParse(rawId.replaceAll('B-', '')) ?? 0;
+  }
+
+  Future<void> _updateJobStatus(String rawId, String newStatus) async {
+    setState(() => _isLoadingAction = true);
+    try {
+      final bookingId = _parseBookingId(rawId);
+      await BookingService.updateBookingStatus(bookingId: bookingId, status: newStatus);
+      _showSnack('Job status updated to $newStatus.');
+      _loadJobs(); // Refresh the list from the database
+    } catch (e) {
+      _showSnack('Error updating status: $e');
+    } finally {
+      setState(() => _isLoadingAction = false);
+    }
+  }
+
   void _confirmAction({
     required String title,
     required String message,
     required String confirmLabel,
-    required String doneMessage,
+    required VoidCallback onConfirm,
   }) {
     showDialog(
       context: context,
@@ -97,8 +82,7 @@ class _JobsDashboardScreenState extends State<JobsDashboardScreen> {
           TextButton(
             onPressed: () {
               Navigator.pop(ctx);
-              // TODO: send this to the backend.
-              _showSnack(doneMessage);
+              onConfirm();
             },
             child: Text(confirmLabel, style: const TextStyle(color: Colors.red)),
           ),
@@ -110,11 +94,10 @@ class _JobsDashboardScreenState extends State<JobsDashboardScreen> {
   void _handleBottomNavTap(int index) {
     switch (index) {
       case 0:
-        // Home is the first screen in the stack after login.
         Navigator.of(context).popUntil((route) => route.isFirst);
         break;
       case 1:
-        break; // already on Jobs
+        break; 
       case 2:
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (_) => const MessagesScreen()),
@@ -128,17 +111,17 @@ class _JobsDashboardScreenState extends State<JobsDashboardScreen> {
     }
   }
 
+  // Maps backend BookingType to local UI filter tabs
+  String _getUiStatus(BookingModel job) {
+    if (job.type == BookingType.active) return 'accepted';
+    if (job.type == BookingType.completed) return 'completed';
+    return 'requested'; 
+  }
+
   // ---------- Build ----------
 
   @override
   Widget build(BuildContext context) {
-    final jobs = _jobs;
-    final ongoing = jobs.where((j) => j.status == 'ongoing').toList();
-    final others = jobs.where((j) => j.status != 'ongoing').toList();
-    final visible = _selectedFilter == null
-        ? others
-        : others.where((j) => j.status == _selectedFilter).toList();
-
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -146,15 +129,9 @@ class _JobsDashboardScreenState extends State<JobsDashboardScreen> {
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         leading: const Icon(Icons.pets, color: AppColors.primaryRust),
-        title: const Text(
-          'Jobs',
-          style: TextStyle(color: AppColors.darkText, fontWeight: FontWeight.bold),
-        ),
+        title: const Text('Jobs', style: TextStyle(color: AppColors.darkText, fontWeight: FontWeight.bold)),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_none, color: AppColors.darkText),
-            onPressed: () {},
-          ),
+          IconButton(icon: const Icon(Icons.notifications_none, color: AppColors.darkText), onPressed: () {}),
           const Padding(
             padding: EdgeInsets.only(right: 16.0),
             child: CircleAvatar(
@@ -165,20 +142,43 @@ class _JobsDashboardScreenState extends State<JobsDashboardScreen> {
           ),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        children: [
-          const SizedBox(height: 10),
-          ...ongoing.map(_buildJobCard),
-          _buildFilterPills(others),
-          const SizedBox(height: 16),
-          if (visible.isEmpty)
-            _buildEmptyState(jobs.isEmpty)
-          else
-            ...visible.map(_buildJobCard),
-          const SizedBox(height: 24),
-        ],
-      ),
+      body: _isLoadingAction 
+        ? const Center(child: CircularProgressIndicator(color: AppColors.primaryRust))
+        : FutureBuilder<List<BookingModel>>(
+            future: _jobsFuture,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator(color: AppColors.primaryRust));
+              }
+              if (snapshot.hasError) {
+                return Center(child: Text('Failed to load jobs: ${snapshot.error}', style: const TextStyle(color: Colors.red)));
+              }
+
+              final jobs = snapshot.data ?? [];
+              
+              // Filter logic based on tab selection
+              final ongoing = jobs.where((j) => _getUiStatus(j) == 'ongoing').toList();
+              final others = jobs.where((j) => _getUiStatus(j) != 'ongoing').toList();
+              final visible = _selectedFilter == null
+                  ? others
+                  : others.where((j) => _getUiStatus(j) == _selectedFilter).toList();
+
+              return ListView(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                children: [
+                  const SizedBox(height: 10),
+                  ...ongoing.map(_buildJobCard),
+                  _buildFilterPills(others),
+                  const SizedBox(height: 16),
+                  if (visible.isEmpty)
+                    _buildEmptyState(jobs.isEmpty)
+                  else
+                    ...visible.map(_buildJobCard),
+                  const SizedBox(height: 24),
+                ],
+              );
+            },
+          ),
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
         backgroundColor: Colors.white,
@@ -186,8 +186,6 @@ class _JobsDashboardScreenState extends State<JobsDashboardScreen> {
         currentIndex: 1,
         selectedItemColor: AppColors.primaryRust,
         unselectedItemColor: Colors.grey,
-        selectedFontSize: 12,
-        unselectedFontSize: 12,
         onTap: _handleBottomNavTap,
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home_outlined), label: 'HOME'),
@@ -199,9 +197,9 @@ class _JobsDashboardScreenState extends State<JobsDashboardScreen> {
     );
   }
 
-  // ---------- Filter pills ----------
+  //Filter pills 
 
-  Widget _buildFilterPills(List<_Job> others) {
+  Widget _buildFilterPills(List<BookingModel> others) {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
@@ -216,12 +214,11 @@ class _JobsDashboardScreenState extends State<JobsDashboardScreen> {
     );
   }
 
-  Widget _buildPill(String label, String status, List<_Job> others) {
+  Widget _buildPill(String label, String status, List<BookingModel> others) {
     final isSelected = _selectedFilter == status;
-    final count = others.where((j) => j.status == status).length;
+    final count = others.where((j) => _getUiStatus(j) == status).length;
 
     return GestureDetector(
-      // Tapping the selected pill again clears the filter.
       onTap: () => setState(() => _selectedFilter = isSelected ? null : status),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -248,14 +245,14 @@ class _JobsDashboardScreenState extends State<JobsDashboardScreen> {
       child: Text(
         noJobsAtAll
             ? 'No jobs yet. Requests and bookings from homeowners will show up here.'
-            : 'No jobs to show.',
+            : 'No jobs to show under this filter.',
         textAlign: TextAlign.center,
         style: TextStyle(color: AppColors.darkText.withValues(alpha: 0.6), fontSize: 13),
       ),
     );
   }
 
-  // ---------- Job card ----------
+  // Job card
 
   Widget _buildStatusBadge(String status) {
     late final String label;
@@ -290,21 +287,14 @@ class _JobsDashboardScreenState extends State<JobsDashboardScreen> {
         children: [
           Icon(icon, color: AppColors.primaryRust, size: status == 'ongoing' ? 8 : 12),
           const SizedBox(width: 4),
-          Text(
-            label,
-            style: const TextStyle(
-              color: AppColors.primaryRust,
-              fontSize: 10,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
+          Text(label, style: const TextStyle(color: AppColors.primaryRust, fontSize: 10, fontWeight: FontWeight.bold)),
         ],
       ),
     );
   }
 
-  Widget _buildJobCard(_Job job) {
-    final status = job.status;
+  Widget _buildJobCard(BookingModel job) {
+    final status = _getUiStatus(job);
 
     final card = Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -313,39 +303,27 @@ class _JobsDashboardScreenState extends State<JobsDashboardScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Completed cards show the badge beside the info instead of above it.
           if (status != 'completed') ...[
             _buildStatusBadge(status),
             const SizedBox(height: 16),
           ],
           Row(
-            crossAxisAlignment:
-                status == 'completed' ? CrossAxisAlignment.center : CrossAxisAlignment.start,
+            crossAxisAlignment: status == 'completed' ? CrossAxisAlignment.center : CrossAxisAlignment.start,
             children: [
-              const CircleAvatar(
+              CircleAvatar(
                 radius: 24,
-                backgroundColor: Colors.grey,
-                child: Icon(Icons.person, color: Colors.white),
+                backgroundColor: Colors.grey.shade200,
+                backgroundImage: job.avatarUrl != null ? NetworkImage(job.avatarUrl!) : null,
+                child: job.avatarUrl == null ? const Icon(Icons.person, color: Colors.white) : null,
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      job.title,
-                      style: const TextStyle(
-                          fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.darkText),
-                    ),
+                    Text(job.title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.darkText)),
                     const SizedBox(height: 4),
-                    Text(
-                      job.dates,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppColors.darkText.withValues(alpha: 0.8),
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                    Text(job.subtitle, style: TextStyle(fontSize: 12, color: AppColors.darkText.withValues(alpha: 0.8), fontWeight: FontWeight.bold)),
                     const SizedBox(height: 4),
                     Row(
                       children: [
@@ -353,8 +331,10 @@ class _JobsDashboardScreenState extends State<JobsDashboardScreen> {
                         const SizedBox(width: 4),
                         Flexible(
                           child: Text(
-                            'Homeowner: ${job.homeownerName}',
+                            'Request: ${job.detailText1 ?? "No notes"}',
                             style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],
@@ -369,28 +349,41 @@ class _JobsDashboardScreenState extends State<JobsDashboardScreen> {
             ],
           ),
 
-          // Ongoing: a single button to view the job.
-          if (status == 'ongoing') ...[
+          // Show Accept and Decline buttons
+          if (status == 'requested') ...[
             const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () => _open(const OngoingBookingScreen()),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.heritageFooterBg,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () => _updateJobStatus(job.id, 'ACCEPTED'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    icon: const Icon(Icons.check_circle_outline, color: Colors.white, size: 16),
+                    label: const Text('Accept', style: TextStyle(color: Colors.white, fontSize: 12)),
+                  ),
                 ),
-                icon: const Icon(Icons.radar, color: Colors.white, size: 18),
-                label: const Text(
-                  'View In-Progress Job',
-                  style: TextStyle(color: Colors.white, fontSize: 12),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _buildRedButton(
+                    label: 'Decline',
+                    icon: Icons.cancel_outlined,
+                    onPressed: () => _confirmAction(
+                      title: 'Decline this job?',
+                      message: 'Are you sure you want to decline this booking request?',
+                      confirmLabel: 'Decline',
+                      onConfirm: () => _updateJobStatus(job.id, 'CANCELLED'),
+                    ),
+                  ),
                 ),
-              ),
+              ],
             ),
           ],
 
-          // Accepted: message the homeowner or cancel the job.
+          // ACCEPTED: Message or Cancel
           if (status == 'accepted') ...[
             const SizedBox(height: 16),
             Row(
@@ -404,10 +397,7 @@ class _JobsDashboardScreenState extends State<JobsDashboardScreen> {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
                     icon: const Icon(Icons.chat_bubble_outline, color: Colors.white, size: 16),
-                    label: const Text(
-                      'Message Homeowner',
-                      style: TextStyle(color: Colors.white, fontSize: 12),
-                    ),
+                    label: const Text('Message', style: TextStyle(color: Colors.white, fontSize: 12)),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -416,50 +406,28 @@ class _JobsDashboardScreenState extends State<JobsDashboardScreen> {
                     label: 'Cancel Job',
                     icon: Icons.cancel_outlined,
                     onPressed: () => _confirmAction(
-                      title: 'Cancel this job?',
-                      message:
-                          'Are you sure you want to cancel "${job.title}" for ${job.homeownerName}?',
+                      title: 'Cancel this accepted job?',
+                      message: 'Are you sure you want to cancel? This may affect your rating.',
                       confirmLabel: 'Cancel job',
-                      doneMessage: 'Cancellation request sent.',
+                      onConfirm: () => _updateJobStatus(job.id, 'CANCELLED'),
                     ),
                   ),
                 ),
               ],
             ),
           ],
-
-          // Requested: waiting on the homeowner, so only withdraw.
-          if (status == 'requested') ...[
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: _buildRedButton(
-                label: 'Withdraw Request',
-                icon: Icons.undo,
-                onPressed: () => _confirmAction(
-                  title: 'Withdraw your request?',
-                  message: 'Withdraw your request for "${job.title}"?',
-                  confirmLabel: 'Withdraw',
-                  doneMessage: 'Request withdrawn.',
-                ),
-              ),
-            ),
-          ],
         ],
       ),
     );
 
-    // Accepted jobs open their details; completed jobs open the previous jobs screen.
+    // Clickable cards routing
     Widget? detail;
-    if (status == 'accepted') {
-      detail = const AcceptedBookingScreen();
-    } else if (status == 'completed') {
-      detail = const PreviousBookingsScreen();
-    }
-    final target = detail;
-    if (target == null) return card;
+    if (status == 'accepted') detail = const AcceptedBookingScreen();
+    if (status == 'completed') detail = const PreviousBookingsScreen();
+    
+    if (detail == null) return card;
     return GestureDetector(
-      onTap: () => _open(target),
+      onTap: () => _open(detail!),
       child: card,
     );
   }

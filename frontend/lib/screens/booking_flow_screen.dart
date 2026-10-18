@@ -17,7 +17,9 @@ class BookingFlowScreen extends StatefulWidget {
 
 class _BookingFlowScreenState extends State<BookingFlowScreen> {
   late Future<BookingDraftModel> _draftFuture;
-  final TextEditingController _instructionsController = TextEditingController(text: "Armed response callout procedure attached, Bella takes joint tablet morning");
+  final TextEditingController _instructionsController = TextEditingController(
+    text: "Armed response callout procedure attached, Bella takes joint tablet morning",
+  );
 
   // State for interactive Pickers
   DateTime _checkInDate = DateTime.now();
@@ -29,6 +31,9 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
   bool _stayNight = true;
   bool _feedDog = false;
   bool _walkDog = false;
+
+  // Submission state
+  bool _isSubmitting = false;
 
   @override
   void initState() {
@@ -53,7 +58,7 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
         return Theme(
           data: Theme.of(context).copyWith(
             colorScheme: const ColorScheme.light(
-              primary: AppColors.primaryRust, // Teal highlight
+              primary: AppColors.primaryRust,
               onPrimary: Colors.white,
               onSurface: AppColors.darkText,
             ),
@@ -84,7 +89,7 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
         return Theme(
           data: Theme.of(context).copyWith(
             colorScheme: const ColorScheme.light(
-              primary: AppColors.primaryRust, // Teal highlight
+              primary: AppColors.primaryRust,
             ),
           ),
           child: child!,
@@ -102,6 +107,68 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
     }
   }
 
+  // Handle booking dispatch
+  Future<void> _sendBooking(BookingDraftModel draft) async {
+    if (_isSubmitting) return;
+
+    setState(() => _isSubmitting = true);
+
+    try {
+      final startDateTime = DateTime(
+        _checkInDate.year,
+        _checkInDate.month,
+        _checkInDate.day,
+        _checkInTime.hour,
+        _checkInTime.minute,
+      );
+      final endDateTime = DateTime(
+        _checkOutDate.year,
+        _checkOutDate.month,
+        _checkOutDate.day,
+        _checkOutTime.hour,
+        _checkOutTime.minute,
+      );
+
+      String serviceType = 'Stay Night';
+      if (_feedDog) serviceType = 'Drop-in Feeding';
+      if (_walkDog) serviceType = _stayNight ? 'Stay Night & Walk' : 'Walk Dog';
+
+      await BookingService.dispatchBooking(
+        draft,
+        _instructionsController.text,
+        bookingType: serviceType,
+        startDateTime: startDateTime,
+        endDateTime: endDateTime,
+      );
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Booking sent successfully! Status set to PENDING.'),
+          backgroundColor: Colors.green,
+        ),
+      );
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const BookingsDashboardScreen()),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error creating booking: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -111,7 +178,7 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: AppColors.darkText),
-          onPressed: () => Navigator.pop(context), 
+          onPressed: () => Navigator.pop(context),
         ),
         title: const Text('New Booking', style: TextStyle(color: AppColors.darkText, fontWeight: FontWeight.bold)),
         actions: [
@@ -129,7 +196,7 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
             return const Center(child: CircularProgressIndicator(color: AppColors.primaryRust));
           }
           if (snapshot.hasError) return const Center(child: Text('Failed to load draft.'));
-          
+
           final draft = snapshot.data!;
 
           return SingleChildScrollView(
@@ -155,7 +222,7 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
         backgroundColor: Colors.white,
-        currentIndex: 1, 
+        currentIndex: 1,
         selectedItemColor: AppColors.primaryRust,
         unselectedItemColor: Colors.grey,
         onTap: (index) {
@@ -203,7 +270,6 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // CHECK-IN INTERACTIVE COLUMN
                 Expanded(
                   child: GestureDetector(
                     onTap: () => _selectDate(context, true),
@@ -232,7 +298,6 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
                     ],
                   ),
                 ),
-                // CHECK-OUT INTERACTIVE COLUMN
                 Expanded(
                   child: GestureDetector(
                     onTap: () => _selectDate(context, false),
@@ -274,7 +339,6 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
             ],
           ),
           const SizedBox(height: 16),
-          // Stay Night Toggle
           _buildServiceOption(
             title: 'Stay Night',
             subtitle: 'Sitter stays at your home overnight (feeding included)',
@@ -283,12 +347,11 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
             onTap: () {
               setState(() {
                 _stayNight = !_stayNight;
-                if (_stayNight) _feedDog = false; 
+                if (_stayNight) _feedDog = false;
               });
-            }
+            },
           ),
           const SizedBox(height: 8),
-          // Drop-in feeding visit Toggle
           _buildServiceOption(
             title: 'Drop-in Feeding Visit',
             subtitle: 'Sitter drops in just to feed your pets, no overnight stay',
@@ -297,12 +360,11 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
             onTap: () {
               setState(() {
                 _feedDog = !_feedDog;
-                if (_feedDog) _stayNight = false; 
+                if (_feedDog) _stayNight = false;
               });
-            }
+            },
           ),
           const SizedBox(height: 8),
-          // Walk Dog Toggle (Independent)
           _buildServiceOption(
             title: 'Walk Dog',
             subtitle: 'Sitter takes your dog out for a walk',
@@ -312,7 +374,7 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
               setState(() {
                 _walkDog = !_walkDog;
               });
-            }
+            },
           ),
         ],
       ),
@@ -352,7 +414,7 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
             ),
             const SizedBox(width: 8),
             Icon(
-              isSelected ? Icons.check_circle : Icons.circle_outlined, 
+              isSelected ? Icons.check_circle : Icons.circle_outlined,
               color: isSelected ? Colors.white : Colors.grey.shade400,
             ),
           ],
@@ -390,7 +452,6 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
     );
   }
 
-  // A pet card styled like the pet cards on the homeowner profile, that can be selected.
   Widget _buildPetOption({
     required String title,
     required String details,
@@ -480,9 +541,9 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
             style: const TextStyle(fontSize: 13),
             decoration: InputDecoration(
               filled: true,
-              fillColor: AppColors.background, // Clean soft background
+              fillColor: AppColors.background,
               hintText: 'Add feeding times, security codes, or extra details...',
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none), 
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
             ),
           ),
         ],
@@ -496,13 +557,22 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
         SizedBox(
           width: double.infinity,
           child: ElevatedButton(
-            onPressed: () async => await BookingService.dispatchBooking(draft, _instructionsController.text),
+            onPressed: _isSubmitting ? null : () => _sendBooking(draft),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primaryRust,
               padding: const EdgeInsets.symmetric(vertical: 18),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             ),
-            child: const Text('Send Booking', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16, letterSpacing: 1.1)),
+            child: _isSubmitting
+                ? const SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                  )
+                : const Text(
+                    'Send Booking',
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16, letterSpacing: 1.1),
+                  ),
           ),
         ),
         const SizedBox(height: 20),
