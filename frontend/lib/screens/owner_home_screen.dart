@@ -363,7 +363,7 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
                         partnerId: sitter.id,
                         partnerName: sitter.name,
                       )),
-                      onBook: () => _open(const BookingFlowScreen()),
+                      onBook: () => _open(BookingFlowScreen(sitterId: sitter.id)),
                       onToggleSave: () => _toggleSaved(sitter),
                     ),
                 ],

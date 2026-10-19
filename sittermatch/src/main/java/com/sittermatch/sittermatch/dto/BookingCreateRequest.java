@@ -8,8 +8,7 @@ public record BookingCreateRequest(
         String bookingType,
         LocalDateTime startDate,
         LocalDateTime endDate,
-        String notes
-) 
-
-{}
+        String notes,
+        Integer homeownerId
+) {}
 
