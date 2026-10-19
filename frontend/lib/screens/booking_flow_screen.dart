@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../theme/app_colors.dart';
 import '../models/booking_draft_model.dart';
+import '../services/auth_services.dart';
 import '../services/booking_service.dart';
 import 'saved_sitters_screen.dart';
 import 'bookings_dashboard_screen.dart';
@@ -9,7 +10,9 @@ import 'direct_chat_screen.dart';
 import 'owner_profile_screen.dart';
 
 class BookingFlowScreen extends StatefulWidget {
-  const BookingFlowScreen({super.key});
+  final int? sitterId;
+
+  const BookingFlowScreen({super.key, this.sitterId});
 
   @override
   State<BookingFlowScreen> createState() => _BookingFlowScreenState();
@@ -38,7 +41,7 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
   @override
   void initState() {
     super.initState();
-    _draftFuture = BookingService.getBookingDraft();
+    _draftFuture = _loadDraft();
   }
 
   @override
@@ -107,9 +110,29 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
     }
   }
 
+  Future<BookingDraftModel> _loadDraft() async {
+    final userId = await AuthService().getUserId();
+    if (userId == null) {
+      throw Exception('Sign in again before creating a booking.');
+    }
+    return BookingService.getBookingDraft(userId);
+  }
+
   // Handle booking dispatch
   Future<void> _sendBooking(BookingDraftModel draft) async {
     if (_isSubmitting) return;
+
+    final homeownerId = await AuthService().getUserId();
+    if (!mounted) return;
+    if (homeownerId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Sign in again before creating a booking.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
 
     setState(() => _isSubmitting = true);
 
@@ -136,6 +159,8 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
       await BookingService.dispatchBooking(
         draft,
         _instructionsController.text,
+        homeownerId: homeownerId,
+        sitterId: widget.sitterId,
         bookingType: serviceType,
         startDateTime: startDateTime,
         endDateTime: endDateTime,
@@ -440,13 +465,19 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
           const SizedBox(height: 4),
           const Text('Tap to select your registered companions', style: TextStyle(fontSize: 12, color: Colors.grey)),
           const SizedBox(height: 16),
-          for (final pet in draft.companions)
-            _buildPetOption(
-              title: pet.category,
-              details: pet.details,
-              isSelected: pet.isSelected,
-              onTap: () => setState(() => pet.isSelected = !pet.isSelected),
-            ),
+          if (draft.companions.isEmpty)
+            const Text(
+              'No pets on your profile yet.',
+              style: TextStyle(fontSize: 13, color: Colors.black54),
+            )
+          else
+            for (final pet in draft.companions)
+              _buildPetOption(
+                title: pet.category,
+                details: pet.details,
+                isSelected: pet.isSelected,
+                onTap: () => setState(() => pet.isSelected = !pet.isSelected),
+              ),
         ],
       ),
     );

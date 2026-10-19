@@ -55,8 +55,8 @@ class BookingService {
   static Future<Map<String, dynamic>> dispatchBooking(
     BookingDraftModel finalDraft,
     String instructions, {
-    int listingId = 18,
-    int sitterId = 1,
+    required int homeownerId,
+    int? sitterId,
     String bookingType = 'Standard',
     DateTime? startDateTime,
     DateTime? endDateTime,
@@ -67,13 +67,19 @@ class BookingService {
     final start = startDateTime ?? now.add(const Duration(days: 1));
     final end = endDateTime ?? now.add(Duration(days: 1 + finalDraft.nights));
 
+    final selectedPets = finalDraft.companions.where((pet) => pet.isSelected).toList();
+    final petLine = selectedPets.isEmpty
+        ? ''
+        : 'Pets: ${selectedPets.map((pet) => pet.category).join(', ')}';
+    final notes = [instructions.trim(), petLine].where((line) => line.isNotEmpty).join('\n');
+
     final payload = {
-      'listingId': listingId,
-      'sitterId': sitterId,
+      'homeownerId': homeownerId,
+      'sitterId': ?sitterId,
       'bookingType': bookingType,
-      'startDate': start.toIso8601String(),
-      'endDate': end.toIso8601String(),
-      'notes': instructions.trim(),
+      'startDate': _formatDateTime(start),
+      'endDate': _formatDateTime(end),
+      'notes': notes,
     };
 
     final res = _check(await http.post(
@@ -125,21 +131,52 @@ class BookingService {
 
   // Setup
 
-  static Future<BookingDraftModel> getBookingDraft() async {
+  static Future<BookingDraftModel> getBookingDraft(int homeownerId) async {
+    List<PetCompanion> companions = [];
+    try {
+      final res = await http.get(
+        Uri.parse('$baseUrl/api/pets/homeowner/$homeownerId'),
+        headers: _jsonHeaders,
+      );
+      if (res.statusCode >= 200 && res.statusCode < 300) {
+        final List<dynamic> pets = jsonDecode(res.body);
+        companions = pets.map((item) {
+          final pet = item as Map<String, dynamic>;
+          final species = (pet['species'] ?? '').toString();
+          final breed = (pet['breed'] ?? '').toString();
+          final age = pet['age'];
+          final details = [
+            if (species.isNotEmpty) species,
+            if (breed.isNotEmpty) breed,
+            if (age != null) 'Age $age',
+          ].join(' · ');
+          return PetCompanion(
+            id: '${pet['id']}',
+            category: (pet['name'] ?? 'Pet').toString(),
+            details: details.isEmpty ? 'Registered pet' : details,
+          );
+        }).toList();
+      }
+    } catch (e) {
+      debugPrint('FRONTEND ERROR: Failed to load pets for booking: $e');
+    }
+
     return BookingDraftModel(
-      checkInDate: 'Fri, 24 Nov',
-      checkOutDate: 'Mon, 27 Nov',
-      nights: 3,
-      baseRate: 960.00,
-      multiPetFee: 180.00,
-      trustFee: 50.00,
-      companions: [
-        PetCompanion(id: 'p1', category: 'Dogs', details: '2 Selected: Bella & Milo', isSelected: true),
-        PetCompanion(id: 'p2', category: 'Cats', details: '1: Luna', isSelected: true),
-        PetCompanion(id: 'p3', category: 'Birds', details: 'Aviary / Parrots', isSelected: false),
-        PetCompanion(id: 'p4', category: 'Small Pets', details: 'Caged / Exotics', isSelected: false),
-      ],
+      checkInDate: '',
+      checkOutDate: '',
+      nights: 1,
+      baseRate: 0,
+      multiPetFee: 0,
+      trustFee: 0,
+      companions: companions,
     );
+  }
+
+  static String _formatDateTime(DateTime value) {
+    String two(int n) => n.toString().padLeft(2, '0');
+    return '${value.year.toString().padLeft(4, '0')}-'
+        '${two(value.month)}-${two(value.day)}T'
+        '${two(value.hour)}:${two(value.minute)}:${two(value.second)}';
   }
 
   // JSON parsing helper to map backend booking JSON to frontend BookingModel

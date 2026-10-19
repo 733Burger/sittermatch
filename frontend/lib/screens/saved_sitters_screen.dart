@@ -397,7 +397,7 @@ class _SavedSittersScreenState extends State<SavedSittersScreen> {
                         onPressed: () {
                           Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (_) => const BookingFlowScreen()),
+                            MaterialPageRoute(builder: (_) => BookingFlowScreen(sitterId: sitter.id)),
                           );
                         },
                         icon: const Icon(Icons.calendar_month, color: Colors.white, size: 16),
