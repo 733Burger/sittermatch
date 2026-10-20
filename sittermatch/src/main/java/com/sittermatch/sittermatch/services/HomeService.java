@@ -1,6 +1,8 @@
 package com.sittermatch.sittermatch.services;
 
 import java.io.IOException;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.Optional;
 
 import org.springframework.stereotype.Service;
@@ -30,12 +32,15 @@ public class HomeService {
     private final HomeownerRepository homeownerRepository;
     private final HomeownerVerificationRepository homeownerVerificationRepository;
     private final UserRepository userRepository;
+    private final PlacesService placesService;
 
     public HomeService(HomeownerRepository homeownerRepository,
-            HomeownerVerificationRepository homeownerVerificationRepository, UserRepository userRepository) {
+            HomeownerVerificationRepository homeownerVerificationRepository, UserRepository userRepository,
+            PlacesService placesService) {
         this.homeownerRepository = homeownerRepository;
         this.homeownerVerificationRepository = homeownerVerificationRepository;
         this.userRepository = userRepository;
+        this.placesService = placesService;
     }
 
     public ProfileResponse getProfile(Integer userId) {
@@ -48,8 +53,8 @@ public class HomeService {
 
     @Transactional
     public ProfileResponse updateProfile(Integer userId, UpdateProfileRequest req) {
-        Optional<Homeowner> found = homeownerRepository.findById(userId);
-        if (found.isEmpty()) {
+        Optional<Homeowner> foundHomeowner = homeownerRepository.findById(userId);
+        if (foundHomeowner.isEmpty()) {
             return ProfileResponse.failure("Homeowner not found");
         }
 
@@ -62,15 +67,19 @@ public class HomeService {
         if (name.isBlank() || name.length() > 100) {
             return ProfileResponse.failure("Enter a name under 100 characters.");
         }
+
         if (email.isBlank() || email.length() > 255 || !email.contains("@")) {
             return ProfileResponse.failure("Enter a valid email address.");
         }
+
         if (phone.length() > 20 || (!phone.isEmpty() && !phone.matches("[0-9+()\\- ]+"))) {
             return ProfileResponse.failure("Enter a phone number under 20 characters.");
         }
+
         if (address.isBlank() || address.length() > 255) {
             return ProfileResponse.failure("Enter an address under 255 characters.");
         }
+
         if (requirements.isBlank() || requirements.length() > 255) {
             return ProfileResponse.failure("Requirements must be 1-255 characters.");
         }
@@ -80,7 +89,50 @@ public class HomeService {
             return ProfileResponse.failure("That email is already in use.");
         }
 
-        Homeowner homeowner = found.get();
+        Homeowner homeowner = foundHomeowner.get();
+        String storedAddress = emptyIfNull(homeowner.getAddress());
+        boolean sameAddress = address.equals(storedAddress);
+        String placeId = req.placeId() == null ? "" : req.placeId().trim();
+
+        if (!placeId.isEmpty()) {
+            Optional<PlacesService.PlaceLocation> location = placesService.getLocation(placeId, req.sessionToken());
+
+            if (location.isEmpty()) {
+                return ProfileResponse.failure(
+                        "Could not confirm that address. Select it again from the suggestions.");
+            }
+
+            String formatted = location.get().formattedAddress() == null
+                    ? ""
+                    : location.get().formattedAddress().trim();
+
+            if (!formatted.isBlank()) {
+                address = formatted;
+            }
+
+            if (address.length() > 255) {
+                return ProfileResponse.failure("That address is too long to save.");
+            }
+
+            String suburb = location.get().suburb() == null ? "" : location.get().suburb().trim();
+            String city = location.get().city() == null ? "" : location.get().city().trim();
+
+            if (suburb.isBlank()) {
+                return ProfileResponse.failure("Select an address that includes a suburb.");
+            }
+
+            if (suburb.length() > 100 || city.length() > 100) {
+                return ProfileResponse.failure("That suburb or city name is too long to save.");
+            }
+            
+            homeowner.setLatitude(coordinate(location.get().latitude()));
+            homeowner.setLongitude(coordinate(location.get().longitude()));
+            homeowner.setSuburb(suburb);
+            homeowner.setCity(city);
+        } else if (!sameAddress) {
+            return ProfileResponse.failure("Select your home address from the suggestions.");
+        }
+
         User user = homeowner.getUser();
         user.setName(name);
         user.setEmail(email);
@@ -97,7 +149,17 @@ public class HomeService {
     private ProfileResponse toProfileResponse(Homeowner h, String message) {
         User u = h.getUser();
         return new ProfileResponse(true, message, u.getName(), u.getEmail(), u.getPhone(),
-                emptyIfNull(h.getAddress()), emptyIfNull(h.getRequirements()));
+                emptyIfNull(h.getAddress()), emptyIfNull(h.getRequirements()),
+                toDouble(h.getLatitude()), toDouble(h.getLongitude()),
+                emptyIfNull(h.getSuburb()), emptyIfNull(h.getCity()));
+    }
+
+    private static BigDecimal coordinate(double value) {
+        return BigDecimal.valueOf(value).setScale(6, RoundingMode.HALF_UP);
+    }
+
+    private static Double toDouble(BigDecimal value) {
+        return value == null ? null : value.doubleValue();
     }
 
     public IdentityCheckSubmitResponse submitIdentityCheck(String email, MultipartFile idPhoto) {

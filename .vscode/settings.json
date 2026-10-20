@@ -1,4 +1,11 @@
 {
     "cmake.sourceDirectory": "C:/Users/Zeke/OneDrive/Documents/sittermatch/frontend/windows",
-    "java.compile.nullAnalysis.mode": "automatic"
+    "java.compile.nullAnalysis.mode": "automatic",
+    "java.import.gradle.enabled": false,
+    "java.import.exclusions": [
+        "**/frontend/**",
+        "**/node_modules/**",
+        "**/.gradle/**",
+        "**/build/**"
+    ]
 }

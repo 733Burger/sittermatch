@@ -18,7 +18,6 @@ import com.sittermatch.sittermatch.model.Pet;
 import com.sittermatch.sittermatch.model.PetReview;
 import com.sittermatch.sittermatch.model.Review;
 import com.sittermatch.sittermatch.model.Sitter;
-import com.sittermatch.sittermatch.model.SitterCheck;
 import com.sittermatch.sittermatch.repository.BookingRepository;
 import com.sittermatch.sittermatch.repository.HomeownerRepository;
 import com.sittermatch.sittermatch.repository.ListingRepository;
@@ -27,7 +26,6 @@ import com.sittermatch.sittermatch.repository.PetRepository;
 import com.sittermatch.sittermatch.repository.PetReviewRepository;
 import com.sittermatch.sittermatch.repository.ReviewRepository;
 import com.sittermatch.sittermatch.repository.SavedSitterRepository;
-import com.sittermatch.sittermatch.repository.SitterCheckRepository;
 import com.sittermatch.sittermatch.repository.SitterRepository;
 
 import jakarta.transaction.Transactional;
@@ -42,15 +40,13 @@ public class SitterService {
     private final ReviewRepository reviewRepository;
     private final HomeownerRepository homeownerRepository;
     private final PetRepository petRepository;
-    private final SitterCheckRepository sitterCheckRepository;
     private final SavedSitterRepository savedSitterRepository;
 
     public SitterService(SitterRepository sitterRepository,
                     ListingRepository listingRepository, SavedSitterRepository savedSitterRepository,
                     BookingRepository bookingRepository, MessageRepository messageRepository,
                     PetReviewRepository petReviewRepository, ReviewRepository reviewRepository,
-                    HomeownerRepository homeownerRepository, PetRepository petRepository,
-                    SitterCheckRepository sitterCheckRepository) {
+                    HomeownerRepository homeownerRepository, PetRepository petRepository) {
         this.sitterRepository = sitterRepository;
         this.listingRepository = listingRepository;
         this.bookingRepository = bookingRepository;
@@ -59,7 +55,6 @@ public class SitterService {
         this.reviewRepository = reviewRepository;
         this.homeownerRepository = homeownerRepository;
         this.petRepository = petRepository;
-        this.sitterCheckRepository = sitterCheckRepository;
         this.savedSitterRepository = savedSitterRepository;
     }
 
