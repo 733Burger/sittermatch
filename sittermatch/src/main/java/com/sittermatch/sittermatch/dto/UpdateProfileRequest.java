@@ -5,4 +5,6 @@ public record UpdateProfileRequest(
         String email,
         String phone,
         String address,
-        String requirements) {}
+        String requirements,
+        String placeId,
+        String sessionToken) {}

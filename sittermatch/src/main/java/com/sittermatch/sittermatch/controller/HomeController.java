@@ -36,8 +36,7 @@ public class HomeController {
     }
 
     @PutMapping("/profile/{userId}")
-    public ResponseEntity<ProfileResponse> updateProfile(@PathVariable Integer userId,
-                                                        @RequestBody UpdateProfileRequest request) {
+    public ResponseEntity<ProfileResponse> updateProfile(@PathVariable Integer userId, @RequestBody UpdateProfileRequest request) {
         ProfileResponse profile = homeService.updateProfile(userId, request);
         if (!profile.success()) {
             return ResponseEntity.badRequest().body(profile);
@@ -83,6 +82,4 @@ public class HomeController {
         }
         return ResponseEntity.ok(emergencyCheck);
     }
-
-    
 }

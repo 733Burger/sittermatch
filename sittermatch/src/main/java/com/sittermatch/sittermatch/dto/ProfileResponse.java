@@ -7,9 +7,13 @@ public record ProfileResponse(
         String email,
         String phone,
         String address,
-        String requirements) {
+        String requirements,
+        Double latitude,
+        Double longitude,
+        String suburb,
+        String city) {
 
     public static ProfileResponse failure(String message) {
-        return new ProfileResponse(false, message, null, null, null, null, null);
+        return new ProfileResponse(false, message, null, null, null, null, null, null, null, null, null);
     }
 }
