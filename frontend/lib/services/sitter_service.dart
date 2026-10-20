@@ -285,4 +285,67 @@ class SitterService {
     ));
     return jsonDecode(res.body) as Map<String, dynamic>;
   }
+
+  
+
+  Future<Map<String, dynamic>> saveSitterProfile({
+    required int sitterId,
+    required String name,
+    required String email,
+    required String phone,
+    required String experience,
+    required List<Map<String, dynamic>> services,
+    required List<String> petPreferences,
+  }) async {
+    try {
+      final response = await http.put(
+        Uri.parse('$_baseUrl/api/sitters/$sitterId/profile'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'name': name,
+          'email': email,
+          'phone': phone,
+          'experience': experience,
+          'services': services,
+          'petPreferences': petPreferences,
+        }),
+      ).timeout(_timeout);
+      final json = jsonDecode(response.body) as Map<String, dynamic>;
+      return {
+        'success': response.statusCode == 200 && json['success'] == true,
+        'message': json['message'],
+        'name': json['name'],
+        'email': json['email'],
+        'phone': json['phone'],
+      };
+    } catch (e) {
+      debugPrint('Error saving sitter profile: $e');
+      return {'success': false, 'message': 'Network error. Please try again later'};
+    }
+  }
+
+  Future<Map<String, dynamic>> changePassword({
+    required int userId,
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$_baseUrl/api/auth/change-password/$userId'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'currentPassword': currentPassword,
+          'newPassword': newPassword,
+        }),
+      ).timeout(_timeout);
+      final json = jsonDecode(response.body) as Map<String, dynamic>;
+      return {
+        'success': response.statusCode == 200 && json['success'] == true,
+        'message': json['message'],
+      };
+    } catch (e) {
+      debugPrint('Error changing password: $e');
+      return {'success': false, 'message': 'Network error. Please try again later'};
+    }
+  }
 }

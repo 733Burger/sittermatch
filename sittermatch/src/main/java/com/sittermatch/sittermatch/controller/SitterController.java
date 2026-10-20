@@ -13,6 +13,8 @@ import com.sittermatch.sittermatch.model.PetReview;
 import com.sittermatch.sittermatch.model.Review;
 import com.sittermatch.sittermatch.model.SitterCheck;
 import com.sittermatch.sittermatch.services.SitterService;
+import com.sittermatch.sittermatch.dto.SitterProfileUpdateRequest;
+import com.sittermatch.sittermatch.dto.SitterProfileUpdateResponse;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -21,6 +23,7 @@ import java.util.List;
 
 
 @RestController
+@CrossOrigin(origins = "*")
 @RequestMapping("/api/sitters")
 public class SitterController {
 
@@ -149,4 +152,15 @@ public class SitterController {
                 );
                 return ResponseEntity.ok(petReview);
             }
+
+        @PutMapping("/{sitterId}/profile")
+        public ResponseEntity<SitterProfileUpdateResponse> updateProfile(
+                @PathVariable int sitterId,
+                @RequestBody SitterProfileUpdateRequest request) {
+            SitterProfileUpdateResponse response = sitterService.updateProfile(sitterId, request);
+            if (!response.success()) {
+                return ResponseEntity.badRequest().body(response);
+            }
+            return ResponseEntity.ok(response);
+        }
 }

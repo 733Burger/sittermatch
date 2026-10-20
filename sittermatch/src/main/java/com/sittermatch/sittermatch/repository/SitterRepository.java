@@ -55,7 +55,8 @@ public interface SitterRepository extends JpaRepository<Sitter, Integer> {
 
     @Query(
         value = "SELECT service_type AS serviceType,"
-            + " price AS price"
+            + " price AS price,"
+            + " duration_minutes AS durationMinutes"
             + " FROM sitter_services"
             + " WHERE sitter_id = :sitterId"
             + " ORDER BY service_type",
