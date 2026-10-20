@@ -15,12 +15,16 @@ public class SitterServices {
     @Column(name = "price", nullable = false, precision = 10, scale = 2)
     private BigDecimal price = BigDecimal.ZERO;
 
+    @Column(name = "duration_minutes")
+    private Integer durationMinutes;
+
     public SitterServices() {
     }
 
-    public SitterServices(String serviceType, BigDecimal price) {
+    public SitterServices(String serviceType, BigDecimal price, Integer durationMinutes) {
         this.serviceType = serviceType;
         this.price = price;
+        this.durationMinutes = durationMinutes;
     }
 
     public String getServiceType() {
@@ -38,6 +42,7 @@ public class SitterServices {
     public void setPrice(BigDecimal price) {
         this.price = price;
     }
+    
 
     @Override
     public boolean equals(Object other) {
@@ -53,5 +58,13 @@ public class SitterServices {
     @Override
     public int hashCode() {
         return Objects.hash(serviceType);
+    }
+
+    public Integer getDurationMinutes() {
+        return durationMinutes;
+    }
+
+    public void setDurationMinutes(Integer durationMinutes) {
+        this.durationMinutes = durationMinutes;
     }
 }

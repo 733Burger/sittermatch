@@ -13,6 +13,7 @@ import com.sittermatch.sittermatch.repository.UserRepository;
 import com.sittermatch.sittermatch.dto.ChangePasswordRequest;
 import com.sittermatch.sittermatch.dto.ChangePasswordResponse;
 
+
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -82,6 +83,7 @@ public class AuthService {
         userRepository.save(user);
         return new ChangePasswordResponse(true, "Password updated");
     }
+    
 
     @Transactional
     public SignupResponse register(SignupRequest request) {

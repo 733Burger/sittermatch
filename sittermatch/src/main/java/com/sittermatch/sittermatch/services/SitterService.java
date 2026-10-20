@@ -6,6 +6,10 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.util.HashSet;
+import java.util.Optional;
 
 import com.sittermatch.sittermatch.model.Listing;
 import com.sittermatch.sittermatch.dto.sitterDetails.SitterDetailsResponse;
@@ -18,6 +22,7 @@ import com.sittermatch.sittermatch.model.Pet;
 import com.sittermatch.sittermatch.model.PetReview;
 import com.sittermatch.sittermatch.model.Review;
 import com.sittermatch.sittermatch.model.Sitter;
+import com.sittermatch.sittermatch.model.SitterCheck;
 import com.sittermatch.sittermatch.repository.BookingRepository;
 import com.sittermatch.sittermatch.repository.HomeownerRepository;
 import com.sittermatch.sittermatch.repository.ListingRepository;
@@ -26,7 +31,13 @@ import com.sittermatch.sittermatch.repository.PetRepository;
 import com.sittermatch.sittermatch.repository.PetReviewRepository;
 import com.sittermatch.sittermatch.repository.ReviewRepository;
 import com.sittermatch.sittermatch.repository.SavedSitterRepository;
+import com.sittermatch.sittermatch.repository.SitterCheckRepository;
 import com.sittermatch.sittermatch.repository.SitterRepository;
+import com.sittermatch.sittermatch.dto.SitterProfileUpdateRequest;
+import com.sittermatch.sittermatch.dto.SitterProfileUpdateResponse;
+import com.sittermatch.sittermatch.model.SitterServices;
+import com.sittermatch.sittermatch.model.User;
+import com.sittermatch.sittermatch.repository.UserRepository;
 
 import jakarta.transaction.Transactional;
 
@@ -40,13 +51,18 @@ public class SitterService {
     private final ReviewRepository reviewRepository;
     private final HomeownerRepository homeownerRepository;
     private final PetRepository petRepository;
+    private final SitterCheckRepository sitterCheckRepository;
     private final SavedSitterRepository savedSitterRepository;
+    private final UserRepository userRepository;
 
-    public SitterService(SitterRepository sitterRepository,
-                    ListingRepository listingRepository, SavedSitterRepository savedSitterRepository,
-                    BookingRepository bookingRepository, MessageRepository messageRepository,
-                    PetReviewRepository petReviewRepository, ReviewRepository reviewRepository,
-                    HomeownerRepository homeownerRepository, PetRepository petRepository) {
+    
+
+    public SitterService(SitterRepository sitterRepository, ListingRepository listingRepository,
+                BookingRepository bookingRepository, MessageRepository messageRepository,
+                PetReviewRepository petReviewRepository, ReviewRepository reviewRepository,
+                HomeownerRepository homeownerRepository, PetRepository petRepository,
+                SitterCheckRepository sitterCheckRepository, SavedSitterRepository savedSitterRepository,
+                UserRepository userRepository) {
         this.sitterRepository = sitterRepository;
         this.listingRepository = listingRepository;
         this.bookingRepository = bookingRepository;
@@ -55,8 +71,10 @@ public class SitterService {
         this.reviewRepository = reviewRepository;
         this.homeownerRepository = homeownerRepository;
         this.petRepository = petRepository;
+        this.sitterCheckRepository = sitterCheckRepository;
         this.savedSitterRepository = savedSitterRepository;
-    }
+        this.userRepository = userRepository;
+}
 
     public SitterDetailsResponse getSitterDetails(int sitterId) {
         if (sitterId <= 0) {
@@ -145,6 +163,104 @@ public class SitterService {
 //                     throw e;
 //             }
 //     }
+
+        private static final Set<String> ALLOWED_SERVICES = Set.of("STAY_OVER_NIGHT", "WALK_PET", "FEED_PET");
+        private static final Set<String> ALLOWED_PETS =
+                Set.of("LARGE DOG", "SMALL DOG", "CAT", "BIRD", "REPTILE", "FISH", "EXOTIC");
+
+        @Transactional
+        public SitterProfileUpdateResponse updateProfile(int sitterId, SitterProfileUpdateRequest req) {
+                Optional<Sitter> found = sitterRepository.findById(sitterId);
+                if (found.isEmpty()) {
+                return SitterProfileUpdateResponse.failure("Sitter not found");
+                }
+
+                String name = req.name() == null ? "" : req.name().trim();
+                String email = req.email() == null ? "" : req.email().trim().toLowerCase();
+                String phone = req.phone() == null ? "" : req.phone().trim();
+                String experience = req.experience() == null ? "" : req.experience().trim();
+
+                if (name.isBlank() || name.length() > 100) {
+                return SitterProfileUpdateResponse.failure("Enter a name under 100 characters.");
+                }
+                if (email.isBlank() || email.length() > 255 || !email.contains("@")) {
+                return SitterProfileUpdateResponse.failure("Enter a valid email address.");
+                }
+                if (phone.length() > 20 || (!phone.isEmpty() && !phone.matches("[0-9+()\\- ]+"))) {
+                return SitterProfileUpdateResponse.failure("Enter a phone number under 20 characters.");
+                }
+                if (experience.length() > 2000) {
+                return SitterProfileUpdateResponse.failure("About & experience must be under 2000 characters.");
+                }
+
+                if (req.services() == null || req.services().isEmpty()) {
+                return SitterProfileUpdateResponse.failure("Select at least one service.");
+                }
+                Set<SitterServices> newServices = new HashSet<>();
+                Double nightRate = null;
+                for (var s : req.services()) {
+                String type = s.serviceType() == null ? "" : s.serviceType().trim().toUpperCase();
+                if (!ALLOWED_SERVICES.contains(type)) {
+                        return SitterProfileUpdateResponse.failure("Unknown service type.");
+                }
+                if (s.price() == null || s.price() <= 0 || s.price() > 1_000_000) {
+                        return SitterProfileUpdateResponse.failure("Enter a valid price for every selected service.");
+                }
+                Integer duration = null;
+                if (type.equals("WALK_PET")) {
+                        if (s.durationMinutes() == null || s.durationMinutes() <= 0) {
+                        return SitterProfileUpdateResponse.failure("Enter the walk length in minutes.");
+                        }
+                        duration = s.durationMinutes();
+                }
+                BigDecimal price = BigDecimal.valueOf(s.price()).setScale(2, RoundingMode.HALF_UP);
+                if (type.equals("STAY_OVER_NIGHT")) {
+                        nightRate = price.doubleValue();
+                }
+                newServices.add(new SitterServices(type, price, duration));
+                }
+
+                Set<String> newPets = new HashSet<>();
+                if (req.petPreferences() != null) {
+                for (String p : req.petPreferences()) {
+                        String v = p == null ? "" : p.trim().toUpperCase();
+                        if (!ALLOWED_PETS.contains(v)) {
+                        return SitterProfileUpdateResponse.failure("Unknown pet type.");
+                        }
+                        newPets.add(v);
+                }
+                }
+                if (newPets.isEmpty()) {
+                return SitterProfileUpdateResponse.failure("Select at least one pet type.");
+                }
+
+                Optional<User> emailOwner = userRepository.findByEmailIgnoreCase(email);
+                if (emailOwner.isPresent() && !emailOwner.get().getId().equals(sitterId)) {
+                return SitterProfileUpdateResponse.failure("That email is already in use.");
+                }
+
+                Sitter sitter = found.get();
+                User user = sitter.getUser();
+                user.setName(name);
+                user.setEmail(email);
+                user.setPhone(phone);
+                sitter.setExperience(experience);
+                sitter.setNightRate(nightRate); // the home screen lists R{nightRate} / nt
+
+                // Clear + flush first so Hibernate deletes the old rows, then insert the new set.
+                sitter.getServices().clear();
+                sitter.getPetPreferences().clear();
+                sitterRepository.saveAndFlush(sitter);
+                sitter.getServices().addAll(newServices);
+                sitter.getPetPreferences().addAll(newPets);
+
+                userRepository.save(user);
+                sitterRepository.save(sitter);
+
+                return new SitterProfileUpdateResponse(true, "Profile updated", name, email, phone);
+        }
+
+
 
     // Discovery and Listing Interaction
     public List<Listing> findNearbyListings(String suburb) {

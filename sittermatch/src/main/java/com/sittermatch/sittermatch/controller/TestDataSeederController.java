@@ -93,7 +93,7 @@ public ResponseEntity<String> seedDatabase() {
 
     // Set collections (Set<String>)
     sitter.setPetPreferences(Set.of("DOG")); // or Set.of(PetType.DOG.name()) if using an Enum
-    sitter.setServices(Set.of(new SitterServices("DOG_WALKING", new BigDecimal("120.00")))); // or Set.of(ServiceType.DOG_WALKING.name())
+    sitter.setServices(Set.of(new SitterServices("DOG_WALKING", new BigDecimal("120.00"), sitter.getId()))); // or Set.of(ServiceType.DOG_WALKING.name())
 
     sitter = sitterRepository.saveAndFlush(sitter);
 

@@ -3,6 +3,7 @@ import '../services/auth_services.dart';
 import '../theme/app_colors.dart';
 import 'jobs_dashboard_screen.dart';
 import 'messages_screen.dart';
+import '../services/sitter_service.dart';
 
 class SitterProfileScreen extends StatefulWidget {
   const SitterProfileScreen({super.key});
@@ -14,47 +15,50 @@ class SitterProfileScreen extends StatefulWidget {
 class _SitterProfileScreenState extends State<SitterProfileScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  // Read-only sitter information
-  final String _sitterName = 'Sarah Jenkins'; // TODO: load from the backend
-  String _sitterEmail = '';
-  final String _sitterPhone = '+27 83 987 6543'; // TODO: load from the backend
+    final SitterService _sitterService = SitterService();
+    String _sitterName = '';
+    String _sitterEmail = '';
+    String _sitterPhone = '';
 
-  final TextEditingController _aboutController = TextEditingController(
-    text: 'Experienced pet sitter with 5+ years caring for dogs and cats. Certified in pet first aid.',
-  );
+    final TextEditingController _nameController = TextEditingController();
+    final TextEditingController _emailController = TextEditingController();
+    final TextEditingController _phoneController = TextEditingController();
+    final TextEditingController _aboutController = TextEditingController();
+
+    final TextEditingController _currentPwCtrl = TextEditingController();
+    final TextEditingController _newPwCtrl = TextEditingController();
+    final TextEditingController _confirmPwCtrl = TextEditingController();
+
+    static const List<String> _petOptions = [
+      'large dog', 'small dog', 'cat', 'bird', 'reptile', 'fish', 'exotic',
+    ];
+    final Set<String> _selectedPets = {};
+
+    static const Map<String, String> _serviceCodes = {
+      'Stay Over Night': 'STAY_OVER_NIGHT',
+      'Walk Pet': 'WALK_PET',
+      'Feed Pet': 'FEED_PET',
+    };
 
   static const Map<String, IconData> _serviceIcons = {
     'Stay Over Night': Icons.nights_stay_outlined,
-    'Walk Dog': Icons.directions_walk,
-    'Feed Dog': Icons.restaurant_outlined,
+    'Walk Pet': Icons.directions_walk,
+    'Feed Pet': Icons.restaurant_outlined,
   };
 
   // Service options state & pricing controllers
   final Map<String, bool> _selectedServices = {
     'Stay Over Night': true,
-    'Walk Dog': false,
-    'Feed Dog': true,
+    'Walk Pet': false,
+    'Feed Pet': false,
   };
 
-  final TextEditingController _overnightRateCtrl = TextEditingController(text: '350');
-  final TextEditingController _walkRateCtrl = TextEditingController(text: '120');
-  final TextEditingController _walkDurationCtrl = TextEditingController(text: '45');
-  final TextEditingController _feedRateCtrl = TextEditingController(text: '90');
+  final TextEditingController _overnightRateCtrl = TextEditingController();
+  final TextEditingController _walkRateCtrl = TextEditingController();
+  final TextEditingController _walkDurationCtrl = TextEditingController();
+  final TextEditingController _feedRateCtrl = TextEditingController();
 
-  final List<Map<String, dynamic>> _sitterReviews = [
-    {
-      'ownerName': 'Joshua Stevens',
-      'rating': 5.0,
-      'comment': 'Sarah was brilliant with Buster! Sent daily updates and kept everything clean.',
-      'date': 'Sep 2026',
-    },
-    {
-      'ownerName': 'Claire Vance',
-      'rating': 4.8,
-      'comment': 'Punctual and great with feeding schedules. Will hire again!',
-      'date': 'Aug 2026',
-    },
-  ];
+  List<Map<String, dynamic>> _sitterReviews = [];
 
   double get _averageRating => _sitterReviews.isEmpty
       ? 0
@@ -64,23 +68,82 @@ class _SitterProfileScreenState extends State<SitterProfileScreen> {
   @override
   void initState() {
     super.initState();
-    _loadEmail();
+    _loadProfile();
   }
 
-  Future<void> _loadEmail() async {
-    final email = await AuthService().getUserEmail();
-    if (!mounted) return;
-    setState(() => _sitterEmail = email ?? '');
+  String _fmt(num? n) {
+  if (n == null) return '';
+  return n == n.roundToDouble() ? n.toInt().toString() : n.toString();
+}
+
+Future<void> _loadProfile() async {
+  final userId = await AuthService().getUserId();
+  if (!mounted) return;
+  if (userId == null) {
+    _showSnack('User session expired. Please log in again.');
+    return;
   }
+
+  final result = await _sitterService.getSitterDetails(sitterId: userId);
+  if (!mounted) return;
+  if (result['success'] != true) {
+    _showSnack(result['message']?.toString() ?? 'Could not load profile');
+    return;
+  }
+
+  setState(() {
+    _sitterName = (result['name'] ?? '').toString();
+    _sitterEmail = (result['email'] ?? '').toString();
+    _sitterPhone = (result['phone'] ?? '').toString();
+    _nameController.text = _sitterName;
+    _emailController.text = _sitterEmail;
+    _phoneController.text = _sitterPhone;
+    _aboutController.text = (result['experience'] ?? '').toString();
+
+    _selectedPets
+      ..clear()
+      ..addAll(((result['petPreferences'] as List?) ?? [])
+          .map((e) => e.toString().toLowerCase()));
+
+    final services = (result['services'] as List?) ?? [];
+    if (services.isNotEmpty) {
+      for (final k in _selectedServices.keys) {
+        _selectedServices[k] = false;
+      }
+      for (final s in services) {
+        final code = s['serviceType']?.toString();
+        final price = _fmt(s['price'] as num?);
+        if (code == 'STAY_OVER_NIGHT') {
+          _selectedServices['Stay Over Night'] = true;
+          _overnightRateCtrl.text = price;
+        } else if (code == 'WALK_PET') {
+          _selectedServices['Walk Pet'] = true;
+          _walkRateCtrl.text = price;
+          _walkDurationCtrl.text = _fmt(s['durationMinutes'] as num?);
+        } else if (code == 'FEED_PET') {
+          _selectedServices['Feed Pet'] = true;
+          _feedRateCtrl.text = price;
+        }
+      }
+    }
+  });
+}
 
   @override
   void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    _phoneController.dispose();
     _aboutController.dispose();
+    _currentPwCtrl.dispose();
+    _newPwCtrl.dispose();
+    _confirmPwCtrl.dispose();
     _overnightRateCtrl.dispose();
     _walkRateCtrl.dispose();
     _walkDurationCtrl.dispose();
     _feedRateCtrl.dispose();
     super.dispose();
+
   }
 
   // ---------- Helpers ----------
@@ -114,12 +177,199 @@ class _SitterProfileScreenState extends State<SitterProfileScreen> {
     return null;
   }
 
-  void _save() {
+  Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
+    if (_selectedPets.isEmpty) {
+      _showSnack('Select at least one pet type.');
+      return;
+    }
     FocusScope.of(context).unfocus();
-    // TODO: send the about text, services and rates to the backend.
-    _showSnack('Profile saved.');
+
+    final userId = await AuthService().getUserId();
+    if (!mounted) return;
+    if (userId == null) {
+      _showSnack('User session expired. Please log in again.');
+      return;
+    }
+
+    final services = <Map<String, dynamic>>[
+      if (_selectedServices['Stay Over Night']!)
+        {
+          'serviceType': _serviceCodes['Stay Over Night'],
+          'price': double.parse(_overnightRateCtrl.text.trim()),
+        },
+      if (_selectedServices['Walk Pet']!)
+        {
+          'serviceType': _serviceCodes['Walk Pet'],
+          'price': double.parse(_walkRateCtrl.text.trim()),
+          'durationMinutes': int.parse(_walkDurationCtrl.text.trim()),
+        },
+      if (_selectedServices['Feed Pet']!)
+        {
+          'serviceType': _serviceCodes['Feed Pet'],
+          'price': double.parse(_feedRateCtrl.text.trim()),
+        },
+    ];
+
+    final result = await _sitterService.saveSitterProfile(
+      sitterId: userId,
+      name: _nameController.text.trim(),
+      email: _emailController.text.trim(),
+      phone: _phoneController.text.trim(),
+      experience: _aboutController.text.trim(),
+      services: services,
+      petPreferences: _selectedPets.map((p) => p.toUpperCase()).toList(),
+    );
+    if (!mounted) return;
+
+    if (result['success'] != true) {
+      _showSnack(result['message']?.toString() ?? 'Save failed.');
+      return;
+    }
+
+    // The app uses the email as its session key, so keep it in sync.
+    final newEmail = (result['email'] ?? '').toString();
+    if (newEmail.isNotEmpty && newEmail != _sitterEmail) {
+      final auth = AuthService();
+      final role = await auth.getUserRole();
+      await auth.saveSession(newEmail, role ?? '');
+      if (!mounted) return;
+    }
+
+    setState(() {
+      _sitterName = (result['name'] ?? '').toString();
+      _sitterEmail = newEmail;
+      _sitterPhone = (result['phone'] ?? '').toString();
+    });
+    _showSnack('Details saved.');
   }
+
+  Future<void> _showChangePasswordDialog() async {
+    _currentPwCtrl.clear();
+    _newPwCtrl.clear();
+    _confirmPwCtrl.clear();
+    bool hideCurrent = true;
+    bool hideNew = true;
+    bool saving = false;
+    String? error;
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('Change password', style: TextStyle(fontWeight: FontWeight.bold)),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  controller: _currentPwCtrl,
+                  obscureText: hideCurrent,
+                  decoration: _fieldDecoration(hint: 'Current password').copyWith(
+                    suffixIcon: IconButton(
+                      icon: Icon(hideCurrent ? Icons.visibility_off : Icons.visibility,
+                          color: AppColors.darkText),
+                      onPressed: () => setDialogState(() => hideCurrent = !hideCurrent),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _newPwCtrl,
+                  obscureText: hideNew,
+                  decoration: _fieldDecoration(hint: 'New password').copyWith(
+                    suffixIcon: IconButton(
+                      icon: Icon(hideNew ? Icons.visibility_off : Icons.visibility,
+                          color: AppColors.darkText),
+                      onPressed: () => setDialogState(() => hideNew = !hideNew),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _confirmPwCtrl,
+                  obscureText: hideNew, // follows the New password toggle
+                  decoration: _fieldDecoration(hint: 'Confirm new password'),
+                ),
+                if (error != null) ...[
+                  const SizedBox(height: 12),
+                  Text(error!, style: const TextStyle(color: Colors.red, fontSize: 12)),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: saving ? null : () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.black87,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: saving
+                  ? null
+                  : () async {
+                      final current = _currentPwCtrl.text;
+                      final next = _newPwCtrl.text;
+
+                      String? problem;
+                      if (current.isEmpty || next.isEmpty || _confirmPwCtrl.text.isEmpty) {
+                        problem = 'Fill in all password fields.';
+                      } else if (next.length < 8) {
+                        problem = 'New password must be at least 8 characters.';
+                      } else if (next != _confirmPwCtrl.text) {
+                        problem = 'New passwords do not match.';
+                      }
+                      if (problem != null) {
+                        setDialogState(() => error = problem);
+                        return;
+                      }
+
+                      final userId = await AuthService().getUserId();
+                      if (!ctx.mounted) return;
+                      if (userId == null) {
+                        setDialogState(() => error = 'User session expired. Please log in again.');
+                        return;
+                      }
+
+                      setDialogState(() {
+                        saving = true;
+                        error = null;
+                      });
+                      final result = await _sitterService.changePassword(
+                        userId: userId,
+                        currentPassword: current,
+                        newPassword: next,
+                      );
+                      if (!ctx.mounted) return;
+
+                      if (result['success'] == true) {
+                        Navigator.pop(ctx);
+                        if (mounted) _showSnack('Password updated.');
+                      } else {
+                        setDialogState(() {
+                          saving = false;
+                          error = result['message']?.toString() ?? 'Could not update password.';
+                        });
+                      }
+                    },
+              child: const Text('Update password'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    _currentPwCtrl.clear();
+    _newPwCtrl.clear();
+    _confirmPwCtrl.clear();
+  }
+  
 
   void _handleBottomNavTap(int index) {
     switch (index) {
@@ -255,7 +505,11 @@ class _SitterProfileScreenState extends State<SitterProfileScreen> {
           children: [
             _buildHeaderCard(),
             const SizedBox(height: 16),
+            _buildPersonalCard(),          // new
+            const SizedBox(height: 16),
             _buildAboutCard(),
+            const SizedBox(height: 16),
+            _buildPetPreferencesCard(),    // new
             const SizedBox(height: 16),
             _buildServicesCard(),
             const SizedBox(height: 16),
@@ -269,7 +523,7 @@ class _SitterProfileScreenState extends State<SitterProfileScreen> {
                 ),
                 onPressed: _save,
                 child: const Text(
-                  'Save profile',
+                  'Save details',
                   style: TextStyle(color: Colors.white, fontSize: 14),
                 ),
               ),
@@ -365,7 +619,7 @@ class _SitterProfileScreenState extends State<SitterProfileScreen> {
           const SizedBox(height: 16),
           _buildInfoRow(Icons.mail_outline, _sitterEmail.isEmpty ? 'No email on file' : _sitterEmail),
           const SizedBox(height: 10),
-          _buildInfoRow(Icons.phone_outlined, _sitterPhone),
+          _buildInfoRow(Icons.phone_outlined, _sitterPhone.isEmpty ? 'No phone on file' : _sitterPhone),
         ],
       ),
     );
@@ -382,6 +636,128 @@ class _SitterProfileScreenState extends State<SitterProfileScreen> {
       ],
     );
   }
+
+ Widget _buildPersonalCard() {
+  return Container(
+    width: double.infinity,
+    padding: const EdgeInsets.all(16),
+    decoration: _cardDecoration(),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Personal details',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.darkText),
+        ),
+        const SizedBox(height: 2),
+        const Text(
+          'Saved with the "Save details" button below.',
+          style: TextStyle(fontSize: 12, color: Colors.black54),
+        ),
+        const SizedBox(height: 16),
+        _fieldLabel('Full name', required: true),
+        TextFormField(
+          controller: _nameController,
+          maxLength: 100,
+          decoration: _fieldDecoration(icon: Icons.person_outline).copyWith(counterText: ''),
+          validator: (v) => v == null || v.trim().isEmpty ? 'Name is required' : null,
+        ),
+        const SizedBox(height: 16),
+        _fieldLabel('Email', required: true),
+        TextFormField(
+          controller: _emailController,
+          keyboardType: TextInputType.emailAddress,
+          decoration: _fieldDecoration(icon: Icons.mail_outline),
+          validator: (v) {
+            final t = v?.trim() ?? '';
+            if (t.isEmpty) return 'Email is required';
+            if (!t.contains('@')) return 'Enter a valid email';
+            return null;
+          },
+        ),
+        const SizedBox(height: 16),
+        _fieldLabel('Phone number', required: true),
+        TextFormField(
+          controller: _phoneController,
+          keyboardType: TextInputType.phone,
+          maxLength: 20,
+          decoration: _fieldDecoration(icon: Icons.phone_outlined).copyWith(counterText: ''),
+          validator: (v) => v == null || v.trim().isEmpty ? 'Phone number is required' : null,
+        ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: _showChangePasswordDialog,
+                    icon: const Icon(Icons.lock_outline, size: 18, color: AppColors.primaryRust),
+                    label: const Text(
+                      'Change password',
+                      style: TextStyle(color: AppColors.darkText, fontSize: 13),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      side: BorderSide(color: Colors.grey.shade300),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                  ),
+                ),
+      ],
+    ),
+  );
+}
+
+Widget _buildPetPreferencesCard() {
+  return Container(
+    width: double.infinity,
+    padding: const EdgeInsets.all(16),
+    decoration: _cardDecoration(),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Pet preferences',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.darkText),
+        ),
+        const SizedBox(height: 2),
+        const Text(
+          'Select the animals you are happy to look after. At least one is required.',
+          style: TextStyle(fontSize: 12, color: Colors.black54),
+        ),
+        const SizedBox(height: 14),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: _petOptions.map((pet) {
+            final isSelected = _selectedPets.contains(pet);
+            return ChoiceChip(
+              label: Text(pet),
+              selected: isSelected,
+              showCheckmark: false,
+              selectedColor: AppColors.primaryRust,
+              backgroundColor: AppColors.expandButtonBg,
+              side: BorderSide.none,
+              labelStyle: TextStyle(
+                color: isSelected ? Colors.white : AppColors.darkText,
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+              ),
+              onSelected: (_) => setState(() {
+                if (isSelected) {
+                  _selectedPets.remove(pet);
+                } else {
+                  _selectedPets.add(pet);
+                }
+              }),
+            );
+          }).toList(),
+        ),
+      ],
+    ),
+  );
+}
+
+
+
 
   Widget _buildAboutCard() {
     return Container(
@@ -468,10 +844,10 @@ class _SitterProfileScreenState extends State<SitterProfileScreen> {
                 ),
               ],
             ),
-          if (_selectedServices['Walk Dog']!)
+          if (_selectedServices['Walk Pet']!)
             _buildServiceBlock(
               icon: Icons.directions_walk,
-              title: 'Walk dog',
+              title: 'Walk Pet',
               fields: [
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -509,10 +885,10 @@ class _SitterProfileScreenState extends State<SitterProfileScreen> {
                 ),
               ],
             ),
-          if (_selectedServices['Feed Dog']!)
+          if (_selectedServices['Feed Pet']!)
             _buildServiceBlock(
               icon: Icons.restaurant_outlined,
-              title: 'Feed dog',
+              title: 'Feed Pet',
               fields: [
                 _fieldLabel('Price per feeding visit', required: true),
                 TextFormField(

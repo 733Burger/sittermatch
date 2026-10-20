@@ -33,11 +33,13 @@ public record SitterDetailsResponse(
     public interface ServiceProjection {
         String getServiceType();
         BigDecimal getPrice();
+        Integer getDurationMinutes(); 
     }
 
     public record ServiceItem(
         String serviceType,
-        Double price
+        Double price,
+        Integer durationMinutes  
     ) {}
 
     public static SitterDetailsResponse getResponse(SitterDetailsProjection details, List<String> petPreferences, List<ServiceProjection> sitterServices) {
@@ -54,7 +56,7 @@ public record SitterDetailsResponse(
             details.getTotalReview(),
             details.getIsVerified(),
             sitterServices.stream()
-                    .map(s -> new ServiceItem(s.getServiceType(), s.getPrice().doubleValue()))
+                    .map(s -> new ServiceItem(s.getServiceType(), s.getPrice().doubleValue(), s.getDurationMinutes()))
                     .toList(),
             petPreferences
         );
