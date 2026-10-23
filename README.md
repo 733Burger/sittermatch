@@ -25,12 +25,18 @@ Install these before you start:
 
 ---
 
-## 2. Clone the repository
+## 2. Get the code
+
+**Option A: clone from GitHub**
 
 ```bash
 git clone https://github.com/733Burger/sittermatch.git
 cd sittermatch
 ```
+
+**Option B: from the submitted ZIP file**
+
+Extract the ZIP. It extracts to a folder called `sittermatch-main`. Open a terminal in that folder. All the steps below work the same way from there.
 
 ---
 
@@ -54,6 +60,12 @@ cd sittermatch
    Change the username and password to match your MySQL install.
 
 You don't need to create the tables yourself. `spring.jpa.hibernate.ddl-auto=update` creates and updates them when the API starts.
+
+To create the tables manually instead, or just to see the structure, use `database/schema.sql`:
+
+```bash
+mysql -u root -p sittermatch_db < database/schema.sql
+```
 
 ---
 
@@ -88,11 +100,7 @@ mvn spring-boot:run
 
 Alternatively, open the `sittermatch` folder in your IDE and run `SittermatchApplication.java`.
 
-The API starts on **http://localhost:8080**. To check that it is running, open:
-
-```
-http://localhost:8080/api/hello
-```
+The API starts on **http://localhost:8080**. It is running when the terminal shows `Started SittermatchApplication`.
 
 ID photos uploaded for verification are saved outside the project, in `~/sittermatch-private/identity`. The folder is created automatically.
 
