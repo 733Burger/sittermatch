@@ -71,9 +71,15 @@ class _OwnerProfileScreenState extends State<OwnerProfileScreen> {
 
   bool get _isAddressPinned {
     final text = _addressController.text.trim();
-    if (text.isEmpty) return false;
-    if (_selectedPlaceId != null && text == _selectedDescription) return true;
-    return text == _savedAddress && _savedLatitude != null && _savedLongitude != null;
+    if (text.isEmpty) { 
+      return false;
+    }
+    
+    if (_selectedPlaceId != null && text == _selectedDescription) { 
+      return true;
+    }
+
+    return (text == _savedAddress) && (_savedLatitude != null) && (_savedLongitude != null);
   }
 
   String? get _addressNotice {
@@ -117,7 +123,7 @@ class _OwnerProfileScreenState extends State<OwnerProfileScreen> {
     _phoneController.dispose();
     super.dispose();
   }
-
+  
   Future<void> _loadProfile() async {
     final userId = await AuthService().getUserId();
     if (!mounted) return;
@@ -127,22 +133,22 @@ class _OwnerProfileScreenState extends State<OwnerProfileScreen> {
       return;
     }
 
-    final result = await _profileService.fetchProfile(userId: userId);
+    final profileDetails = await _profileService.fetchProfile(userId: userId);
     if (!mounted) return;
 
-    if (result['success'] != true) {
-      _showSnack(result['message']?.toString() ?? 'Could not load profile', error: true);
+    if (profileDetails['success'] != true) {
+      _showSnack(profileDetails['message']?.toString() ?? 'Could not load profile', error: true);
       return;
     }
 
     setState(() {
-      _userName = (result['name'] ?? '').toString();
-      _userEmail = (result['email'] ?? '').toString();
-      _userPhone = (result['phone'] ?? '').toString();
-      _savedAddress = (result['address'] ?? '').toString();
-      _savedRequirements = (result['requirements'] ?? '').toString();
-      _savedLatitude = (result['latitude'] as num?)?.toDouble();
-      _savedLongitude = (result['longitude'] as num?)?.toDouble();
+      _userName = (profileDetails['name'] ?? '').toString();
+      _userEmail = (profileDetails['email'] ?? '').toString();
+      _userPhone = (profileDetails['phone'] ?? '').toString();
+      _savedAddress = (profileDetails['address'] ?? '').toString();
+      _savedRequirements = (profileDetails['requirements'] ?? '').toString();
+      _savedLatitude = (profileDetails['latitude'] as num?)?.toDouble();
+      _savedLongitude = (profileDetails['longitude'] as num?)?.toDouble();
 
       _nameController.text = _userName;
       _emailController.text = _userEmail;
@@ -156,15 +162,15 @@ class _OwnerProfileScreenState extends State<OwnerProfileScreen> {
     final userId = await AuthService().getUserId();
     if (!mounted || userId == null) return;
 
-    final result = await _profileService.fetchPets(homeownerId: userId);
+    final homeownerPets = await _profileService.fetchPets(homeownerId: userId);
     if (!mounted) return;
 
-    if (result['success'] != true) {
-      _showSnack(result['message']?.toString() ?? 'Could not load pets', error: true);
+    if (homeownerPets['success'] != true) {
+      _showSnack(homeownerPets['message']?.toString() ?? 'Could not load pets', error: true);
       return;
     }
 
-    final pets = (result['pets'] as List)
+    final pets = (homeownerPets['pets'] as List)
         .map((pet) => PetModel.fromJson(Map<String, dynamic>.from(pet as Map)))
         .toList();
 
@@ -221,15 +227,7 @@ class _OwnerProfileScreenState extends State<OwnerProfileScreen> {
     if (saved) _showSnack('Address details saved.');
   }
 
-  Future<bool> _submitProfile({
-    required String name,
-    required String email,
-    required String phone,
-    required String address,
-    required String requirements,
-    String? placeId,
-    String? sessionToken,
-  }) async {
+  Future<bool> _submitProfile({required String name, required String email, required String phone, required String address, required String requirements, String? placeId, String? sessionToken}) async {
     FocusScope.of(context).unfocus();
 
     final userId = await AuthService().getUserId();
@@ -355,6 +353,17 @@ class _OwnerProfileScreenState extends State<OwnerProfileScreen> {
     return null;
   }
 
+  void _onHouseNotesPresenceChanged() {
+    setState(() {});
+  }
+
+  void _onAddressTap() {
+    final text = _addressController.text.trim();
+    if (!_isAddressPinned && text.length >= 3 && !_searchingAddress) {
+      _onAddressChanged(text);
+    }
+  }
+
   void _showPetDialog({PetModel? pet}) {
     showDialog(
       context: context,
@@ -418,24 +427,8 @@ class _OwnerProfileScreenState extends State<OwnerProfileScreen> {
     );
   }
 
-  void _handleBottomNavTap(OwnerNavTab tab) {
-    if (tab == OwnerNavTab.profile) return;
-
-    if (!getValidForm()) {
-      _showGateMessage();
-      return;
-    }
-
-    final Widget destination = switch (tab) {
-      OwnerNavTab.home => const OwnerHomeScreen(),
-      OwnerNavTab.bookings => const BookingsDashboardScreen(),
-      OwnerNavTab.messages => const MessagesScreen(),
-      OwnerNavTab.profile => const OwnerProfileScreen(),
-    };
-
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => destination),
-    );
+  void _showPhotoComingSoon() {
+    _showSnack('Photo upload is coming soon.');
   }
 
   void _showSnack(String message, {bool error = false}) {
@@ -457,6 +450,26 @@ class _OwnerProfileScreenState extends State<OwnerProfileScreen> {
     _showSnack(
       'Select your home address from the suggestions and add house sitting notes first.',
       error: true,
+    );
+  }
+
+  void _handleBottomNavTap(OwnerNavTab tab) {
+    if (tab == OwnerNavTab.profile) return;
+
+    if (!getValidForm()) {
+      _showGateMessage();
+      return;
+    }
+
+    final Widget destination = switch (tab) {
+      OwnerNavTab.home => const OwnerHomeScreen(),
+      OwnerNavTab.bookings => const BookingsDashboardScreen(),
+      OwnerNavTab.messages => const MessagesScreen(),
+      OwnerNavTab.profile => const OwnerProfileScreen(),
+    };
+
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (_) => destination),
     );
   }
 
@@ -492,7 +505,7 @@ class _OwnerProfileScreenState extends State<OwnerProfileScreen> {
               phone: _userPhone,
               reviewCount: _ownerReviews.length,
               averageRating: _averageRating,
-              onPhotoTap: () => _showSnack('Photo upload is coming soon.'),
+              onPhotoTap: _showPhotoComingSoon,
             ),
             const SizedBox(height: 16),
             ProfileUserDetailsCard(
@@ -513,14 +526,9 @@ class _OwnerProfileScreenState extends State<OwnerProfileScreen> {
               suggestions: _addressSuggestions,
               notice: _addressNotice,
               saving: _savingHome,
-              onChanged: () => setState(() {}),
+              onChanged: _onHouseNotesPresenceChanged,
               onAddressChanged: _onAddressChanged,
-              onAddressTap: () {
-                final text = _addressController.text.trim();
-                if (!_isAddressPinned && text.length >= 3 && !_searchingAddress) {
-                  _onAddressChanged(text);
-                }
-              },
+              onAddressTap: _onAddressTap,
               onSelectSuggestion: _selectAddress,
               addressValidator: _validateAddress,
               onAddressSave: _saveAddressDetails,

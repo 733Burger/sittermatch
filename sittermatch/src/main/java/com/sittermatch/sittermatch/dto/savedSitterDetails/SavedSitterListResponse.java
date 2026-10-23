@@ -7,7 +7,8 @@ public record SavedSitterListResponse (
     Integer totalReviews,
     Double dayRate,
     Double nightRate,
-    Boolean isVerified
+    Boolean isVerified,
+    String suburb
 ) {
     public static SavedSitterListResponse failure(String message) {
         return new SavedSitterListResponse(
@@ -17,7 +18,8 @@ public record SavedSitterListResponse (
             null,
             null,
             null,
-            false
+            false,
+            null
         );
     }
 }

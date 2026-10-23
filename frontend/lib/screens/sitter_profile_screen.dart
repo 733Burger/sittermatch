@@ -1,9 +1,24 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+
+import '../models/pet_model.dart';
 import '../services/auth_services.dart';
+import '../services/places_service.dart';
+import '../services/profile_service.dart';
 import '../theme/app_colors.dart';
+import '../widgets/homeowner/dialogs/change_password_dialog.dart';
+import '../widgets/homeowner/profile/profile_gate_banner.dart';
+import '../widgets/homeowner/profile/profile_header_card.dart';
+import '../widgets/homeowner/profile/profile_user_details_card.dart';
+import '../widgets/sitter/profile/sitter_about_card.dart';
+import '../widgets/sitter/profile/sitter_area_card.dart';
+import '../widgets/sitter/profile/sitter_preferences_card.dart';
+import '../widgets/sitter/profile/sitter_reviews_card.dart';
+import '../widgets/sitter/profile/sitter_services_card.dart';
+import '../widgets/sitter/sitter_bottom_nav_bar.dart';
 import 'jobs_dashboard_screen.dart';
 import 'messages_screen.dart';
-import '../services/sitter_service.dart';
 
 class SitterProfileScreen extends StatefulWidget {
   const SitterProfileScreen({super.key});
@@ -13,40 +28,55 @@ class SitterProfileScreen extends StatefulWidget {
 }
 
 class _SitterProfileScreenState extends State<SitterProfileScreen> {
-  final _formKey = GlobalKey<FormState>();
+  final _userFormKey = GlobalKey<FormState>();
+  final _areaFormKey = GlobalKey<FormState>();
+  final _aboutFormKey = GlobalKey<FormState>();
+  final _servicesFormKey = GlobalKey<FormState>();
 
-    final SitterService _sitterService = SitterService();
-    String _sitterName = '';
-    String _sitterEmail = '';
-    String _sitterPhone = '';
+  final ProfileService _profileService = ProfileService();
+  final PlacesApi _placesApi = PlacesApi();
 
-    final TextEditingController _nameController = TextEditingController();
-    final TextEditingController _emailController = TextEditingController();
-    final TextEditingController _phoneController = TextEditingController();
-    final TextEditingController _aboutController = TextEditingController();
+  String _sitterName = '';
+  String _sitterEmail = '';
+  String _sitterPhone = '';
+  String _savedArea = '';
+  double? _savedLatitude;
+  double? _savedLongitude;
+  bool _hasSavedPets = false;
+  bool _hasSavedServices = false;
+  double _rating = 0;
+  int _totalReviews = 0;
 
-    final TextEditingController _currentPwCtrl = TextEditingController();
-    final TextEditingController _newPwCtrl = TextEditingController();
-    final TextEditingController _confirmPwCtrl = TextEditingController();
+  bool _savingUser = false;
+  bool _savingArea = false;
+  bool _savingAbout = false;
+  bool _savingPets = false;
+  bool _savingServices = false;
 
-    static const List<String> _petOptions = [
-      'large dog', 'small dog', 'cat', 'bird', 'reptile', 'fish', 'exotic',
-    ];
-    final Set<String> _selectedPets = {};
+  Timer? _areaDebounce;
+  String _placesSessionToken = PlacesApi.newSessionToken();
+  String? _selectedPlaceId;
+  String? _selectedDescription;
+  List<PlaceSuggestion> _areaSuggestions = [];
+  bool _searchingArea = false;
+  String? _areaLookupMessage;
+  int _areaSearchGeneration = 0;
+  String? _petsError;
 
-    static const Map<String, String> _serviceCodes = {
-      'Stay Over Night': 'STAY_OVER_NIGHT',
-      'Walk Pet': 'WALK_PET',
-      'Feed Pet': 'FEED_PET',
-    };
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _aboutController = TextEditingController();
+  final TextEditingController _areaController = TextEditingController();
 
-  static const Map<String, IconData> _serviceIcons = {
-    'Stay Over Night': Icons.nights_stay_outlined,
-    'Walk Pet': Icons.directions_walk,
-    'Feed Pet': Icons.restaurant_outlined,
+  final Set<String> _selectedPets = {};
+
+  static const Map<String, String> _serviceCodes = {
+    'Stay Over Night': 'STAY_OVER_NIGHT',
+    'Walk Pet': 'WALK_PET',
+    'Feed Pet': 'FEED_PET',
   };
 
-  // Service options state & pricing controllers
   final Map<String, bool> _selectedServices = {
     'Stay Over Night': true,
     'Walk Pet': false,
@@ -58,12 +88,42 @@ class _SitterProfileScreenState extends State<SitterProfileScreen> {
   final TextEditingController _walkDurationCtrl = TextEditingController();
   final TextEditingController _feedRateCtrl = TextEditingController();
 
-  List<Map<String, dynamic>> _sitterReviews = [];
+  // The rest of the app unlocks once the sitter has a saved area, pet types and services.
+  bool getValidForm() {
+    final areaSaved = _savedArea.isNotEmpty && _savedLatitude != null && _savedLongitude != null;
+    return areaSaved && _hasSavedPets && _hasSavedServices;
+  }
 
-  double get _averageRating => _sitterReviews.isEmpty
-      ? 0
-      : _sitterReviews.fold<double>(0, (sum, r) => sum + (r['rating'] as double)) /
-          _sitterReviews.length;
+  bool get _isAreaPinned {
+    final text = _areaController.text.trim();
+    if (text.isEmpty) {
+      return false;
+    }
+
+    if (_selectedPlaceId != null && text == _selectedDescription) {
+      return true;
+    }
+
+    return (text == _savedArea) && (_savedLatitude != null) && (_savedLongitude != null);
+  }
+
+  String? get _areaNotice {
+    final text = _areaController.text.trim();
+    if (_selectedPlaceId != null && text == _selectedDescription) {
+      return 'Area selected. Save to store its location.';
+    }
+    if (text == _savedArea && _savedLatitude != null && _savedLongitude != null) {
+      return 'Location saved.';
+    }
+    if (text.isNotEmpty &&
+        text == _savedArea &&
+        !_searchingArea &&
+        _areaSuggestions.isEmpty &&
+        _areaLookupMessage == null) {
+      return 'Type to search, then select your area so its location can be saved.';
+    }
+    return _areaLookupMessage;
+  }
 
   @override
   void initState() {
@@ -71,128 +131,230 @@ class _SitterProfileScreenState extends State<SitterProfileScreen> {
     _loadProfile();
   }
 
-  String _fmt(num? n) {
-  if (n == null) return '';
-  return n == n.roundToDouble() ? n.toInt().toString() : n.toString();
-}
-
-Future<void> _loadProfile() async {
-  final userId = await AuthService().getUserId();
-  if (!mounted) return;
-  if (userId == null) {
-    _showSnack('User session expired. Please log in again.');
-    return;
-  }
-
-  final result = await _sitterService.getSitterDetails(sitterId: userId);
-  if (!mounted) return;
-  if (result['success'] != true) {
-    _showSnack(result['message']?.toString() ?? 'Could not load profile');
-    return;
-  }
-
-  setState(() {
-    _sitterName = (result['name'] ?? '').toString();
-    _sitterEmail = (result['email'] ?? '').toString();
-    _sitterPhone = (result['phone'] ?? '').toString();
-    _nameController.text = _sitterName;
-    _emailController.text = _sitterEmail;
-    _phoneController.text = _sitterPhone;
-    _aboutController.text = (result['experience'] ?? '').toString();
-
-    _selectedPets
-      ..clear()
-      ..addAll(((result['petPreferences'] as List?) ?? [])
-          .map((e) => e.toString().toLowerCase()));
-
-    final services = (result['services'] as List?) ?? [];
-    if (services.isNotEmpty) {
-      for (final k in _selectedServices.keys) {
-        _selectedServices[k] = false;
-      }
-      for (final s in services) {
-        final code = s['serviceType']?.toString();
-        final price = _fmt(s['price'] as num?);
-        if (code == 'STAY_OVER_NIGHT') {
-          _selectedServices['Stay Over Night'] = true;
-          _overnightRateCtrl.text = price;
-        } else if (code == 'WALK_PET') {
-          _selectedServices['Walk Pet'] = true;
-          _walkRateCtrl.text = price;
-          _walkDurationCtrl.text = _fmt(s['durationMinutes'] as num?);
-        } else if (code == 'FEED_PET') {
-          _selectedServices['Feed Pet'] = true;
-          _feedRateCtrl.text = price;
-        }
-      }
-    }
-  });
-}
-
   @override
   void dispose() {
+    _areaDebounce?.cancel();
     _nameController.dispose();
     _emailController.dispose();
     _phoneController.dispose();
     _aboutController.dispose();
-    _currentPwCtrl.dispose();
-    _newPwCtrl.dispose();
-    _confirmPwCtrl.dispose();
+    _areaController.dispose();
     _overnightRateCtrl.dispose();
     _walkRateCtrl.dispose();
     _walkDurationCtrl.dispose();
     _feedRateCtrl.dispose();
     super.dispose();
-
   }
 
-  // ---------- Helpers ----------
+  Future<void> _loadProfile() async {
+    final userId = await AuthService().getUserId();
+    if (!mounted) return;
 
-  void _showSnack(String message) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(message)));
-  }
-
-  void _toggleService(String key) {
-    final count = _selectedServices.values.where((v) => v).length;
-    if (_selectedServices[key]! && count == 1) {
-      _showSnack('At least one service type must be selected.');
+    if (userId == null) {
+      _showSnack('User session expired. Please log in again.', error: true);
       return;
     }
+
+    final result = await _profileService.fetchSitterProfile(userId: userId);
+    if (!mounted) return;
+
+    if (result['success'] != true) {
+      _showSnack(result['message']?.toString() ?? 'Could not load profile', error: true);
+      return;
+    }
+
     setState(() {
-      _selectedServices[key] = !_selectedServices[key]!;
+      _sitterName = (result['name'] ?? '').toString();
+      _sitterEmail = (result['email'] ?? '').toString();
+      _sitterPhone = (result['phone'] ?? '').toString();
+      _rating = (result['rating'] as num?)?.toDouble() ?? 0;
+      _totalReviews = (result['totalReviews'] as num?)?.toInt() ?? 0;
+      _savedArea = (result['serviceArea'] ?? '').toString().trim();
+      _savedLatitude = (result['latitude'] as num?)?.toDouble();
+      _savedLongitude = (result['longitude'] as num?)?.toDouble();
+
+      _nameController.text = _sitterName;
+      _emailController.text = _sitterEmail;
+      _phoneController.text = _sitterPhone;
+      _aboutController.text = (result['experience'] ?? '').toString();
+      _areaController.text = _savedArea;
+
+      _selectedPets
+        ..clear()
+        ..addAll(
+          ((result['petPreferences'] as List?) ?? [])
+              .map((pet) => pet.toString().toUpperCase())
+              .where(petTypes.contains),
+        );
+      _hasSavedPets = _selectedPets.isNotEmpty;
+
+      final services = (result['services'] as List?) ?? [];
+      _hasSavedServices = services.isNotEmpty;
+      if (services.isNotEmpty) {
+        for (final key in _selectedServices.keys) {
+          _selectedServices[key] = false;
+        }
+        for (final service in services) {
+          final code = service['serviceType']?.toString();
+          final price = _formatNumber(service['price'] as num?);
+          if (code == 'STAY_OVER_NIGHT') {
+            _selectedServices['Stay Over Night'] = true;
+            _overnightRateCtrl.text = price;
+          } else if (code == 'WALK_PET') {
+            _selectedServices['Walk Pet'] = true;
+            _walkRateCtrl.text = price;
+            _walkDurationCtrl.text = _formatNumber(service['durationMinutes'] as num?);
+          } else if (code == 'FEED_PET') {
+            _selectedServices['Feed Pet'] = true;
+            _feedRateCtrl.text = price;
+          }
+        }
+      }
     });
   }
 
-  String? _validatePrice(String? value) {
-    final n = double.tryParse((value ?? '').trim());
-    if (n == null || n <= 0) return 'Enter a price';
-    return null;
+  String _formatNumber(num? value) {
+    if (value == null) return '';
+    return value == value.roundToDouble() ? value.toInt().toString() : value.toString();
   }
 
-  String? _validateMinutes(String? value) {
-    final n = int.tryParse((value ?? '').trim());
-    if (n == null || n <= 0) return 'Enter minutes';
-    return null;
+  Future<void> _saveUserDetails() async {
+    if (_savingUser || !_userFormKey.currentState!.validate()) return;
+
+    setState(() => _savingUser = true);
+    final saved = await _submitProfile(
+      name: _nameController.text.trim(),
+      email: _emailController.text.trim(),
+      phone: _phoneController.text.trim(),
+    );
+    if (!mounted) return;
+
+    setState(() => _savingUser = false);
+    if (saved) _showSnack('User details saved.');
   }
 
-  Future<void> _save() async {
-    if (!_formKey.currentState!.validate()) return;
+  Future<void> _saveAreaDetails() async {
+    if (_savingArea || !_areaFormKey.currentState!.validate()) return;
+
+    setState(() => _savingArea = true);
+    final placeId = _selectedPlaceId;
+    final saved = await _submitProfile(
+      serviceArea: _areaController.text.trim(),
+      placeId: placeId,
+      sessionToken: placeId == null ? null : _placesSessionToken,
+    );
+    if (!mounted) return;
+
+    setState(() {
+      _savingArea = false;
+      if (saved && placeId != null) {
+        _selectedPlaceId = null;
+        _selectedDescription = null;
+        _areaSuggestions = [];
+        _areaLookupMessage = null;
+        _placesSessionToken = PlacesApi.newSessionToken();
+      }
+    });
+    if (saved) _showSnack('Area of service saved.');
+  }
+
+  Future<void> _saveAbout() async {
+    if (_savingAbout || !_aboutFormKey.currentState!.validate()) return;
+
+    setState(() => _savingAbout = true);
+    final saved = await _submitProfile(experience: _aboutController.text.trim());
+    if (!mounted) return;
+
+    setState(() => _savingAbout = false);
+    if (saved) _showSnack('About & experience saved.');
+  }
+
+  Future<void> _savePetPreferences() async {
+    if (_savingPets) return;
     if (_selectedPets.isEmpty) {
-      _showSnack('Select at least one pet type.');
+      setState(() => _petsError = 'Select at least one pet type.');
       return;
     }
+
+    setState(() => _savingPets = true);
+    final saved = await _submitProfile(petPreferences: _selectedPets.toList());
+    if (!mounted) return;
+
+    setState(() {
+      _savingPets = false;
+      if (saved) _hasSavedPets = true;
+    });
+    if (saved) _showSnack('Pet preferences saved.');
+  }
+
+  Future<void> _saveServices() async {
+    if (_savingServices || !_servicesFormKey.currentState!.validate()) return;
+
+    setState(() => _savingServices = true);
+    final saved = await _submitProfile(services: _servicePayload());
+    if (!mounted) return;
+
+    setState(() {
+      _savingServices = false;
+      if (saved) _hasSavedServices = true;
+    });
+    if (saved) _showSnack('Services & pricing saved.');
+  }
+
+  Future<bool> _submitProfile({String? name, String? email, String? phone, String? experience, List<Map<String, dynamic>>? services, List<String>? petPreferences, String? serviceArea, String? placeId, String? sessionToken}) async {
     FocusScope.of(context).unfocus();
 
     final userId = await AuthService().getUserId();
-    if (!mounted) return;
+    if (!mounted) return false;
+
     if (userId == null) {
-      _showSnack('User session expired. Please log in again.');
-      return;
+      _showSnack('User session expired. Please log in again.', error: true);
+      return false;
     }
 
-    final services = <Map<String, dynamic>>[
+    final result = await _profileService.updateSitterProfile(
+      userId: userId,
+      name: name,
+      email: email,
+      phone: phone,
+      experience: experience,
+      services: services,
+      petPreferences: petPreferences,
+      serviceArea: serviceArea,
+      placeId: placeId,
+      sessionToken: sessionToken,
+    );
+    if (!mounted) return false;
+
+    if (result['success'] != true) {
+      _showSnack(result['message']?.toString() ?? 'Save failed.', error: true);
+      return false;
+    }
+
+    final newEmail = (result['email'] ?? _sitterEmail).toString();
+    if (newEmail.isNotEmpty && newEmail != _sitterEmail) {
+      final auth = AuthService();
+      final role = await auth.getUserRole();
+      await auth.saveSession(newEmail, role ?? '');
+      if (!mounted) return false;
+    }
+
+    setState(() {
+      _sitterName = (result['name'] ?? _sitterName).toString();
+      _sitterEmail = newEmail;
+      _sitterPhone = (result['phone'] ?? _sitterPhone).toString();
+      _savedArea = (result['serviceArea'] ?? _savedArea).toString();
+      _savedLatitude = (result['latitude'] as num?)?.toDouble();
+      _savedLongitude = (result['longitude'] as num?)?.toDouble();
+      if (placeId != null) {
+        _areaController.text = _savedArea;
+      }
+    });
+    return true;
+  }
+
+  List<Map<String, dynamic>> _servicePayload() {
+    return [
       if (_selectedServices['Stay Over Night']!)
         {
           'serviceType': _serviceCodes['Stay Over Night'],
@@ -210,845 +372,283 @@ Future<void> _loadProfile() async {
           'price': double.parse(_feedRateCtrl.text.trim()),
         },
     ];
+  }
 
-    final result = await _sitterService.saveSitterProfile(
-      sitterId: userId,
-      name: _nameController.text.trim(),
-      email: _emailController.text.trim(),
-      phone: _phoneController.text.trim(),
-      experience: _aboutController.text.trim(),
-      services: services,
-      petPreferences: _selectedPets.map((p) => p.toUpperCase()).toList(),
-    );
-    if (!mounted) return;
+  void _onAreaChanged(String value) {
+    final text = value.trim();
+    if (_selectedPlaceId != null && text != _selectedDescription) {
+      _selectedPlaceId = null;
+      _selectedDescription = null;
+    }
 
-    if (result['success'] != true) {
-      _showSnack(result['message']?.toString() ?? 'Save failed.');
+    _areaDebounce?.cancel();
+    if (_selectedPlaceId != null || text.length < 3) {
+      _areaSearchGeneration++;
+      setState(() {
+        _areaSuggestions = [];
+        _searchingArea = false;
+        _areaLookupMessage = null;
+      });
       return;
     }
 
-    // The app uses the email as its session key, so keep it in sync.
-    final newEmail = (result['email'] ?? '').toString();
-    if (newEmail.isNotEmpty && newEmail != _sitterEmail) {
-      final auth = AuthService();
-      final role = await auth.getUserRole();
-      await auth.saveSession(newEmail, role ?? '');
-      if (!mounted) return;
-    }
-
     setState(() {
-      _sitterName = (result['name'] ?? '').toString();
-      _sitterEmail = newEmail;
-      _sitterPhone = (result['phone'] ?? '').toString();
+      _searchingArea = true;
+      _areaLookupMessage = null;
     });
-    _showSnack('Details saved.');
+    _areaDebounce = Timer(const Duration(milliseconds: 350), () {
+      _searchAreas(text);
+    });
   }
 
-  Future<void> _showChangePasswordDialog() async {
-    _currentPwCtrl.clear();
-    _newPwCtrl.clear();
-    _confirmPwCtrl.clear();
-    bool hideCurrent = true;
-    bool hideNew = true;
-    bool saving = false;
-    String? error;
-
-    await showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          backgroundColor: Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text('Change password', style: TextStyle(fontWeight: FontWeight.bold)),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                TextField(
-                  controller: _currentPwCtrl,
-                  obscureText: hideCurrent,
-                  decoration: _fieldDecoration(hint: 'Current password').copyWith(
-                    suffixIcon: IconButton(
-                      icon: Icon(hideCurrent ? Icons.visibility_off : Icons.visibility,
-                          color: AppColors.darkText),
-                      onPressed: () => setDialogState(() => hideCurrent = !hideCurrent),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _newPwCtrl,
-                  obscureText: hideNew,
-                  decoration: _fieldDecoration(hint: 'New password').copyWith(
-                    suffixIcon: IconButton(
-                      icon: Icon(hideNew ? Icons.visibility_off : Icons.visibility,
-                          color: AppColors.darkText),
-                      onPressed: () => setDialogState(() => hideNew = !hideNew),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _confirmPwCtrl,
-                  obscureText: hideNew, // follows the New password toggle
-                  decoration: _fieldDecoration(hint: 'Confirm new password'),
-                ),
-                if (error != null) ...[
-                  const SizedBox(height: 12),
-                  Text(error!, style: const TextStyle(color: Colors.red, fontSize: 12)),
-                ],
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: saving ? null : () => Navigator.pop(ctx),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.black87,
-                foregroundColor: Colors.white,
-              ),
-              onPressed: saving
-                  ? null
-                  : () async {
-                      final current = _currentPwCtrl.text;
-                      final next = _newPwCtrl.text;
-
-                      String? problem;
-                      if (current.isEmpty || next.isEmpty || _confirmPwCtrl.text.isEmpty) {
-                        problem = 'Fill in all password fields.';
-                      } else if (next.length < 8) {
-                        problem = 'New password must be at least 8 characters.';
-                      } else if (next != _confirmPwCtrl.text) {
-                        problem = 'New passwords do not match.';
-                      }
-                      if (problem != null) {
-                        setDialogState(() => error = problem);
-                        return;
-                      }
-
-                      final userId = await AuthService().getUserId();
-                      if (!ctx.mounted) return;
-                      if (userId == null) {
-                        setDialogState(() => error = 'User session expired. Please log in again.');
-                        return;
-                      }
-
-                      setDialogState(() {
-                        saving = true;
-                        error = null;
-                      });
-                      final result = await _sitterService.changePassword(
-                        userId: userId,
-                        currentPassword: current,
-                        newPassword: next,
-                      );
-                      if (!ctx.mounted) return;
-
-                      if (result['success'] == true) {
-                        Navigator.pop(ctx);
-                        if (mounted) _showSnack('Password updated.');
-                      } else {
-                        setDialogState(() {
-                          saving = false;
-                          error = result['message']?.toString() ?? 'Could not update password.';
-                        });
-                      }
-                    },
-              child: const Text('Update password'),
-            ),
-          ],
-        ),
-      ),
-    );
-
-    _currentPwCtrl.clear();
-    _newPwCtrl.clear();
-    _confirmPwCtrl.clear();
-  }
-  
-
-  void _handleBottomNavTap(int index) {
-    switch (index) {
-      case 0:
-        // Home is the first screen in the stack after login.
-        Navigator.of(context).popUntil((route) => route.isFirst);
-        break;
-      case 1:
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const JobsDashboardScreen()),
-        );
-        break;
-      case 2:
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const MessagesScreen()),
-        );
-        break;
-      case 3:
-        break; // already on Profile
+  Future<void> _searchAreas(String text) async {
+    final generation = ++_areaSearchGeneration;
+    try {
+      final suggestions = await _placesApi.autocomplete(
+        input: text,
+        sessionToken: _placesSessionToken,
+      );
+      if (!mounted || generation != _areaSearchGeneration) return;
+      if (_areaController.text.trim() != text) return;
+      setState(() {
+        _searchingArea = false;
+        _areaSuggestions = suggestions;
+        _areaLookupMessage =
+            suggestions.isEmpty ? 'No matching areas. Try a more specific search.' : null;
+      });
+    } catch (_) {
+      if (!mounted || generation != _areaSearchGeneration) return;
+      setState(() {
+        _searchingArea = false;
+        _areaSuggestions = [];
+        _areaLookupMessage = 'Area search is unavailable right now.';
+      });
     }
   }
 
-  BoxDecoration _cardDecoration() {
-    return BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: Colors.grey.shade200),
+  void _selectArea(PlaceSuggestion suggestion) {
+    _areaDebounce?.cancel();
+    _areaSearchGeneration++;
+    _areaController.text = suggestion.description;
+    _areaController.selection = TextSelection.collapsed(
+      offset: _areaController.text.length,
+    );
+    setState(() {
+      _selectedPlaceId = suggestion.placeId;
+      _selectedDescription = suggestion.description;
+      _areaSuggestions = [];
+      _searchingArea = false;
+      _areaLookupMessage = null;
+    });
+  }
+
+  String? _validateArea(String? value) {
+    final text = value?.trim() ?? '';
+    if (text.isEmpty) return 'Area of service is required';
+    if (!_isAreaPinned) return 'Select an area from the suggestions';
+    return null;
+  }
+
+  void _onAreaTap() {
+    final text = _areaController.text.trim();
+    if (!_isAreaPinned && text.length >= 3 && !_searchingArea) {
+      _onAreaChanged(text);
+    }
+  }
+
+  void _togglePet(String pet) {
+    setState(() {
+      if (_selectedPets.contains(pet)) {
+        _selectedPets.remove(pet);
+      } else {
+        _selectedPets.add(pet);
+      }
+      if (_selectedPets.isNotEmpty) _petsError = null;
+    });
+  }
+
+  void _toggleService(String key) {
+    final count = _selectedServices.values.where((selected) => selected).length;
+    if (_selectedServices[key]! && count == 1) {
+      _showSnack('At least one service type must be selected.');
+      return;
+    }
+    setState(() => _selectedServices[key] = !_selectedServices[key]!);
+  }
+
+  String? _validatePrice(String? value) {
+    final price = double.tryParse((value ?? '').trim());
+    if (price == null || price <= 0) return 'Enter a price';
+    return null;
+  }
+
+  String? _validateMinutes(String? value) {
+    final minutes = int.tryParse((value ?? '').trim());
+    if (minutes == null || minutes <= 0) return 'Enter minutes';
+    return null;
+  }
+
+  void _showChangePasswordDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => ChangePasswordDialog(onMessage: _showMessageIfMounted),
     );
   }
 
-  /// Label shown above a field (bigger and never overlaps the text box).
-  Widget _fieldLabel(String text, {bool required = false}) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Text.rich(
-        TextSpan(
-          text: text,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w700,
-            color: AppColors.darkText,
-          ),
-          children: [
-            if (required)
-              const TextSpan(text: ' *', style: TextStyle(color: AppColors.primaryRust)),
-          ],
+  void _showPhotoComingSoon() {
+    _showSnack('Photo upload is coming soon.');
+  }
+
+  void _showSnack(String message, {bool error = false}) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: error ? Colors.red : null,
         ),
-      ),
+      );
+  }
+
+  void _showMessageIfMounted(String message) {
+    if (mounted) _showSnack(message);
+  }
+
+  void _showGateMessage() {
+    _showSnack(
+      'Save your area of service, pet preferences and services & pricing first.',
+      error: true,
     );
   }
 
-  InputDecoration _fieldDecoration({
-    String? hint,
-    IconData? icon,
-    String? prefixText,
-    String? suffixText,
-  }) {
-    return InputDecoration(
-      hintText: hint,
-      hintStyle: const TextStyle(color: Colors.black38, fontSize: 14),
-      prefixIcon: icon == null ? null : Icon(icon, color: AppColors.primaryRust),
-      prefixText: prefixText,
-      suffixText: suffixText,
-      filled: true,
-      fillColor: AppColors.expandButtonBg,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide.none,
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: AppColors.primaryRust, width: 1.5),
-      ),
+  void _handleBottomNavTap(SitterNavTab tab) {
+    if (tab == SitterNavTab.profile) return;
+
+    if (!getValidForm()) {
+      _showGateMessage();
+      return;
+    }
+
+    if (tab == SitterNavTab.home) {
+      Navigator.of(context).popUntil((route) => route.isFirst);
+      return;
+    }
+
+    final Widget destination = switch (tab) {
+      SitterNavTab.jobs => const JobsDashboardScreen(),
+      SitterNavTab.messages => const MessagesScreen(),
+      SitterNavTab.home || SitterNavTab.profile => const SitterProfileScreen(),
+    };
+
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (_) => destination),
     );
   }
-
-  Widget _tag(String text) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: AppColors.lightRustBg,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Text(
-        text,
-        style: const TextStyle(
-          color: AppColors.primaryRust,
-          fontSize: 10,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-    );
-  }
-
-  Widget _stars(double score, {double size = 16}) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: List.generate(5, (i) {
-        final remaining = score - i;
-        IconData icon;
-        if (remaining >= 1) {
-          icon = Icons.star_rounded;
-        } else if (remaining >= 0.5) {
-          icon = Icons.star_half_rounded;
-        } else {
-          icon = Icons.star_outline_rounded;
-        }
-        return Icon(icon, color: AppColors.primaryRust, size: size);
-      }),
-    );
-  }
-
-  // ---------- Build ----------
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
+    return PopScope(
+      canPop: getValidForm(),
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) _showGateMessage();
+      },
+      child: Scaffold(
         backgroundColor: AppColors.background,
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-        leading: const Icon(Icons.pets, color: AppColors.primaryRust),
-        title: const Text(
-          'Sitter Profile',
-          style: TextStyle(color: AppColors.darkText, fontWeight: FontWeight.bold),
+        appBar: AppBar(
+          backgroundColor: AppColors.background,
+          surfaceTintColor: Colors.transparent,
+          elevation: 0,
+          leading: const Icon(Icons.pets, color: AppColors.primaryRust),
+          title: const Text(
+            'Sitter Profile',
+            style: TextStyle(color: AppColors.darkText, fontWeight: FontWeight.bold),
+          ),
         ),
-      ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
+        body: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            _buildHeaderCard(),
-            const SizedBox(height: 16),
-            _buildPersonalCard(),          // new
-            const SizedBox(height: 16),
-            _buildAboutCard(),
-            const SizedBox(height: 16),
-            _buildPetPreferencesCard(),    // new
-            const SizedBox(height: 16),
-            _buildServicesCard(),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.black87,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                ),
-                onPressed: _save,
-                child: const Text(
-                  'Save details',
-                  style: TextStyle(color: Colors.white, fontSize: 14),
-                ),
+            if (!getValidForm()) ...[
+              const ProfileGateBanner(
+                message:
+                    'Save your area of service, pet preferences and services & pricing to unlock the rest of the app.',
               ),
+              const SizedBox(height: 16),
+            ],
+            ProfileHeaderCard(
+              name: _sitterName,
+              email: _sitterEmail,
+              phone: _sitterPhone,
+              reviewCount: _totalReviews,
+              averageRating: _rating,
+              onPhotoTap: _showPhotoComingSoon,
+              tag: 'SITTER',
             ),
-            const SizedBox(height: 24),
-            _buildReviewsCard(),
+            const SizedBox(height: 16),
+            ProfileUserDetailsCard(
+              formKey: _userFormKey,
+              nameController: _nameController,
+              emailController: _emailController,
+              phoneController: _phoneController,
+              saving: _savingUser,
+              onChangePassword: _showChangePasswordDialog,
+              onSave: _saveUserDetails,
+            ),
+            const SizedBox(height: 16),
+            SitterAreaCard(
+              formKey: _areaFormKey,
+              areaController: _areaController,
+              searching: _searchingArea,
+              suggestions: _areaSuggestions,
+              notice: _areaNotice,
+              saving: _savingArea,
+              onAreaChanged: _onAreaChanged,
+              onAreaTap: _onAreaTap,
+              onSelectSuggestion: _selectArea,
+              areaValidator: _validateArea,
+              onAreaSave: _saveAreaDetails,
+            ),
+            const SizedBox(height: 16),
+            SitterAboutCard(
+              formKey: _aboutFormKey,
+              aboutController: _aboutController,
+              saving: _savingAbout,
+              onSave: _saveAbout,
+            ),
+            const SizedBox(height: 16),
+            SitterPreferencesCard(
+              selectedPets: _selectedPets,
+              errorText: _petsError,
+              saving: _savingPets,
+              onToggle: _togglePet,
+              onSave: _savePetPreferences,
+            ),
+            const SizedBox(height: 16),
+            SitterServicesCard(
+              formKey: _servicesFormKey,
+              selectedServices: _selectedServices,
+              overnightRateController: _overnightRateCtrl,
+              walkRateController: _walkRateCtrl,
+              walkDurationController: _walkDurationCtrl,
+              feedRateController: _feedRateCtrl,
+              saving: _savingServices,
+              onToggle: _toggleService,
+              onSave: _saveServices,
+              validatePrice: _validatePrice,
+              validateMinutes: _validateMinutes,
+            ),
+            const SizedBox(height: 16),
+            SitterReviewsCard(
+              reviewCount: _totalReviews,
+              averageRating: _rating,
+            ),
             const SizedBox(height: 24),
           ],
         ),
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        backgroundColor: Colors.white,
-        elevation: 0,
-        currentIndex: 3,
-        selectedItemColor: AppColors.primaryRust,
-        unselectedItemColor: Colors.grey,
-        selectedFontSize: 12,
-        unselectedFontSize: 12,
-        onTap: _handleBottomNavTap,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home_outlined), label: 'HOME'),
-          BottomNavigationBarItem(icon: Icon(Icons.work_outline), label: 'JOBS'),
-          BottomNavigationBarItem(icon: Icon(Icons.chat_bubble_outline), label: 'MESSAGES'),
-          BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: 'PROFILE'),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHeaderCard() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: _cardDecoration(),
-      child: Column(
-        children: [
-          Stack(
-            children: [
-              CircleAvatar(
-                radius: 48,
-                backgroundColor: Colors.grey.shade300,
-                child: const Icon(Icons.person, size: 52, color: Colors.grey),
-              ),
-              Positioned(
-                bottom: 0,
-                right: 0,
-                child: GestureDetector(
-                  onTap: () => _showSnack('Photo upload is coming soon.'),
-                  child: Container(
-                    padding: const EdgeInsets.all(7),
-                    decoration: BoxDecoration(
-                      color: AppColors.primaryRust,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 2),
-                    ),
-                    child: const Icon(Icons.camera_alt, size: 14, color: Colors.white),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            _sitterName,
-            style: const TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              color: AppColors.darkText,
-            ),
-          ),
-          const SizedBox(height: 6),
-          _tag('SITTER'),
-          const SizedBox(height: 10),
-          if (_sitterReviews.isNotEmpty)
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.star_rounded, color: AppColors.primaryRust, size: 18),
-                const SizedBox(width: 4),
-                Text(
-                  _averageRating.toStringAsFixed(1),
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                ),
-                Text(
-                  ' (${_sitterReviews.length} reviews)',
-                  style: const TextStyle(fontSize: 12, color: Colors.black54),
-                ),
-              ],
-            ),
-          const SizedBox(height: 16),
-          const Divider(height: 1),
-          const SizedBox(height: 16),
-          _buildInfoRow(Icons.mail_outline, _sitterEmail.isEmpty ? 'No email on file' : _sitterEmail),
-          const SizedBox(height: 10),
-          _buildInfoRow(Icons.phone_outlined, _sitterPhone.isEmpty ? 'No phone on file' : _sitterPhone),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInfoRow(IconData icon, String text) {
-    return Row(
-      children: [
-        Icon(icon, color: AppColors.primaryRust, size: 18),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Text(text, style: const TextStyle(fontSize: 13, color: AppColors.darkText)),
+        bottomNavigationBar: SitterBottomNavBar(
+          selected: SitterNavTab.profile,
+          onTap: _handleBottomNavTap,
         ),
-      ],
-    );
-  }
-
- Widget _buildPersonalCard() {
-  return Container(
-    width: double.infinity,
-    padding: const EdgeInsets.all(16),
-    decoration: _cardDecoration(),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Personal details',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.darkText),
-        ),
-        const SizedBox(height: 2),
-        const Text(
-          'Saved with the "Save details" button below.',
-          style: TextStyle(fontSize: 12, color: Colors.black54),
-        ),
-        const SizedBox(height: 16),
-        _fieldLabel('Full name', required: true),
-        TextFormField(
-          controller: _nameController,
-          maxLength: 100,
-          decoration: _fieldDecoration(icon: Icons.person_outline).copyWith(counterText: ''),
-          validator: (v) => v == null || v.trim().isEmpty ? 'Name is required' : null,
-        ),
-        const SizedBox(height: 16),
-        _fieldLabel('Email', required: true),
-        TextFormField(
-          controller: _emailController,
-          keyboardType: TextInputType.emailAddress,
-          decoration: _fieldDecoration(icon: Icons.mail_outline),
-          validator: (v) {
-            final t = v?.trim() ?? '';
-            if (t.isEmpty) return 'Email is required';
-            if (!t.contains('@')) return 'Enter a valid email';
-            return null;
-          },
-        ),
-        const SizedBox(height: 16),
-        _fieldLabel('Phone number', required: true),
-        TextFormField(
-          controller: _phoneController,
-          keyboardType: TextInputType.phone,
-          maxLength: 20,
-          decoration: _fieldDecoration(icon: Icons.phone_outlined).copyWith(counterText: ''),
-          validator: (v) => v == null || v.trim().isEmpty ? 'Phone number is required' : null,
-        ),
-                const SizedBox(height: 20),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: _showChangePasswordDialog,
-                    icon: const Icon(Icons.lock_outline, size: 18, color: AppColors.primaryRust),
-                    label: const Text(
-                      'Change password',
-                      style: TextStyle(color: AppColors.darkText, fontSize: 13),
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      side: BorderSide(color: Colors.grey.shade300),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    ),
-                  ),
-                ),
-      ],
-    ),
-  );
-}
-
-Widget _buildPetPreferencesCard() {
-  return Container(
-    width: double.infinity,
-    padding: const EdgeInsets.all(16),
-    decoration: _cardDecoration(),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Pet preferences',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.darkText),
-        ),
-        const SizedBox(height: 2),
-        const Text(
-          'Select the animals you are happy to look after. At least one is required.',
-          style: TextStyle(fontSize: 12, color: Colors.black54),
-        ),
-        const SizedBox(height: 14),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: _petOptions.map((pet) {
-            final isSelected = _selectedPets.contains(pet);
-            return ChoiceChip(
-              label: Text(pet),
-              selected: isSelected,
-              showCheckmark: false,
-              selectedColor: AppColors.primaryRust,
-              backgroundColor: AppColors.expandButtonBg,
-              side: BorderSide.none,
-              labelStyle: TextStyle(
-                color: isSelected ? Colors.white : AppColors.darkText,
-                fontWeight: FontWeight.bold,
-                fontSize: 12,
-              ),
-              onSelected: (_) => setState(() {
-                if (isSelected) {
-                  _selectedPets.remove(pet);
-                } else {
-                  _selectedPets.add(pet);
-                }
-              }),
-            );
-          }).toList(),
-        ),
-      ],
-    ),
-  );
-}
-
-
-
-
-  Widget _buildAboutCard() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: _cardDecoration(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'About & experience',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.darkText),
-          ),
-          const SizedBox(height: 12),
-          TextFormField(
-            controller: _aboutController,
-            maxLines: 4,
-            decoration: _fieldDecoration(
-              hint: 'Share your background, skills and pet experience...',
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildServicesCard() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: _cardDecoration(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Services offered & pricing',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.darkText),
-          ),
-          const SizedBox(height: 2),
-          const Text(
-            'Select one or more. At least one is required.',
-            style: TextStyle(fontSize: 12, color: Colors.black54),
-          ),
-          const SizedBox(height: 14),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: _selectedServices.keys.map((service) {
-              final isSelected = _selectedServices[service]!;
-              return ChoiceChip(
-                avatar: Icon(
-                  _serviceIcons[service],
-                  size: 18,
-                  color: isSelected ? Colors.white : AppColors.primaryRust,
-                ),
-                label: Text(service),
-                selected: isSelected,
-                showCheckmark: false,
-                selectedColor: AppColors.primaryRust,
-                backgroundColor: AppColors.expandButtonBg,
-                side: BorderSide.none,
-                labelStyle: TextStyle(
-                  color: isSelected ? Colors.white : AppColors.darkText,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 12,
-                ),
-                onSelected: (_) => _toggleService(service),
-              );
-            }).toList(),
-          ),
-
-          // Pricing inputs for each selected service
-          if (_selectedServices['Stay Over Night']!)
-            _buildServiceBlock(
-              icon: Icons.nights_stay_outlined,
-              title: 'Stay over night',
-              fields: [
-                _fieldLabel('Price per night', required: true),
-                TextFormField(
-                  controller: _overnightRateCtrl,
-                  keyboardType: TextInputType.number,
-                  decoration: _fieldDecoration(hint: '0', prefixText: 'R '),
-                  validator: _validatePrice,
-                ),
-              ],
-            ),
-          if (_selectedServices['Walk Pet']!)
-            _buildServiceBlock(
-              icon: Icons.directions_walk,
-              title: 'Walk Pet',
-              fields: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _fieldLabel('Price per walk', required: true),
-                          TextFormField(
-                            controller: _walkRateCtrl,
-                            keyboardType: TextInputType.number,
-                            decoration: _fieldDecoration(hint: '0', prefixText: 'R '),
-                            validator: _validatePrice,
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _fieldLabel('Walk length', required: true),
-                          TextFormField(
-                            controller: _walkDurationCtrl,
-                            keyboardType: TextInputType.number,
-                            decoration: _fieldDecoration(hint: '0', suffixText: 'min'),
-                            validator: _validateMinutes,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          if (_selectedServices['Feed Pet']!)
-            _buildServiceBlock(
-              icon: Icons.restaurant_outlined,
-              title: 'Feed Pet',
-              fields: [
-                _fieldLabel('Price per feeding visit', required: true),
-                TextFormField(
-                  controller: _feedRateCtrl,
-                  keyboardType: TextInputType.number,
-                  decoration: _fieldDecoration(hint: '0', prefixText: 'R '),
-                  validator: _validatePrice,
-                ),
-              ],
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildServiceBlock({
-    required IconData icon,
-    required String title,
-    required List<Widget> fields,
-  }) {
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(top: 16),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.background,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, color: AppColors.primaryRust, size: 18),
-              const SizedBox(width: 8),
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.darkText,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          ...fields,
-        ],
-      ),
-    );
-  }
-
-  Widget _buildReviewsCard() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: _cardDecoration(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Rating & client reviews',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.darkText),
-          ),
-          const SizedBox(height: 12),
-          if (_sitterReviews.isEmpty)
-            const Text(
-              'No reviews yet. Homeowners can review you after a stay.',
-              style: TextStyle(fontSize: 12, color: Colors.black54),
-            )
-          else ...[
-            Row(
-              children: [
-                Text(
-                  _averageRating.toStringAsFixed(1),
-                  style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(width: 12),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _stars(_averageRating, size: 18),
-                    const SizedBox(height: 2),
-                    Text(
-                      '${_sitterReviews.length} reviews',
-                      style: const TextStyle(fontSize: 12, color: Colors.black54),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            const Divider(height: 1),
-            ..._sitterReviews.map(_buildReviewTile),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildReviewTile(Map<String, dynamic> review) {
-    final String name = review['ownerName'] as String;
-
-    return Padding(
-      padding: const EdgeInsets.only(top: 14),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          CircleAvatar(
-            radius: 16,
-            backgroundColor: AppColors.lightRustBg,
-            child: Text(
-              name.isEmpty ? '?' : name[0].toUpperCase(),
-              style: const TextStyle(
-                color: AppColors.primaryRust,
-                fontWeight: FontWeight.bold,
-                fontSize: 13,
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Flexible(
-                      child: Text(
-                        name,
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                      ),
-                    ),
-                    Row(
-                      children: [
-                        const Icon(Icons.star_rounded, color: AppColors.primaryRust, size: 14),
-                        const SizedBox(width: 2),
-                        Text(
-                          '${review['rating']}',
-                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  review['comment'] as String,
-                  style: const TextStyle(fontSize: 12, color: Colors.black87),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  review['date'] as String,
-                  style: const TextStyle(fontSize: 10, color: Colors.black45),
-                ),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }

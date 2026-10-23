@@ -38,6 +38,9 @@ public class Sitter {
     @Column(name = "is_verified")
     private Boolean isVerified = false;
 
+    @Column(name = "service_area", length = 255)
+    private String serviceArea;
+
     @Column(length = 100)
     private String suburb;
 
@@ -151,6 +154,46 @@ public class Sitter {
 
     public void setIsVerified(Boolean isVerified) {
         this.isVerified = isVerified;
+    }
+
+    public String getServiceArea() {
+        return serviceArea;
+    }
+
+    public void setServiceArea(String serviceArea) {
+        this.serviceArea = serviceArea;
+    }
+
+    public String getSuburb() {
+        return suburb;
+    }
+
+    public void setSuburb(String suburb) {
+        this.suburb = suburb;
+    }
+
+    public String getCity() {
+        return city;
+    }
+
+    public void setCity(String city) {
+        this.city = city;
+    }
+
+    public BigDecimal getLatitude() {
+        return latitude;
+    }
+
+    public void setLatitude(BigDecimal latitude) {
+        this.latitude = latitude;
+    }
+
+    public BigDecimal getLongitude() {
+        return longitude;
+    }
+
+    public void setLongitude(BigDecimal longitude) {
+        this.longitude = longitude;
     }
 
     public Set<SitterServices> getServices() {

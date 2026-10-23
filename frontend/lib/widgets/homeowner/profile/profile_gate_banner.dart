@@ -3,7 +3,13 @@ import 'package:flutter/material.dart';
 import '../../../theme/app_colors.dart';
 
 class ProfileGateBanner extends StatelessWidget {
-  const ProfileGateBanner({super.key});
+  const ProfileGateBanner({
+    super.key,
+    this.message =
+        'Select your home address and add house sitting notes to unlock the rest of the app.',
+  });
+
+  final String message;
 
   @override
   Widget build(BuildContext context) {
@@ -13,14 +19,14 @@ class ProfileGateBanner extends StatelessWidget {
         color: AppColors.lightRustBg,
         borderRadius: BorderRadius.circular(12),
       ),
-      child: const Row(
+      child: Row(
         children: [
-          Icon(Icons.lock_outline, color: AppColors.primaryRust, size: 20),
-          SizedBox(width: 12),
+          const Icon(Icons.lock_outline, color: AppColors.primaryRust, size: 20),
+          const SizedBox(width: 12),
           Expanded(
             child: Text(
-              'Select your home address and add house sitting notes to unlock the rest of the app.',
-              style: TextStyle(
+              message,
+              style: const TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
                 color: Colors.black87,
