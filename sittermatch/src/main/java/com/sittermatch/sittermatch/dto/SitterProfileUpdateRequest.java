@@ -8,7 +8,10 @@ public record SitterProfileUpdateRequest(
         String phone,
         String experience,
         List<ServiceInput> services,
-        List<String> petPreferences) {
+        List<String> petPreferences,
+        String serviceArea,
+        String placeId,
+        String sessionToken) {
 
     public record ServiceInput(String serviceType, Double price, Integer durationMinutes) {}
 }

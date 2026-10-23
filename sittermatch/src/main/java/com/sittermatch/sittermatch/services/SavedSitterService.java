@@ -56,7 +56,8 @@ public class SavedSitterService {
             sitter.getTotalReviews(),
             sitter.getDayRate(),
             sitter.getNightRate(),
-            sitter.getIsVerified()
+            sitter.getIsVerified(),
+            sitter.getSuburb()
         );
     }
 

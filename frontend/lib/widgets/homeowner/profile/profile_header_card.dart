@@ -12,6 +12,7 @@ class ProfileHeaderCard extends StatelessWidget {
     required this.reviewCount,
     required this.averageRating,
     required this.onPhotoTap,
+    this.tag = 'HOMEOWNER',
   });
 
   final String name;
@@ -20,6 +21,7 @@ class ProfileHeaderCard extends StatelessWidget {
   final int reviewCount;
   final double averageRating;
   final VoidCallback onPhotoTap;
+  final String tag;
 
   @override
   Widget build(BuildContext context) {
@@ -66,7 +68,7 @@ class ProfileHeaderCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 6),
-          const ProfileTag('HOMEOWNER'),
+          ProfileTag(tag),
           const SizedBox(height: 10),
           if (reviewCount > 0)
             Row(
@@ -117,7 +119,7 @@ class _InfoRow extends StatelessWidget {
         Expanded(
           child: Text(
             text,
-            style: const TextStyle(fontSize: 13, color: AppColors.darkText),
+            style: const TextStyle(fontSize: 14, color: AppColors.darkText),
           ),
         ),
       ],

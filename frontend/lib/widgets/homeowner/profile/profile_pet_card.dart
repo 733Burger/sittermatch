@@ -46,36 +46,40 @@ class ProfilePetCard extends StatelessWidget {
                   children: [
                     Text(
                       pet.name,
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.darkText,
+                        height: 1.2,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 4),
                     Text(
                       pet.breed,
-                      style: const TextStyle(fontSize: 12, color: Colors.black54),
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.black54,
+                        height: 1.2,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 10),
                     Wrap(
                       spacing: 6,
                       runSpacing: 6,
                       children: [
                         ProfileTag(petTypeLabel(pet.species)),
-                        ProfileTag('${pet.age} ${pet.age == 1 ? 'YR' : 'YRS'}'),
+                        ProfileTag(
+                          '${pet.age} ${pet.age == 1 ? 'year' : 'years'}',
+                        ),
                       ],
                     ),
                   ],
                 ),
-              ),
-              PopupMenuButton<String>(
-                icon: const Icon(Icons.more_vert, color: Colors.black54),
-                color: Colors.white,
-                onSelected: (value) {
-                  if (value == 'edit') onEdit();
-                  if (value == 'delete') onDelete();
-                },
-                itemBuilder: (_) => const [
-                  PopupMenuItem(value: 'edit', child: Text('Edit')),
-                  PopupMenuItem(value: 'delete', child: Text('Delete')),
-                ],
               ),
             ],
           ),
@@ -148,7 +152,83 @@ class ProfilePetCard extends StatelessWidget {
               ),
             ),
           ],
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: _PetActionButton(
+                  icon: Icons.edit_outlined,
+                  label: 'Edit',
+                  foreground: AppColors.primaryRust,
+                  iconColor: AppColors.primaryRust,
+                  onPressed: onEdit,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _PetActionButton(
+                  icon: Icons.delete_outline,
+                  label: 'Delete',
+                  foreground: const Color(0xFFD32F2F),
+                  iconColor: const Color(0xFFD32F2F),
+                  onPressed: onDelete,
+                ),
+              ),
+            ],
+          ),
         ],
+      ),
+    );
+  }
+}
+
+class _PetActionButton extends StatelessWidget {
+  const _PetActionButton({
+    required this.icon,
+    required this.label,
+    required this.foreground,
+    required this.iconColor,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color foreground;
+  final Color iconColor;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: OutlinedButton.icon(
+        onPressed: onPressed,
+        icon: Icon(
+          icon,
+          size: 17,
+          color: Colors.white,
+        ),
+        label: Text(
+          label,
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: Colors.white,
+          ),
+        ),
+        style: OutlinedButton.styleFrom(
+          backgroundColor: iconColor,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          side: BorderSide(
+            color: iconColor,
+            width: 1,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          minimumSize: const Size(0, 44),
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
       ),
     );
   }

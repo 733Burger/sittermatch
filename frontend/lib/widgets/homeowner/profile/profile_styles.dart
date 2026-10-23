@@ -79,7 +79,7 @@ class ProfileSaveButton extends StatelessWidget {
       width: double.infinity,
       child: ElevatedButton(
         style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.black87,
+          backgroundColor: AppColors.primaryRust,
           foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(vertical: 12),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -87,7 +87,7 @@ class ProfileSaveButton extends StatelessWidget {
         onPressed: onPressed,
         child: saving
             ? profileButtonSpinner
-            : Text(label, style: const TextStyle(fontSize: 13)),
+            : Text(label, style: const TextStyle(fontSize: 14)),
       ),
     );
   }
@@ -101,7 +101,10 @@ class ProfileTag extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(
+        horizontal: 10,
+        vertical: 5,
+      ),
       decoration: BoxDecoration(
         color: AppColors.lightRustBg,
         borderRadius: BorderRadius.circular(12),
@@ -110,7 +113,7 @@ class ProfileTag extends StatelessWidget {
         text,
         style: const TextStyle(
           color: AppColors.primaryRust,
-          fontSize: 10,
+          fontSize: 12,
           fontWeight: FontWeight.bold,
         ),
       ),

@@ -1,15 +1,12 @@
 package com.sittermatch.sittermatch.services;
 
 import java.io.IOException;
-import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.util.Optional;
 
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.sittermatch.sittermatch.dto.ResidenceCheckResponse;
-import com.sittermatch.sittermatch.dto.UpdateProfileRequest;
 import com.sittermatch.sittermatch.dto.verificationChecks.EmergencyCheckResponse;
 import com.sittermatch.sittermatch.dto.verificationChecks.HomeownerCheckResponse;
 import com.sittermatch.sittermatch.dto.verificationChecks.IdentityCheckSubmitResponse;
@@ -19,147 +16,17 @@ import com.sittermatch.sittermatch.model.HomeownerVerification;
 import com.sittermatch.sittermatch.model.VerificationStatus;
 import com.sittermatch.sittermatch.repository.HomeownerRepository;
 import com.sittermatch.sittermatch.repository.HomeownerVerificationRepository;
-import com.sittermatch.sittermatch.dto.ProfileResponse;
-import com.sittermatch.sittermatch.model.User;
-import com.sittermatch.sittermatch.repository.UserRepository;
-import org.springframework.transaction.annotation.Transactional;
-
-
 
 @Service
 public class HomeService {
     private static final long MAX_BYTES = 5L * 1024 * 1024;
     private final HomeownerRepository homeownerRepository;
     private final HomeownerVerificationRepository homeownerVerificationRepository;
-    private final UserRepository userRepository;
-    private final PlacesService placesService;
 
     public HomeService(HomeownerRepository homeownerRepository,
-            HomeownerVerificationRepository homeownerVerificationRepository, UserRepository userRepository,
-            PlacesService placesService) {
+                    HomeownerVerificationRepository homeownerVerificationRepository) {
         this.homeownerRepository = homeownerRepository;
         this.homeownerVerificationRepository = homeownerVerificationRepository;
-        this.userRepository = userRepository;
-        this.placesService = placesService;
-    }
-
-    public ProfileResponse getProfile(Integer userId) {
-        Optional<Homeowner> found = homeownerRepository.findById(userId);
-        if (found.isEmpty()) {
-            return ProfileResponse.failure("Homeowner not found");
-        }
-        return toProfileResponse(found.get(), "Profile loaded");
-    }
-
-    @Transactional
-    public ProfileResponse updateProfile(Integer userId, UpdateProfileRequest req) {
-        Optional<Homeowner> foundHomeowner = homeownerRepository.findById(userId);
-        if (foundHomeowner.isEmpty()) {
-            return ProfileResponse.failure("Homeowner not found");
-        }
-
-        String name = req.name() == null ? "" : req.name().trim();
-        String email = req.email() == null ? "" : req.email().trim().toLowerCase();
-        String phone = req.phone() == null ? "" : req.phone().trim();
-        String address = req.address() == null ? "" : req.address().trim();
-        String requirements = req.requirements() == null ? "" : req.requirements().trim();
-
-        if (name.isBlank() || name.length() > 100) {
-            return ProfileResponse.failure("Enter a name under 100 characters.");
-        }
-
-        if (email.isBlank() || email.length() > 255 || !email.contains("@")) {
-            return ProfileResponse.failure("Enter a valid email address.");
-        }
-
-        if (phone.length() > 20 || (!phone.isEmpty() && !phone.matches("[0-9+()\\- ]+"))) {
-            return ProfileResponse.failure("Enter a phone number under 20 characters.");
-        }
-
-        if (address.isBlank() || address.length() > 255) {
-            return ProfileResponse.failure("Enter an address under 255 characters.");
-        }
-
-        if (requirements.isBlank() || requirements.length() > 255) {
-            return ProfileResponse.failure("Requirements must be 1-255 characters.");
-        }
-
-        Optional<User> emailOwner = userRepository.findByEmailIgnoreCase(email);
-        if (emailOwner.isPresent() && !emailOwner.get().getId().equals(userId)) {
-            return ProfileResponse.failure("That email is already in use.");
-        }
-
-        Homeowner homeowner = foundHomeowner.get();
-        String storedAddress = emptyIfNull(homeowner.getAddress());
-        boolean sameAddress = address.equals(storedAddress);
-        String placeId = req.placeId() == null ? "" : req.placeId().trim();
-
-        if (!placeId.isEmpty()) {
-            Optional<PlacesService.PlaceLocation> location = placesService.getLocation(placeId, req.sessionToken());
-
-            if (location.isEmpty()) {
-                return ProfileResponse.failure(
-                        "Could not confirm that address. Select it again from the suggestions.");
-            }
-
-            String formatted = location.get().formattedAddress() == null
-                    ? ""
-                    : location.get().formattedAddress().trim();
-
-            if (!formatted.isBlank()) {
-                address = formatted;
-            }
-
-            if (address.length() > 255) {
-                return ProfileResponse.failure("That address is too long to save.");
-            }
-
-            String suburb = location.get().suburb() == null ? "" : location.get().suburb().trim();
-            String city = location.get().city() == null ? "" : location.get().city().trim();
-
-            if (suburb.isBlank()) {
-                return ProfileResponse.failure("Select an address that includes a suburb.");
-            }
-
-            if (suburb.length() > 100 || city.length() > 100) {
-                return ProfileResponse.failure("That suburb or city name is too long to save.");
-            }
-            
-            homeowner.setLatitude(coordinate(location.get().latitude()));
-            homeowner.setLongitude(coordinate(location.get().longitude()));
-            homeowner.setSuburb(suburb);
-            homeowner.setCity(city);
-        } else if (!sameAddress) {
-            return ProfileResponse.failure("Select your home address from the suggestions.");
-        }
-
-        User user = homeowner.getUser();
-        user.setName(name);
-        user.setEmail(email);
-        user.setPhone(phone);
-        homeowner.setAddress(address);
-        homeowner.setRequirements(requirements);
-
-        userRepository.save(user);
-        homeownerRepository.save(homeowner);
-
-        return toProfileResponse(homeowner, "Profile updated");
-    }
-
-    private ProfileResponse toProfileResponse(Homeowner h, String message) {
-        User u = h.getUser();
-        return new ProfileResponse(true, message, u.getName(), u.getEmail(), u.getPhone(),
-                emptyIfNull(h.getAddress()), emptyIfNull(h.getRequirements()),
-                toDouble(h.getLatitude()), toDouble(h.getLongitude()),
-                emptyIfNull(h.getSuburb()), emptyIfNull(h.getCity()));
-    }
-
-    private static BigDecimal coordinate(double value) {
-        return BigDecimal.valueOf(value).setScale(6, RoundingMode.HALF_UP);
-    }
-
-    private static Double toDouble(BigDecimal value) {
-        return value == null ? null : value.doubleValue();
     }
 
     public IdentityCheckSubmitResponse submitIdentityCheck(String email, MultipartFile idPhoto) {

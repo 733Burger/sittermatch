@@ -29,7 +29,7 @@ class ProfileService {
 Future<Map<String, dynamic>> fetchProfile({required int userId}) async {
   try {
     final response = await http.get(
-      Uri.parse('$_baseUrl/api/home/profile/$userId'),
+      Uri.parse('$_baseUrl/api/profile/get-profile/$userId'),
       headers: {'Content-Type': 'application/json'},
     ).timeout(_timeout);
     return _parseProfile(response);
@@ -62,7 +62,7 @@ Future<Map<String, dynamic>> updateProfile({
       body['sessionToken'] = sessionToken;
     }
     final response = await http.put(
-      Uri.parse('$_baseUrl/api/home/profile/$userId'),
+      Uri.parse('$_baseUrl/api/profile/update-profile/$userId'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode(body),
     ).timeout(_timeout);
@@ -175,4 +175,75 @@ Future<Map<String, dynamic>> deletePet({
     return {'success': false, 'message': 'Network error. Please try again later'};
   }
 }
+
+  // Sitter profile
+
+  Map<String, dynamic> _parseSitterProfile(http.Response response) {
+    final json = jsonDecode(response.body) as Map<String, dynamic>;
+    return {
+      'success': response.statusCode == 200 && json['success'] == true,
+      'message': json['message'],
+      'name': json['name'],
+      'email': json['email'],
+      'phone': json['phone'],
+      'experience': json['experience'],
+      'rating': (json['rating'] as num?)?.toDouble(),
+      'totalReviews': (json['totalReviews'] as num?)?.toInt(),
+      'serviceArea': json['serviceArea'],
+      'suburb': json['suburb'],
+      'city': json['city'],
+      'latitude': (json['latitude'] as num?)?.toDouble(),
+      'longitude': (json['longitude'] as num?)?.toDouble(),
+      'petPreferences': json['petPreferences'],
+      'services': json['services'],
+    };
+  }
+
+  Future<Map<String, dynamic>> fetchSitterProfile({required int userId}) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$_baseUrl/api/profile/get-sitter-profile/$userId'),
+        headers: {'Content-Type': 'application/json'},
+      ).timeout(_timeout);
+      return _parseSitterProfile(response);
+    } catch (e) {
+      debugPrint('Error fetching sitter profile: $e');
+      return {'success': false, 'message': 'Network error. Please try again later'};
+    }
+  }
+
+  Future<Map<String, dynamic>> updateSitterProfile({
+    required int userId,
+    String? name,
+    String? email,
+    String? phone,
+    String? experience,
+    List<Map<String, dynamic>>? services,
+    List<String>? petPreferences,
+    String? serviceArea,
+    String? placeId,
+    String? sessionToken,
+  }) async {
+    try {
+      final response = await http.put(
+        Uri.parse('$_baseUrl/api/profile/update-sitter-profile/$userId'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'name': name,
+          'email': email,
+          'phone': phone,
+          'experience': experience,
+          'services': services,
+          'petPreferences': petPreferences,
+          'serviceArea': serviceArea,
+          'placeId': placeId,
+          'sessionToken': sessionToken,
+        }),
+      ).timeout(_timeout);
+      return _parseSitterProfile(response);
+    } catch (e) {
+      debugPrint('Error updating sitter profile: $e');
+      return {'success': false, 'message': 'Network error. Please try again later'};
+    }
+  }
 }
