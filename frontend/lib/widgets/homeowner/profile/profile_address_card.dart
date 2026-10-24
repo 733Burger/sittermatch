@@ -43,14 +43,13 @@ class ProfileAddressCard extends StatelessWidget {
       decoration: profileCardDecoration(),
       child: Form(
         key: formKey,
-        onChanged: onChanged,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
               'Address details',
               style: TextStyle(
-                fontSize: 16,
+                fontSize: 18,
                 fontWeight: FontWeight.bold,
                 color: AppColors.darkText,
               ),
@@ -130,17 +129,9 @@ class ProfileAddressCard extends StatelessWidget {
               ),
             const SizedBox(height: 20),
             const ProfileFieldLabel('House sitting notes'),
-            TextFormField(
+            _HouseNotesField(
               controller: requirementsController,
-              maxLines: 4,
-              decoration: profileFieldDecoration(
-                null,
-                icon: Icons.note_alt_outlined,
-                hint: 'e.g. Feed the dogs twice a day and lock the gate at 8 PM.',
-              ),
-              validator: (val) => val == null || val.trim().isEmpty
-                  ? 'House sitting notes are required'
-                  : null,
+              onPresenceChanged: onChanged,
             ),
             const SizedBox(height: 16),
             ProfileSaveButton(
@@ -151,6 +142,61 @@ class ProfileAddressCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _HouseNotesField extends StatefulWidget {
+  const _HouseNotesField({
+    required this.controller,
+    required this.onPresenceChanged,
+  });
+
+  final TextEditingController controller;
+  final VoidCallback onPresenceChanged;
+
+  @override
+  State<_HouseNotesField> createState() => _HouseNotesFieldState();
+}
+
+class _HouseNotesFieldState extends State<_HouseNotesField> {
+  late bool _hasNotes;
+
+  @override
+  void initState() {
+    super.initState();
+    _hasNotes = widget.controller.text.trim().isNotEmpty;
+  }
+
+  @override
+  void didUpdateWidget(covariant _HouseNotesField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _hasNotes = widget.controller.text.trim().isNotEmpty;
+  }
+
+  void _onChanged(String value) {
+    final hasNotes = value.trim().isNotEmpty;
+    if (hasNotes == _hasNotes) return;
+    _hasNotes = hasNotes;
+    widget.onPresenceChanged();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return TextFormField(
+      controller: widget.controller,
+      onChanged: _onChanged,
+      keyboardType: TextInputType.multiline,
+      textInputAction: TextInputAction.newline,
+      minLines: 1,
+      maxLines: 8,
+      decoration: profileFieldDecoration(
+        null,
+        icon: Icons.note_alt_outlined,
+        hint: 'e.g. Feed the dogs twice a day and lock the gate at 8 PM.',
+      ),
+      validator: (val) =>
+          val == null || val.trim().isEmpty ? 'House sitting notes are required' : null,
     );
   }
 }

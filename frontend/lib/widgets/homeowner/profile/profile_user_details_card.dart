@@ -36,7 +36,7 @@ class ProfileUserDetailsCard extends StatelessWidget {
             const Text(
               'User details',
               style: TextStyle(
-                fontSize: 16,
+                fontSize: 18,
                 fontWeight: FontWeight.bold,
                 color: AppColors.darkText,
               ),
