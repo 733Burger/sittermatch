@@ -37,6 +37,32 @@ class _SitterHomeScreenState extends State<SitterHomeScreen> {
   String _emergencyPhone = '';
   bool _hasIdPhoto = false;
 
+  // THE hard coded data
+  // We can change these names, pets, and prices to whatever you want
+  final List<Map<String, dynamic>> hardCodedBookings = const [
+    {
+      'ownerName': 'Kayla M.',
+      'petDetails': 'Luna (Golden Retriever)',
+      'location': 'Bedfordview, Gauteng',
+      'dates': '28 Oct - 31 Oct',
+      'pay': 'R450 / night',
+    },
+    {
+      'ownerName': 'Jamie T.',
+      'petDetails': 'Cleo (Domestic Shorthair)',
+      'location': 'Oakdene, Johannesburg',
+      'dates': '02 Nov - 05 Nov',
+      'pay': 'R350 / night',
+    },
+    {
+      'ownerName': 'Catia D.',
+      'petDetails': 'Milo (French Bulldog)',
+      'location': 'Germiston, Gauteng',
+      'dates': '10 Nov - 12 Nov',
+      'pay': 'R400 / night',
+    }
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -98,13 +124,6 @@ class _SitterHomeScreenState extends State<SitterHomeScreen> {
     Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
   }
 
-  void _comingSoon(String title) {
-    _closeDrawerIfOpen();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$title is coming soon')),
-    );
-  }
-
   void _showSnack(String message) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
@@ -134,10 +153,10 @@ class _SitterHomeScreenState extends State<SitterHomeScreen> {
               onPressed: () async {
                 Navigator.pop(ctx);
                 try {
-                  // Pushing a dummy byte array to the backend since we are in the emulator
+                  // Pushing a dummy byte array to the backend since im using the emulator
                   await SitterService.submitIdentityCheck(
                     email: _email,
-                    imageBytes: [137, 80, 78, 71, 13, 10, 26, 10], // Dummy PNG header
+                    imageBytes: [137, 80, 78, 71, 13, 10, 26, 10], 
                   );
                   _showSnack('ID photo uploaded to database!');
                   _fetchVerificationStatus(); // Refresh UI
@@ -400,6 +419,19 @@ class _SitterHomeScreenState extends State<SitterHomeScreen> {
                 ],
               ),
             ),
+            
+            // THE OPEN BOOKINGS LIST 
+            const SizedBox(height: 32),
+            const Text(
+              'Open Bookings Near You',
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 16),
+            
+            // This loop generates a beautiful card for each item in the hardCodedBookings list
+            ...hardCodedBookings.map((booking) => _buildBookingCard(booking)),
+            
+            const SizedBox(height: 24),
           ],
         ),
       ),
@@ -425,6 +457,8 @@ class _SitterHomeScreenState extends State<SitterHomeScreen> {
       ),
     );
   }
+
+  // Helper Widgets 
 
   Widget _buildCheckTile({
     required String title,
@@ -479,6 +513,103 @@ class _SitterHomeScreenState extends State<SitterHomeScreen> {
         ],
       ),
       onTap: onTap,
+    );
+  }
+
+  // this will create the layout for the hard-coded Open Bookings cards
+  Widget _buildBookingCard(Map<String, dynamic> booking) {
+    return Card(
+      elevation: 2,
+      margin: const EdgeInsets.only(bottom: 16.0),
+      color: Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  booking['ownerName'],
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryRust.withValues(alpha: 0.1), 
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    booking['pay'],
+                    style: const TextStyle(
+                      color: AppColors.primaryRust, 
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            _buildInfoRow(Icons.pets, booking['petDetails']),
+            const SizedBox(height: 8),
+            _buildInfoRow(Icons.location_on_outlined, booking['location']),
+            const SizedBox(height: 8),
+            _buildInfoRow(Icons.calendar_today_outlined, booking['dates']),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () {},
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      foregroundColor: AppColors.primaryRust,
+                      side: const BorderSide(color: AppColors.primaryRust),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    child: const Text('View Details'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () {},
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primaryRust,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    child: const Text(
+                      'Apply Now',
+                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Creates the icon and text rows for the booking cards
+  Widget _buildInfoRow(IconData icon, String text) {
+    return Row(
+      children: [
+        Icon(icon, size: 20, color: Colors.grey[600]),
+        const SizedBox(width: 12),
+        Text(
+          text,
+          style: TextStyle(color: Colors.grey[800], fontSize: 15),
+        ),
+      ],
     );
   }
 }
