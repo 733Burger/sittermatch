@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../services/admin_service.dart';
 import '../services/auth_services.dart';
 import '../theme/app_colors.dart';
-import 'admin_cancellations_screen.dart';
 import 'admin_checks_screen.dart';
 import 'admin_reviews_screen.dart';
 import 'login_screen.dart';
@@ -164,13 +163,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 subtitle: 'Approve or remove reviews before they show',
                 count: stats.pendingReviews,
                 onTap: () => _openTool(const AdminReviewsScreen()),
-              ),
-              _buildToolCard(
-                icon: Icons.event_busy_outlined,
-                title: 'Booking cancellations',
-                subtitle: 'Handle requests to cancel a booking',
-                count: stats.cancellationRequests,
-                onTap: () => _openTool(const AdminCancellationsScreen()),
               ),
               const SizedBox(height: 16),
             ],

@@ -9,6 +9,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
@@ -23,8 +24,9 @@ public class Booking {
     @JoinColumn(name = "listing_id", nullable = false)
     private Listing listing;
 
+    // Null while the booking is open to any sitter; set when a sitter requests to accept it.
     @ManyToOne
-    @JoinColumn(name = "sitter_id", nullable = false)
+    @JoinColumn(name = "sitter_id")
     private Sitter sitter;
 
     @Column(name = "booking_type", nullable = false)
@@ -42,6 +44,22 @@ public class Booking {
 
     @Column(name = "confirmed_at")
     private LocalDateTime confirmedAt;
+
+    @Column(name = "price_per_night", precision = 10, scale = 2)
+    private BigDecimal pricePerNight;
+
+    @Column(name = "price_per_visit", precision = 10, scale = 2)
+    private BigDecimal pricePerVisit;
+
+    @Column(name = "price_per_walk", precision = 10, scale = 2)
+    private BigDecimal pricePerWalk;
+
+    public BigDecimal getPricePerNight() { return pricePerNight; }
+    public void setPricePerNight(BigDecimal v) { this.pricePerNight = v; }
+    public BigDecimal getPricePerVisit() { return pricePerVisit; }
+    public void setPricePerVisit(BigDecimal v) { this.pricePerVisit = v; }
+    public BigDecimal getPricePerWalk() { return pricePerWalk; }
+    public void setPricePerWalk(BigDecimal v) { this.pricePerWalk = v; }
 
     public Booking() {}
 

@@ -1,9 +1,12 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import '../models/booking_model.dart';
 import '../services/auth_services.dart';
+import '../services/booking_service.dart';
 import '../services/message_service.dart';
 import '../theme/app_colors.dart';
+import 'homeowner_detail_screen.dart';
 import 'sitter_detail_screen.dart';
 
 /// One service in the booking offer, with its price.
@@ -11,8 +14,8 @@ class _OfferItem {
   final String service;
   final String unit; // 'night', 'visit' or 'walk'
   final int? quantity; // e.g. 3 nights. null for per-visit / per-walk services.
-  final int originalPrice;
-  int price;
+  final double originalPrice;
+  double price;
 
   _OfferItem({
     required this.service,
@@ -35,10 +38,6 @@ class DirectChatScreen extends StatefulWidget {
 }
 
 class _DirectChatScreenState extends State<DirectChatScreen> {
-  // Shows the sample booking offer card at the top of every chat.
-  // TODO: set to false (or remove) once booking offers come from the backend.
-  static const bool _showSampleOffer = true;
-
   final TextEditingController _inputController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   Timer? _pollTimer;
@@ -52,18 +51,39 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
 
   bool get _isHomeowner => _myRole == 'HOMEOWNER';
 
-  // 'pending', 'accepted' or 'declined'
-  String _offerStatus = 'pending';
+  // The open booking between these two people (null = no card shown).
+  BookingOffer? _offer;
+  bool _offerBusy = false;
 
-  // Sample booking offer. TODO: replace with the real booking from the backend.
-  final String _stayTitle = 'Camps Bay Stay';
-  final String _dates = 'Nov 24 – 27';
-  final int _nights = 3;
-  final String _petsSummary = 'Bella & Milo (dogs), Cleo (cat)';
-  final List<_OfferItem> _offerItems = [
-    _OfferItem(service: 'Stay over night', unit: 'night', quantity: 3, originalPrice: 320),
-    _OfferItem(service: 'Walk dog', unit: 'walk', originalPrice: 120),
-  ];
+  bool get _showOffer =>
+      _offer != null && const {'REQUESTED', 'ACCEPTED', 'CONFIRMED', 'ONGOING'}.contains(_offer!.status);
+  bool get _offerOpen => _offer?.status == 'REQUESTED';
+
+  List<_OfferItem> get _offerItems {
+    final o = _offer;
+    if (o == null) return [];
+    return [
+      if (o.pricePerNight != null)
+        _OfferItem(service: 'Stay over night', unit: 'night', quantity: o.nights, originalPrice: o.pricePerNight!),
+      if (o.pricePerVisit != null)
+        _OfferItem(service: 'Drop-in visit (feed pets)', unit: 'visit', originalPrice: o.pricePerVisit!),
+      if (o.pricePerWalk != null)
+        _OfferItem(service: 'Walk dog', unit: 'walk', originalPrice: o.pricePerWalk!),
+    ];
+  }
+
+  String _money(num v) => 'R${v == v.roundToDouble() ? v.toInt() : v.toStringAsFixed(2)}';
+
+  Future<void> _loadOffer() async {
+    final s = _sitterId, h = _homeownerId;
+    if (s == null || h == null) return;
+    try {
+      final offer = await BookingService.fetchBookingBetween(sitterId: s, homeownerId: h);
+      if (mounted) setState(() => _offer = offer);
+    } catch (e) {
+      debugPrint('Error loading booking offer: $e');
+    }
+  }
 
   // The sitter and homeowner ids for this conversation.
   int? get _sitterId => _myRole == 'SITTER' ? _myId : widget.partnerId;
@@ -127,6 +147,7 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
         _error = null;
       });
       if (hasNew) _scrollToBottom();
+      _loadOffer();
     } catch (e) {
       debugPrint('Error loading messages: $e');
       if (!mounted || silent) return;
@@ -193,21 +214,24 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
   }
 
   // Homeowners can open the sitter's profile from the chat header.
-  bool get _canOpenPartnerProfile => _isHomeowner && widget.partnerId != null;
+  bool get _canOpenPartnerProfile => _myRole.isNotEmpty && widget.partnerId != null;
 
+  // Homeowners open the sitter's profile; sitters open the homeowner's.
   void _openSitterDetails() {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => SitterDetailScreen(sitterId: widget.partnerId!),
+        builder: (context) => _isHomeowner
+            ? SitterDetailScreen(sitterId: widget.partnerId!)
+            : HomeownerDetailScreen(homeownerId: widget.partnerId!, homeownerName: widget.partnerName),
       ),
     );
   }
 
-  int? get _total {
+  double? get _total {
     final fixed = _offerItems.where((i) => i.quantity != null).toList();
     if (fixed.isEmpty) return null;
-    return fixed.fold<int>(0, (sum, i) => sum + i.price * i.quantity!);
+    return fixed.fold<double>(0, (sum, i) => sum + i.price * i.quantity!);
   }
 
   String _quantityLabel(_OfferItem item) {
@@ -216,16 +240,48 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
     return '$qty ${qty == 1 ? item.unit : '${item.unit}s'}';
   }
 
-  void _acceptOffer() {
-    setState(() => _offerStatus = 'accepted');
-    // TODO: send the acceptance to the backend.
-    _showSnack('Booking accepted.');
+  // Accepting gives this sitter the booking and removes other sitters' offers on it.
+  // Declining removes only this sitter's offer; the booking stays open.
+  Future<void> _answerOffer({required bool accept}) async {
+    final o = _offer;
+    final sitterId = o?.sitterId ?? _sitterId;
+    if (o == null || sitterId == null || _offerBusy) return;
+    setState(() => _offerBusy = true);
+    try {
+      if (accept) {
+        await BookingService.acceptOffer(o.id, sitterId);
+      } else {
+        await BookingService.declineOffer(o.id, sitterId);
+      }
+      await _loadOffer();
+      _showSnack(accept ? 'Booking accepted.' : 'Offer declined.');
+    } catch (e) {
+      _showSnack(e.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      if (mounted) setState(() => _offerBusy = false);
+    }
   }
 
-  void _declineOffer() {
-    setState(() => _offerStatus = 'declined');
-    // TODO: send the decline to the backend.
-    _showSnack('Offer declined.');
+  void _acceptOffer() => _answerOffer(accept: true);
+  void _declineOffer() => _answerOffer(accept: false);
+
+  Future<void> _savePrice(_OfferItem item, double value) async {
+    final o = _offer;
+    if (o == null) return;
+    try {
+      final updated = await BookingService.updatePrices(
+        o.id,
+        sitterId: o.sitterId ?? _sitterId,
+        pricePerNight: item.unit == 'night' ? value : null,
+        pricePerVisit: item.unit == 'visit' ? value : null,
+        pricePerWalk: item.unit == 'walk' ? value : null,
+      );
+      if (!mounted) return;
+      setState(() => _offer = updated);
+      _showSnack('Price updated to ${_money(value)} / ${item.unit}.');
+    } catch (e) {
+      _showSnack(e.toString().replaceFirst('Exception: ', ''));
+    }
   }
 
   // The homeowner can change the price per night, per visit or per walk.
@@ -248,14 +304,14 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '${item.service} · currently R${item.price} / ${item.unit}',
+                '${item.service} · currently ${_money(item.price)} / ${item.unit}',
                 style: const TextStyle(fontSize: 13, color: Colors.black54),
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: controller,
                 autofocus: true,
-                keyboardType: TextInputType.number,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 decoration: InputDecoration(
                   labelText: 'New price',
                   prefixText: 'R ',
@@ -277,15 +333,13 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
                 foregroundColor: Colors.white,
               ),
               onPressed: () {
-                final value = int.tryParse(controller.text.trim());
+                final value = double.tryParse(controller.text.trim().replaceAll(',', '.'));
                 if (value == null || value <= 0) {
                   setDialogState(() => error = 'Enter a price above R0');
                   return;
                 }
-                setState(() => item.price = value);
-                // TODO: send the updated price to the backend.
                 Navigator.pop(ctx);
-                _showSnack('Price updated to R$value / ${item.unit}.');
+                _savePrice(item, value);
               },
               child: const Text('Save price'),
             ),
@@ -419,7 +473,7 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
       );
     }
 
-    const showOffer = _showSampleOffer;
+    final showOffer = _showOffer;
     if (_messages.isEmpty && !showOffer) {
       return const Center(
         child: Text(
@@ -444,7 +498,7 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
   // ---------- Booking offer ----------
 
   Widget _buildOfferCard() {
-    final canEdit = _isHomeowner && _offerStatus == 'pending';
+    final canEdit = _isHomeowner && _offerOpen;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -468,13 +522,13 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
           ),
           const SizedBox(height: 6),
           Text(
-            _stayTitle,
+            _offer!.bookingType,
             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.darkText),
           ),
           const SizedBox(height: 8),
-          _buildInfoRow(Icons.calendar_today_outlined, '$_dates · $_nights nights'),
+          _buildInfoRow(Icons.calendar_today_outlined, '${_dateRange(_offer!)} · ${_offer!.nights} ${_offer!.nights == 1 ? 'night' : 'nights'}'),
           const SizedBox(height: 4),
-          _buildInfoRow(Icons.pets, _petsSummary),
+          if (_offer!.notes.isNotEmpty) _buildInfoRow(Icons.pets, _offer!.notes.replaceAll('\n', ' · ')),
           const SizedBox(height: 14),
           _buildPriceBlock(canEdit),
           const SizedBox(height: 14),
@@ -535,7 +589,7 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
                   child: Text('Total', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
                 ),
                 Text(
-                  'R$total',
+                  _money(total),
                   style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.primaryRust),
                 ),
               ],
@@ -584,7 +638,7 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
             children: [
               if (changed)
                 Text(
-                  'R${item.originalPrice}',
+                  _money(item.originalPrice),
                   style: const TextStyle(
                     fontSize: 10,
                     color: Colors.grey,
@@ -592,7 +646,7 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
                   ),
                 ),
               Text(
-                'R${item.price} / ${item.unit}',
+                '${_money(item.price)} / ${item.unit}',
                 style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primaryRust),
               ),
             ],
@@ -609,34 +663,39 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
     );
   }
 
+  String _dateRange(BookingOffer o) {
+    const m = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    String f(DateTime t) => '${m[t.month - 1]} ${t.day}';
+    if (o.start == null || o.end == null) return 'Dates unconfirmed';
+    return '${f(o.start!)} – ${f(o.end!)}';
+  }
+
   Widget _buildOfferActions() {
-    if (_offerStatus != 'pending') {
-      final accepted = _offerStatus == 'accepted';
+    if (!_offerOpen) {
+      final accepted = _offer!.status != 'REQUESTED';
       return Container(
         width: double.infinity,
         padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: AppColors.lightRustBg,
-          borderRadius: BorderRadius.circular(10),
-        ),
+        decoration: BoxDecoration(color: AppColors.lightRustBg, borderRadius: BorderRadius.circular(10)),
         child: Row(
           children: [
-            Icon(
-              accepted ? Icons.check_circle : Icons.cancel_outlined,
-              color: AppColors.primaryRust,
-              size: 18,
-            ),
+            Icon(accepted ? Icons.check_circle : Icons.cancel_outlined, color: AppColors.primaryRust, size: 18),
             const SizedBox(width: 8),
-            Text(
-              accepted ? 'Booking accepted' : 'Offer declined',
-              style: const TextStyle(
-                color: AppColors.primaryRust,
-                fontSize: 13,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+            const Text('Booking accepted',
+                style: TextStyle(color: AppColors.primaryRust, fontSize: 13, fontWeight: FontWeight.bold)),
           ],
         ),
+      );
+    }
+
+    // The sitter has asked to accept; only the homeowner can accept or decline.
+    if (!_isHomeowner) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(color: AppColors.lightRustBg, borderRadius: BorderRadius.circular(10)),
+        child: const Text('Waiting for the homeowner to review prices and accept.',
+            style: TextStyle(color: AppColors.primaryRust, fontSize: 12, fontWeight: FontWeight.w600)),
       );
     }
 
@@ -644,7 +703,7 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
       children: [
         Expanded(
           child: ElevatedButton.icon(
-            onPressed: _acceptOffer,
+            onPressed: _offerBusy ? null : _acceptOffer,
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primaryRust,
               padding: const EdgeInsets.symmetric(vertical: 12),
@@ -660,7 +719,7 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
         const SizedBox(width: 12),
         Expanded(
           child: TextButton(
-            onPressed: _declineOffer,
+            onPressed: _offerBusy ? null : _declineOffer,
             child: const Text(
               'Ignore / Decline',
               style: TextStyle(color: AppColors.primaryRust, fontWeight: FontWeight.bold),

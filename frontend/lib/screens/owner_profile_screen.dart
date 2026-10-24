@@ -4,10 +4,13 @@ import 'package:flutter/material.dart';
 
 import '../models/owner_review.dart';
 import '../models/pet_model.dart';
+import '../models/review_model.dart';
 import '../services/auth_services.dart';
 import '../services/places_service.dart';
 import '../services/profile_service.dart';
+import '../services/review_service.dart';
 import '../theme/app_colors.dart';
+import '../utils/profile_completion.dart';
 import '../widgets/homeowner/dialogs/change_password_dialog.dart';
 import '../widgets/homeowner/dialogs/pet_form_dialog.dart';
 import '../widgets/homeowner/homeowner_bottom_nav_bar.dart';
@@ -15,8 +18,10 @@ import '../widgets/homeowner/profile/profile_address_card.dart';
 import '../widgets/homeowner/profile/profile_gate_banner.dart';
 import '../widgets/homeowner/profile/profile_header_card.dart';
 import '../widgets/homeowner/profile/profile_pet_card.dart';
+import '../widgets/homeowner/profile/profile_pet_reviews_card.dart';
 import '../widgets/homeowner/profile/profile_pets_section.dart';
 import '../widgets/homeowner/profile/profile_reviews_card.dart';
+import '../widgets/homeowner/profile/profile_tasks_card.dart';
 import '../widgets/homeowner/profile/profile_user_details_card.dart';
 import 'bookings_dashboard_screen.dart';
 import 'messages_screen.dart';
@@ -36,6 +41,7 @@ class _OwnerProfileScreenState extends State<OwnerProfileScreen> {
   final ProfileService _profileService = ProfileService();
   final PlacesApi _placesApi = PlacesApi();
 
+  int? _homeownerId;
   String _userName = '';
   String _userEmail = '';
   String _userPhone = '';
@@ -64,9 +70,18 @@ class _OwnerProfileScreenState extends State<OwnerProfileScreen> {
 
   final List<PetModel> _pets = [];
   final List<OwnerReview> _ownerReviews = [];
+  List<PetReview> _petReviews = [];
 
-  bool getValidForm() {
-    return _isAddressPinned && _requirementsController.text.trim().isNotEmpty;
+  // What the saved profile still needs before the rest of the app unlocks.
+  List<String> _missing = [];
+  bool get _profileComplete => _missing.isEmpty;
+
+  Future<void> _refreshMissing() async {
+    final missing = await missingProfileItems();
+    if (!mounted) return;
+    final justFinished = !_profileComplete && missing.isEmpty;
+    setState(() => _missing = missing);
+    if (justFinished) _showSnack('Profile complete. You can now use the whole app.');
   }
 
   bool get _isAddressPinned {
@@ -105,6 +120,35 @@ class _OwnerProfileScreenState extends State<OwnerProfileScreen> {
     super.initState();
     _loadProfile();
     _loadPets();
+    _loadReviews();
+  }
+
+  // Reviews sitters wrote about this homeowner, once an admin has approved them.
+  Future<void> _loadReviews() async {
+    final userId = await AuthService().getUserId();
+    if (!mounted || userId == null) return;
+    try {
+      final reviews = await ReviewService.fetchHomeownerReviews(userId);
+      if (!mounted) return;
+      setState(() {
+        _ownerReviews
+          ..clear()
+          ..addAll(reviews.map((r) => OwnerReview(
+                sitterName: r.reviewerName,
+                rating: r.rating.toDouble(),
+                comment: r.comment,
+                date: r.dateLabel,
+              )));
+      });
+    } catch (e) {
+      debugPrint('Error loading reviews: $e');
+    }
+    try {
+      final petReviews = await ReviewService.fetchHomeownerPetReviews(userId);
+      if (mounted) setState(() => _petReviews = petReviews);
+    } catch (e) {
+      debugPrint('Error loading pet reviews: $e');
+    }
   }
 
   @override
@@ -126,6 +170,7 @@ class _OwnerProfileScreenState extends State<OwnerProfileScreen> {
       _showSnack('User session expired. Please log in again.', error: true);
       return;
     }
+    setState(() => _homeownerId = userId);
 
     final result = await _profileService.fetchProfile(userId: userId);
     if (!mounted) return;
@@ -150,6 +195,7 @@ class _OwnerProfileScreenState extends State<OwnerProfileScreen> {
       _addressController.text = _savedAddress;
       _requirementsController.text = _savedRequirements;
     });
+    _refreshMissing();
   }
 
   Future<void> _loadPets() async {
@@ -173,6 +219,7 @@ class _OwnerProfileScreenState extends State<OwnerProfileScreen> {
         ..clear()
         ..addAll(pets);
     });
+    _refreshMissing();
   }
 
   Future<void> _saveUserDetails() async {
@@ -277,6 +324,7 @@ class _OwnerProfileScreenState extends State<OwnerProfileScreen> {
         _addressController.text = _savedAddress;
       }
     });
+    _refreshMissing();
     return true;
   }
 
@@ -421,7 +469,7 @@ class _OwnerProfileScreenState extends State<OwnerProfileScreen> {
   void _handleBottomNavTap(OwnerNavTab tab) {
     if (tab == OwnerNavTab.profile) return;
 
-    if (!getValidForm()) {
+    if (!_profileComplete) {
       _showGateMessage();
       return;
     }
@@ -454,16 +502,13 @@ class _OwnerProfileScreenState extends State<OwnerProfileScreen> {
   }
 
   void _showGateMessage() {
-    _showSnack(
-      'Select your home address from the suggestions and add house sitting notes first.',
-      error: true,
-    );
+    _showSnack('Finish your profile first. Still needed: ${describeMissing(_missing)}.', error: true);
   }
 
   @override
   Widget build(BuildContext context) {
     return PopScope(
-      canPop: getValidForm(),
+      canPop: _profileComplete,
       onPopInvokedWithResult: (didPop, result) {
         if (!didPop) _showGateMessage();
       },
@@ -482,8 +527,8 @@ class _OwnerProfileScreenState extends State<OwnerProfileScreen> {
         body: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            if (!getValidForm()) ...[
-              const ProfileGateBanner(),
+            if (!_profileComplete) ...[
+              ProfileGateBanner(missing: _missing),
               const SizedBox(height: 16),
             ],
             ProfileHeaderCard(
@@ -539,10 +584,14 @@ class _OwnerProfileScreenState extends State<OwnerProfileScreen> {
                 ),
               ),
             const SizedBox(height: 12),
+            ProfileTasksCard(homeownerId: _homeownerId, onMessage: _showMessageIfMounted),
+            const SizedBox(height: 12),
             ProfileReviewsCard(
               reviews: _ownerReviews,
               averageRating: _averageRating,
             ),
+            const SizedBox(height: 12),
+            ProfilePetReviewsCard(reviews: _petReviews),
             const SizedBox(height: 24),
           ],
         ),

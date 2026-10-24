@@ -13,7 +13,6 @@ class AdminStats {
   final int completedBookings;
   final int pendingChecks;
   final int pendingReviews;
-  final int cancellationRequests;
 
   const AdminStats({
     required this.totalUsers,
@@ -25,7 +24,6 @@ class AdminStats {
     required this.completedBookings,
     required this.pendingChecks,
     required this.pendingReviews,
-    required this.cancellationRequests,
   });
 
   factory AdminStats.fromJson(Map<String, dynamic> json) {
@@ -39,7 +37,6 @@ class AdminStats {
       completedBookings: json['completedBookings'] ?? 0,
       pendingChecks: json['pendingChecks'] ?? 0,
       pendingReviews: json['pendingReviews'] ?? 0,
-      cancellationRequests: json['cancellationRequests'] ?? 0,
     );
   }
 }
@@ -108,41 +105,6 @@ class ReviewItem {
   }
 }
 
-class CancellationRequest {
-  final int id;
-  final String bookingTitle;
-  final String dates;
-  final String homeownerName;
-  final String sitterName;
-  final String requestedBy;
-  final String reason;
-  final String requestedOn;
-
-  const CancellationRequest({
-    required this.id,
-    required this.bookingTitle,
-    required this.dates,
-    required this.homeownerName,
-    required this.sitterName,
-    required this.requestedBy,
-    required this.reason,
-    required this.requestedOn,
-  });
-
-  factory CancellationRequest.fromJson(Map<String, dynamic> json) {
-    return CancellationRequest(
-      id: json['id'] ?? 0,
-      bookingTitle: json['bookingTitle'] ?? '',
-      dates: json['dates'] ?? '',
-      homeownerName: json['homeownerName'] ?? '',
-      sitterName: json['sitterName'] ?? '',
-      requestedBy: json['requestedBy'] ?? '',
-      reason: json['reason'] ?? '',
-      requestedOn: json['requestedOn'] ?? '',
-    );
-  }
-}
-
 class AdminService {
   static final String _baseUrl = ApiConfig.baseUrl;
   static const _timeout = Duration(seconds: 10);
@@ -164,7 +126,6 @@ class AdminService {
     // Fetch live list lengths to guarantee absolute accuracy
     final checks = await fetchPendingChecks();
     final reviews = await fetchPendingReviews();
-    final cancellations = await fetchCancellationRequests();
 
     return AdminStats(
       totalUsers: read('totalUsers'),
@@ -176,7 +137,6 @@ class AdminService {
       searchingBookings: read('searchingBookings'),
       completedBookings: read('completedBookings'),
       pendingReviews: reviews.length,
-      cancellationRequests: cancellations.length,
     );
   }
 
@@ -246,38 +206,6 @@ class AdminService {
       ).timeout(_timeout);
     } catch (e) {
       debugPrint('Error resolving review: $e');
-    }
-  }
-
-  // ---------- Cancellations ----------
-
-  static Future<List<CancellationRequest>> fetchCancellationRequests() async {
-    try {
-      final response = await http.get(
-        Uri.parse('$_baseUrl/api/admin/cancellation-requests'),
-        headers: {'Content-Type': 'application/json'},
-      ).timeout(_timeout);
-
-      if (response.statusCode == 200) {
-        final List<dynamic> list = jsonDecode(response.body);
-        return list.map((item) => CancellationRequest.fromJson(item)).toList();
-      }
-      return [];
-    } catch (e) {
-      debugPrint('Error fetching cancellation requests: $e');
-      return [];
-    }
-  }
-
-  static Future<void> resolveCancellation(int id, {required bool approved}) async {
-    try {
-      await http.post(
-        Uri.parse('$_baseUrl/api/admin/resolve-cancellation'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'requestId': id, 'approved': approved}),
-      ).timeout(_timeout);
-    } catch (e) {
-      debugPrint('Error resolving cancellation: $e');
     }
   }
 }

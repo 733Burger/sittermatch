@@ -4,6 +4,7 @@ import '../theme/app_colors.dart';
 import '../models/booking_draft_model.dart';
 import '../services/auth_services.dart';
 import '../services/booking_service.dart';
+import '../services/profile_service.dart';
 import 'saved_sitters_screen.dart';
 import 'bookings_dashboard_screen.dart';
 import 'direct_chat_screen.dart';
@@ -20,9 +21,7 @@ class BookingFlowScreen extends StatefulWidget {
 
 class _BookingFlowScreenState extends State<BookingFlowScreen> {
   late Future<BookingDraftModel> _draftFuture;
-  final TextEditingController _instructionsController = TextEditingController(
-    text: "Armed response callout procedure attached, Bella takes joint tablet morning",
-  );
+  final TextEditingController _instructionsController = TextEditingController();
 
   // State for interactive Pickers
   DateTime _checkInDate = DateTime.now();
@@ -115,7 +114,15 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
     if (userId == null) {
       throw Exception('Sign in again before creating a booking.');
     }
-    return BookingService.getBookingDraft(userId);
+    final draft = await BookingService.getBookingDraft(userId);
+
+    // Start the notes with the house sitting requirements from the homeowner's profile.
+    final profile = await ProfileService().fetchProfile(userId: userId);
+    final requirements = (profile['requirements'] ?? '').toString().trim();
+    if (requirements.isNotEmpty && _instructionsController.text.trim().isEmpty) {
+      _instructionsController.text = requirements;
+    }
+    return draft;
   }
 
   // Handle booking dispatch
@@ -130,6 +137,13 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
           content: Text('Sign in again before creating a booking.'),
           backgroundColor: Colors.red,
         ),
+      );
+      return;
+    }
+
+    if (!_stayNight && !_feedDog && !_walkDog) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Select at least one service.'), backgroundColor: Colors.red),
       );
       return;
     }
@@ -152,9 +166,12 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
         _checkOutTime.minute,
       );
 
-      String serviceType = 'Stay Night';
-      if (_feedDog) serviceType = 'Drop-in Feeding';
-      if (_walkDog) serviceType = _stayNight ? 'Stay Night & Walk' : 'Walk Dog';
+      // Every ticked service goes in, e.g. "Drop-in Feeding & Walk Dog".
+      final serviceType = [
+        if (_stayNight) 'Stay Night',
+        if (_feedDog) 'Drop-in Feeding',
+        if (_walkDog) 'Walk Dog',
+      ].join(' & ');
 
       await BookingService.dispatchBooking(
         draft,

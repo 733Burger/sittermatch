@@ -295,7 +295,7 @@ public class SitterService {
             Booking booking = bookingRepository.findById(bookingId)
                             .orElseThrow(() -> new RuntimeException("Booking not found"));
 
-            if (!booking.getSitter().getId().equals(sitterId)) {
+            if (booking.getSitter() == null || !booking.getSitter().getId().equals(sitterId)) {
                     throw new SecurityException("Unauthorised access to booking details");
             }
             if (!"confirmed".equalsIgnoreCase(booking.getStatus())) {
@@ -337,7 +337,10 @@ public class SitterService {
             review.setHomeowner(homeowner);
             review.setRating(rating);
             review.setComments(comments);
-            review.setReviewedBy("sitter");
+            review.setReviewedBy("SITTER");
+            // Hidden until an admin approves it.
+            review.setStatus(ReviewService.PENDING);
+            review.setCreatedAt(LocalDateTime.now());
             return reviewRepository.save(review);
     }
 

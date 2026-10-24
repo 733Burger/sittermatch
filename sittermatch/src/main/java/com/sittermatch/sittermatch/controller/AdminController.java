@@ -1,5 +1,6 @@
 package com.sittermatch.sittermatch.controller;
 
+import com.sittermatch.sittermatch.dto.admin.AdminReviewDto;
 import com.sittermatch.sittermatch.dto.admin.AdminUserCheckDto;
 import com.sittermatch.sittermatch.model.HomeownerVerification;
 import com.sittermatch.sittermatch.model.SitterVerification;
@@ -9,6 +10,7 @@ import com.sittermatch.sittermatch.repository.HomeownerVerificationRepository;
 import com.sittermatch.sittermatch.repository.SitterVerificationRepository;
 import com.sittermatch.sittermatch.repository.SitterRepository;
 import com.sittermatch.sittermatch.repository.UserRepository;
+import com.sittermatch.sittermatch.services.ReviewService;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -33,6 +35,7 @@ public class AdminController {
     @Autowired private UserRepository userRepository;
     @Autowired private SitterRepository sitterRepository;
     @Autowired private HomeownerRepository homeownerRepository;
+    @Autowired private ReviewService reviewService;
 
    @GetMapping("/stats")
     public ResponseEntity<Map<String, Object>> getStats() {
@@ -43,6 +46,7 @@ public class AdminController {
         stats.put("sitters", sitterRepository.count());
         stats.put("homeowners", homeownerRepository.count());
         stats.put("pendingChecks", pending == null ? 0 : pending.size());
+        stats.put("pendingReviews", reviewService.getPendingReviews().size());
         return ResponseEntity.ok(stats);
     }
 
@@ -192,5 +196,26 @@ public class AdminController {
         }
 
         return ResponseEntity.status(404).body(Map.of("success", false, "message", "Verification record not found"));
+    }
+
+    /** Reviews waiting for approval. They don't show on profiles or count towards ratings yet. */
+    @GetMapping("/pending-reviews")
+    public ResponseEntity<List<AdminReviewDto>> getPendingReviews() {
+        return ResponseEntity.ok(reviewService.getPendingReviews());
+    }
+
+    /** approved = true publishes the review; false removes it. */
+    @PostMapping("/resolve-review")
+    public ResponseEntity<Map<String, Object>> resolveReview(@RequestBody Map<String, Object> request) {
+        try {
+            Integer reviewId = Integer.valueOf(request.get("reviewId").toString());
+            boolean approved = Boolean.TRUE.equals(request.get("approved"));
+            reviewService.resolveReview(reviewId, approved);
+            return ResponseEntity.ok(Map.of("success", true,
+                    "message", approved ? "Review published" : "Review removed"));
+        } catch (IllegalArgumentException | NullPointerException e) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "message",
+                    e.getMessage() == null ? "reviewId is required" : e.getMessage()));
+        }
     }
 }

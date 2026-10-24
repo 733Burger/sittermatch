@@ -1,4 +1,3 @@
-
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
@@ -6,6 +5,7 @@ import 'package:http/http.dart' as http;
 import '../config/api_config.dart';
 import '../models/booking_model.dart';
 import '../models/booking_draft_model.dart';
+import '../models/pet_model.dart';
 
 class BookingService {
   static String get baseUrl => ApiConfig.baseUrl;
@@ -129,6 +129,105 @@ class BookingService {
     return jsonDecode(res.body) as Map<String, dynamic>;
   }
 
+  /// Permanently deletes a booking (homeowner cancelling it).
+  static Future<void> deleteBooking(int bookingId) async {
+    _check(await http.delete(
+      Uri.parse('$baseUrl/api/bookings/$bookingId'),
+      headers: _jsonHeaders,
+    ));
+  }
+
+  // offers
+
+  /// Sitter sends an offer on a pending booking. The backend messages the homeowner.
+  /// [extraPrices] holds prices for services the booking asks for that the sitter doesn't offer.
+  /// Several sitters can offer on an open booking; the homeowner accepts one.
+  static Future<BookingOffer> requestAccept(
+    int bookingId, {
+    int? sitterId,
+    Map<ServiceKind, double> extraPrices = const {},
+  }) async {
+    final res = _check(await http.post(
+      Uri.parse('$baseUrl/api/bookings/$bookingId/request-accept')
+          .replace(queryParameters: sitterId == null ? null : {'sitterId': '$sitterId'}),
+      headers: _jsonHeaders,
+      body: jsonEncode({
+        'pricePerNight': ?extraPrices[ServiceKind.night],
+        'pricePerVisit': ?extraPrices[ServiceKind.visit],
+        'pricePerWalk': ?extraPrices[ServiceKind.walk],
+      }),
+    ));
+    return BookingOffer.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
+  }
+
+  /// Sitter declines an open booking: it is hidden from them but stays open for other sitters.
+  static Future<void> dismissOpenBooking(int bookingId, int sitterId) async {
+    _check(await http.post(
+      Uri.parse('$baseUrl/api/bookings/$bookingId/dismiss').replace(queryParameters: {'sitterId': '$sitterId'}),
+      headers: _jsonHeaders,
+    ));
+  }
+
+  /// Homeowner accepts one sitter's offer. The other offers on the booking are removed.
+  static Future<void> acceptOffer(int bookingId, int sitterId) async {
+    _check(await http.post(
+      Uri.parse('$baseUrl/api/bookings/$bookingId/offers/accept').replace(queryParameters: {'sitterId': '$sitterId'}),
+      headers: _jsonHeaders,
+    ));
+  }
+
+  /// Homeowner turns down a sitter's offer, or the sitter withdraws it.
+  static Future<void> declineOffer(int bookingId, int sitterId) async {
+    _check(await http.post(
+      Uri.parse('$baseUrl/api/bookings/$bookingId/offers/decline').replace(queryParameters: {'sitterId': '$sitterId'}),
+      headers: _jsonHeaders,
+    ));
+  }
+
+  /// Homeowner changes one or more prices in a sitter's offer (only the non-null ones are sent).
+  static Future<BookingOffer> updatePrices(
+    int bookingId, {
+    int? sitterId,
+    double? pricePerNight,
+    double? pricePerVisit,
+    double? pricePerWalk,
+  }) async {
+    final res = _check(await http.patch(
+      Uri.parse('$baseUrl/api/bookings/$bookingId/prices')
+          .replace(queryParameters: sitterId == null ? null : {'sitterId': '$sitterId'}),
+      headers: _jsonHeaders,
+      body: jsonEncode({
+        'pricePerNight': ?pricePerNight,
+        'pricePerVisit': ?pricePerVisit,
+        'pricePerWalk': ?pricePerWalk,
+      }),
+    ));
+    return BookingOffer.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
+  }
+
+  /// The open booking between these two people, or null if there is none.
+  static Future<BookingOffer?> fetchBookingBetween({
+    required int sitterId,
+    required int homeownerId,
+  }) async {
+    final uri = Uri.parse('$baseUrl/api/bookings/between')
+        .replace(queryParameters: {'sitterId': '$sitterId', 'homeownerId': '$homeownerId'});
+    final res = await http.get(uri, headers: _jsonHeaders);
+    if (res.statusCode == 204 || res.body.isEmpty) return null;
+    _check(res);
+    return BookingOffer.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
+  }
+
+  /// The pets registered on a homeowner's profile.
+  static Future<List<PetModel>> fetchHomeownerPets(int homeownerId) async {
+    final res = _check(await http.get(
+      Uri.parse('$baseUrl/api/pets/homeowner/$homeownerId'),
+      headers: _jsonHeaders,
+    ));
+    final List<dynamic> data = jsonDecode(res.body);
+    return data.map((item) => PetModel.fromJson(item as Map<String, dynamic>)).toList();
+  }
+
   // Setup
 
   static Future<BookingDraftModel> getBookingDraft(int homeownerId) async {
@@ -213,8 +312,9 @@ class BookingService {
       id: 'B-${json['id']}',
       title: json['listingTitle'] ?? 'Home Stay',
       subtitle: '$dateRange (${json['status'] ?? 'Pending'})',
-      sitterName: json['sitterName'] ?? 'Assigned Sitter',
-      avatarUrl: 'https://i.pravatar.cc/150?u=${json['sitterId'] ?? 'user'}',
+      // Both null while the booking is open and no sitter has taken it.
+      sitterName: json['sitterName'] as String?,
+      avatarUrl: json['sitterId'] == null ? null : 'https://i.pravatar.cc/150?u=${json['sitterId']}',
       badgeText: status == 'ACCEPTED' || status == 'CONFIRMED'
           ? 'CONFIRMED STAY'
           : 'PENDING CONFIRMATION',
@@ -224,6 +324,19 @@ class BookingService {
           : 'No special notes provided',
       detailText2: 'Booking ID: #${json['id']}',
       type: type,
+      bookingId: (json['id'] as num?)?.toInt(),
+      rawStatus: status,
+      sitterId: (json['sitterId'] as num?)?.toInt(),
+      homeownerId: (json['homeownerId'] as num?)?.toInt(),
+      homeownerName: json['homeownerName'] as String?,
+      startDate: DateTime.tryParse(startRaw),
+      endDate: DateTime.tryParse(endRaw),
+      homeownerNotes: json['notes']?.toString().isNotEmpty == true ? json['notes'].toString() : null,
+      offers: ((json['offers'] as List?) ?? [])
+          .map((o) => SitterOffer.fromJson(o as Map<String, dynamic>))
+          .toList(),
+      homeownerReviewed: json['homeownerReviewed'] == true,
+      sitterReviewed: json['sitterReviewed'] == true,
     );
   }
 }

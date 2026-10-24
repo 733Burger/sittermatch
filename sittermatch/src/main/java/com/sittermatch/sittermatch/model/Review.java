@@ -1,6 +1,8 @@
 package com.sittermatch.sittermatch.model;
 
 
+import java.time.LocalDateTime;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -35,7 +37,11 @@ public class Review {
 
     private Integer rating;
     private String comments;
+    // PENDING until an admin approves it (PUBLISHED) or removes it (REMOVED).
     private String status;
+
+    @Column(name = "created_at")
+    private LocalDateTime createdAt;
 
     public Review() {}
 
@@ -109,6 +115,14 @@ public class Review {
 
     public void setStatus(String status) {
         this.status = status;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
     }
 
     public String getReviewedBy() {

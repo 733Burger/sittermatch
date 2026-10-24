@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import '../services/auth_services.dart';
+import '../services/review_service.dart';
 import '../theme/app_colors.dart';
 import 'jobs_dashboard_screen.dart';
 import 'messages_screen.dart';
 import '../services/sitter_service.dart';
+import '../utils/profile_completion.dart';
+import '../widgets/homeowner/profile/profile_gate_banner.dart';
+import 'sitter_home_screen.dart';
 
 class SitterProfileScreen extends StatefulWidget {
   const SitterProfileScreen({super.key});
@@ -65,10 +69,50 @@ class _SitterProfileScreenState extends State<SitterProfileScreen> {
       : _sitterReviews.fold<double>(0, (sum, r) => sum + (r['rating'] as double)) /
           _sitterReviews.length;
 
+  // What the saved profile still needs before the rest of the app unlocks.
+  List<String> _missing = [];
+  bool get _profileComplete => _missing.isEmpty;
+
+  Future<void> _refreshMissing() async {
+    final missing = await missingProfileItems();
+    if (!mounted) return;
+    final justFinished = !_profileComplete && missing.isEmpty;
+    setState(() => _missing = missing);
+    if (justFinished) _showSnack('Profile complete. You can now use the whole app.');
+  }
+
+  void _showGateMessage() {
+    _showSnack('Finish your profile first. Still needed: ${describeMissing(_missing)}.');
+  }
+
   @override
   void initState() {
     super.initState();
     _loadProfile();
+    _loadReviews();
+    _refreshMissing();
+  }
+
+  // Reviews homeowners wrote about this sitter, once an admin has approved them.
+  Future<void> _loadReviews() async {
+    final userId = await AuthService().getUserId();
+    if (!mounted || userId == null) return;
+    try {
+      final reviews = await ReviewService.fetchSitterReviews(userId);
+      if (!mounted) return;
+      setState(() {
+        _sitterReviews = reviews
+            .map((r) => <String, dynamic>{
+                  'ownerName': r.reviewerName,
+                  'rating': r.rating.toDouble(),
+                  'comment': r.comment,
+                  'date': r.dateLabel,
+                })
+            .toList();
+      });
+    } catch (e) {
+      debugPrint('Error loading reviews: $e');
+    }
   }
 
   String _fmt(num? n) {
@@ -242,6 +286,7 @@ Future<void> _loadProfile() async {
       _sitterPhone = (result['phone'] ?? '').toString();
     });
     _showSnack('Details saved.');
+    _refreshMissing();
   }
 
   Future<void> _showChangePasswordDialog() async {
@@ -372,10 +417,19 @@ Future<void> _loadProfile() async {
   
 
   void _handleBottomNavTap(int index) {
+    if (index != 3 && !_profileComplete) {
+      _showGateMessage();
+      return;
+    }
     switch (index) {
       case 0:
-        // Home is the first screen in the stack after login.
-        Navigator.of(context).popUntil((route) => route.isFirst);
+        // Home is the first screen in the stack after login, unless a new sitter was sent
+        // straight here to finish their profile.
+        if (Navigator.of(context).canPop()) {
+          Navigator.of(context).popUntil((route) => route.isFirst);
+        } else {
+          Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const SitterHomeScreen()));
+        }
         break;
       case 1:
         Navigator.of(context).pushReplacement(
@@ -486,6 +540,16 @@ Future<void> _loadProfile() async {
 
   @override
   Widget build(BuildContext context) {
+    return PopScope(
+      canPop: _profileComplete,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) _showGateMessage();
+      },
+      child: _buildScaffold(),
+    );
+  }
+
+  Widget _buildScaffold() {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -503,6 +567,10 @@ Future<void> _loadProfile() async {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            if (!_profileComplete) ...[
+              ProfileGateBanner(missing: _missing),
+              const SizedBox(height: 16),
+            ],
             _buildHeaderCard(),
             const SizedBox(height: 16),
             _buildPersonalCard(),          // new

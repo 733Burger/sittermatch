@@ -1,21 +1,19 @@
 import 'package:flutter/material.dart';
-import 'package:frontend/models/sitter_details_model.dart';
-import 'package:frontend/widgets/homeowner/homeowner_bottom_nav_bar.dart';
-
-import '../theme/app_colors.dart';
+import '../models/sitter_details_model.dart';
 import '../services/sitter_service.dart';
+import '../theme/app_colors.dart';
+import '../widgets/homeowner/homeowner_bottom_nav_bar.dart';
 import '../widgets/homeowner/sitter_detail/sitter_about_card.dart';
 import '../widgets/homeowner/sitter_detail/sitter_action_bar.dart';
 import '../widgets/homeowner/sitter_detail/sitter_header_card.dart';
 import '../widgets/homeowner/sitter_detail/sitter_pets_card.dart';
 import '../widgets/homeowner/sitter_detail/sitter_reviews_card.dart';
 import '../widgets/homeowner/sitter_detail/sitter_services_card.dart';
-
+import 'bookings_dashboard_screen.dart';
 import 'direct_chat_screen.dart';
 import 'messages_screen.dart';
-import 'owner_profile_screen.dart';
 import 'owner_home_screen.dart';
-import 'bookings_dashboard_screen.dart';
+import 'owner_profile_screen.dart';
 
 class SitterDetailScreen extends StatefulWidget {
   const SitterDetailScreen({super.key, required this.sitterId});
@@ -42,7 +40,9 @@ class _SitterDetailScreenState extends State<SitterDetailScreen> {
     try {
       final sitterDetails = await _sitterService.getSitterDetails(sitterId: widget.sitterId);
       if (!mounted) return;
-      setState(() => _details = SitterDetails.fromJson(sitterDetails));
+      setState(() {
+        _details = SitterDetails.fromJson(sitterDetails);
+      });
     } catch (e) {
       if (!mounted) return;
       _showSnack('Could not load sitter details');
@@ -58,12 +58,16 @@ class _SitterDetailScreenState extends State<SitterDetailScreen> {
     switch (tab) {
       case OwnerNavTab.home:
         targetScreen = const OwnerHomeScreen();
+        break;
       case OwnerNavTab.bookings:
         targetScreen = const BookingsDashboardScreen();
+        break;
       case OwnerNavTab.messages:
         targetScreen = const MessagesScreen();
+        break;
       case OwnerNavTab.profile:
         targetScreen = const OwnerProfileScreen();
+        break;
     }
 
     Navigator.pushAndRemoveUntil(
@@ -126,12 +130,15 @@ class _SitterDetailScreenState extends State<SitterDetailScreen> {
     );
   }
 
-  Future<void> _messageSitter() async {
-    await SitterService.initiateChat('lerato_123');
-    if (!mounted) return;
+  void _messageSitter() {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => const DirectChatScreen()),
+      MaterialPageRoute(
+        builder: (_) => DirectChatScreen(
+          partnerId: widget.sitterId,
+          partnerName: _details.name.isNotEmpty ? _details.name : 'Sitter',
+        ),
+      ),
     );
   }
 
