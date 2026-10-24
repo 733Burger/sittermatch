@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../services/auth_services.dart';
 import '../services/sitter_service.dart';
 import '../theme/app_colors.dart';
+import '../utils/profile_completion.dart';
 import 'bookings_dashboard_screen.dart';
 import 'direct_chat_screen.dart';
 import 'jobs_dashboard_screen.dart';
@@ -66,8 +67,19 @@ class _SitterHomeScreenState extends State<SitterHomeScreen> {
   @override
   void initState() {
     super.initState();
+    _requireCompleteProfile();
     _loadUserData();
     _loadSitterId();
+  }
+
+  // New sitters fill in their profile before they can use the rest of the app.
+  Future<void> _requireCompleteProfile() async {
+    final missing = await missingProfileItems();
+    if (!mounted || missing.isEmpty) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const SitterProfileScreen()),
+      (route) => false,
+    );
   }
 
   Future<void> _loadSitterId() async {

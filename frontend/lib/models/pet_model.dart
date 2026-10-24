@@ -9,6 +9,7 @@ const List<String> petTypes = [
 ];
 
 String petTypeLabel(String value) {
+  if (value.isEmpty) return 'Pet';
   final lower = value.toLowerCase();
   return lower[0].toUpperCase() + lower.substring(1);
 }

@@ -16,6 +16,7 @@ import '../widgets/homeowner/homepage/sitter_filter_chips.dart';
 import '../widgets/homeowner/homepage/sitter_search_field.dart';
 import '../widgets/homeowner/homepage/verification_checks_card.dart';
 import '../services/saved_sitter_service.dart';
+import '../utils/profile_completion.dart';
 
 import 'bookings_dashboard_screen.dart';
 import 'saved_sitters_screen.dart';
@@ -59,7 +60,18 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
   @override
   void initState() {
     super.initState();
+    _requireCompleteProfile();
     _loadData();
+  }
+
+  // New homeowners fill in their profile before they can use the rest of the app.
+  Future<void> _requireCompleteProfile() async {
+    final missing = await missingProfileItems();
+    if (!mounted || missing.isEmpty) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const OwnerProfileScreen()),
+      (route) => false,
+    );
   }
 
   @override

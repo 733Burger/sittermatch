@@ -136,14 +136,13 @@ public class SitterService {
     public String getConfirmedAddress(Integer sitterId, Integer bookingId) {
         Booking booking = bookingRepository.findById(bookingId).orElseThrow(() -> new RuntimeException("Booking not found"));
 
-        if (!booking.getSitter().getId().equals(sitterId)) {
-            throw new SecurityException("Unauthorised access to booking details");
-        }
-
-        if (!"confirmed".equalsIgnoreCase(booking.getStatus())) {
-            throw new IllegalStateException("Address restricted until booking is confirmed");
-        }
-        return booking.getListing().getExactAddress();
+            if (booking.getSitter() == null || !booking.getSitter().getId().equals(sitterId)) {
+                    throw new SecurityException("Unauthorised access to booking details");
+            }
+            if (!"confirmed".equalsIgnoreCase(booking.getStatus())) {
+                    throw new IllegalStateException("Address restricted until booking is confirmed");
+            }
+            return booking.getListing().getExactAddress();
     }
 
     @Transactional
@@ -167,14 +166,17 @@ public class SitterService {
         Sitter sitter = sitterRepository.findById(sitterId).orElseThrow(() -> new RuntimeException("Sitter not found"));
         Homeowner homeowner = homeownerRepository.findById(homeownerId).orElseThrow(() -> new RuntimeException("Homeowner not found"));
 
-        Review review = new Review();
-        review.setBooking(booking);
-        review.setSitter(sitter);
-        review.setHomeowner(homeowner);
-        review.setRating(rating);
-        review.setComments(comments);
-        review.setReviewedBy("sitter");
-        return reviewRepository.save(review);
+            Review review = new Review();
+            review.setBooking(booking);
+            review.setSitter(sitter);
+            review.setHomeowner(homeowner);
+            review.setRating(rating);
+            review.setComments(comments);
+            review.setReviewedBy("SITTER");
+            // Hidden until an admin approves it.
+            review.setStatus(ReviewService.PENDING);
+            review.setCreatedAt(LocalDateTime.now());
+            return reviewRepository.save(review);
     }
 
     @Transactional

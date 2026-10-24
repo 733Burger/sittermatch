@@ -1,15 +1,14 @@
 import 'package:flutter/material.dart';
 
 import '../../../theme/app_colors.dart';
+import '../../../utils/profile_completion.dart';
 
+/// Shown on a profile that isn't finished yet. The rest of the app stays locked until it is.
 class ProfileGateBanner extends StatelessWidget {
-  const ProfileGateBanner({
-    super.key,
-    this.message =
-        'Select your home address and add house sitting notes to unlock the rest of the app.',
-  });
+  const ProfileGateBanner({super.key, required this.missing});
 
-  final String message;
+  /// What still needs filling in, from [missingProfileItems].
+  final List<String> missing;
 
   @override
   Widget build(BuildContext context) {
@@ -25,7 +24,7 @@ class ProfileGateBanner extends StatelessWidget {
           const SizedBox(width: 12),
           Expanded(
             child: Text(
-              message,
+              'Finish your profile to unlock the rest of the app. Still needed: ${describeMissing(missing)}.',
               style: const TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,

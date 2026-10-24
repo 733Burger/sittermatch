@@ -19,6 +19,8 @@ import '../widgets/sitter/profile/sitter_services_card.dart';
 import '../widgets/sitter/sitter_bottom_nav_bar.dart';
 import 'jobs_dashboard_screen.dart';
 import 'messages_screen.dart';
+import '../utils/profile_completion.dart';
+import 'sitter_home_screen.dart';
 
 class SitterProfileScreen extends StatefulWidget {
   const SitterProfileScreen({super.key});
@@ -42,8 +44,6 @@ class _SitterProfileScreenState extends State<SitterProfileScreen> {
   String _savedArea = '';
   double? _savedLatitude;
   double? _savedLongitude;
-  bool _hasSavedPets = false;
-  bool _hasSavedServices = false;
   double _rating = 0;
   int _totalReviews = 0;
 
@@ -88,12 +88,6 @@ class _SitterProfileScreenState extends State<SitterProfileScreen> {
   final TextEditingController _walkDurationCtrl = TextEditingController();
   final TextEditingController _feedRateCtrl = TextEditingController();
 
-  // The rest of the app unlocks once the sitter has a saved area, pet types and services.
-  bool getValidForm() {
-    final areaSaved = _savedArea.isNotEmpty && _savedLatitude != null && _savedLongitude != null;
-    return areaSaved && _hasSavedPets && _hasSavedServices;
-  }
-
   bool get _isAreaPinned {
     final text = _areaController.text.trim();
     if (text.isEmpty) {
@@ -125,10 +119,27 @@ class _SitterProfileScreenState extends State<SitterProfileScreen> {
     return _areaLookupMessage;
   }
 
+  // What the saved profile still needs before the rest of the app unlocks.
+  List<String> _missing = [];
+  bool get _profileComplete => _missing.isEmpty;
+
+  Future<void> _refreshMissing() async {
+    final missing = await missingProfileItems();
+    if (!mounted) return;
+    final justFinished = !_profileComplete && missing.isEmpty;
+    setState(() => _missing = missing);
+    if (justFinished) _showSnack('Profile complete. You can now use the whole app.');
+  }
+
+  void _showGateMessage() {
+    _showSnack('Finish your profile first. Still needed: ${describeMissing(_missing)}.');
+  }
+
   @override
   void initState() {
     super.initState();
     _loadProfile();
+    _refreshMissing();
   }
 
   @override
@@ -186,10 +197,8 @@ class _SitterProfileScreenState extends State<SitterProfileScreen> {
               .map((pet) => pet.toString().toUpperCase())
               .where(petTypes.contains),
         );
-      _hasSavedPets = _selectedPets.isNotEmpty;
 
       final services = (result['services'] as List?) ?? [];
-      _hasSavedServices = services.isNotEmpty;
       if (services.isNotEmpty) {
         for (final key in _selectedServices.keys) {
           _selectedServices[key] = false;
@@ -282,7 +291,7 @@ class _SitterProfileScreenState extends State<SitterProfileScreen> {
 
     setState(() {
       _savingPets = false;
-      if (saved) _hasSavedPets = true;
+
     });
     if (saved) _showSnack('Pet preferences saved.');
   }
@@ -296,7 +305,7 @@ class _SitterProfileScreenState extends State<SitterProfileScreen> {
 
     setState(() {
       _savingServices = false;
-      if (saved) _hasSavedServices = true;
+
     });
     if (saved) _showSnack('Services & pricing saved.');
   }
@@ -350,6 +359,7 @@ class _SitterProfileScreenState extends State<SitterProfileScreen> {
         _areaController.text = _savedArea;
       }
     });
+    _refreshMissing();
     return true;
   }
 
@@ -515,23 +525,22 @@ class _SitterProfileScreenState extends State<SitterProfileScreen> {
     if (mounted) _showSnack(message);
   }
 
-  void _showGateMessage() {
-    _showSnack(
-      'Save your area of service, pet preferences and services & pricing first.',
-      error: true,
-    );
-  }
-
   void _handleBottomNavTap(SitterNavTab tab) {
     if (tab == SitterNavTab.profile) return;
 
-    if (!getValidForm()) {
+    if (!_profileComplete) {
       _showGateMessage();
       return;
     }
 
     if (tab == SitterNavTab.home) {
-      Navigator.of(context).popUntil((route) => route.isFirst);
+      // Home is the first screen in the stack after login, unless a new sitter was sent
+      // straight here to finish their profile.
+      if (Navigator.of(context).canPop()) {
+        Navigator.of(context).popUntil((route) => route.isFirst);
+      } else {
+        Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const SitterHomeScreen()));
+      }
       return;
     }
 
@@ -549,7 +558,7 @@ class _SitterProfileScreenState extends State<SitterProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return PopScope(
-      canPop: getValidForm(),
+      canPop: _profileComplete,
       onPopInvokedWithResult: (didPop, result) {
         if (!didPop) _showGateMessage();
       },
@@ -568,11 +577,8 @@ class _SitterProfileScreenState extends State<SitterProfileScreen> {
         body: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            if (!getValidForm()) ...[
-              const ProfileGateBanner(
-                message:
-                    'Save your area of service, pet preferences and services & pricing to unlock the rest of the app.',
-              ),
+            if (!_profileComplete) ...[
+              ProfileGateBanner(missing: _missing),
               const SizedBox(height: 16),
             ],
             ProfileHeaderCard(

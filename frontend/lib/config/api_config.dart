@@ -8,4 +8,10 @@ class ApiConfig {
     }
     return 'http://localhost:8080';
   }
+
+  /// Injected at runtime using --dart-define=GOOGLE_MAPS_API_KEY=your_key_here
+  static const String googleMapsApiKey = String.fromEnvironment(
+    'GOOGLE_MAPS_API_KEY',
+    defaultValue: '',
+  );
 }

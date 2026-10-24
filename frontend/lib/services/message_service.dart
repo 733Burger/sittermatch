@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../config/api_config.dart';
 
@@ -8,7 +10,6 @@ const List<String> _chatMonths = [
 ];
 const List<String> _chatWeekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-/// Short time label used in chats: 10:30 (today), Yesterday, Mon, or Oct 5.
 String formatChatTime(DateTime? time) {
   if (time == null) return '';
 
@@ -27,9 +28,8 @@ String formatChatTime(DateTime? time) {
   return '${_chatMonths[time.month - 1]} ${time.day}';
 }
 
-/// One row in the Messages list.
 class Conversation {
-  final int partnerId; // the other person's user id
+  final int partnerId;
   final String partnerName;
   final String lastMessage;
   final DateTime? lastSentAt;
@@ -45,7 +45,7 @@ class Conversation {
 
   factory Conversation.fromJson(Map<String, dynamic> json) {
     return Conversation(
-      partnerId: (json['partnerId'] as num).toInt(),
+      partnerId: (json['partnerId'] as num?)?.toInt() ?? 0,
       partnerName: json['partnerName'] as String? ?? 'Unknown',
       lastMessage: json['lastMessage'] as String? ?? '',
       lastSentAt: DateTime.tryParse(json['lastSentAt'] as String? ?? ''),
@@ -54,11 +54,10 @@ class Conversation {
   }
 }
 
-/// One chat message.
 class DirectMessage {
   final int id;
   final String text;
-  final String sentBy; // 'SITTER' or 'HOMEOWNER'
+  final String sentBy;
   final DateTime? sentAt;
 
   const DirectMessage({
@@ -70,7 +69,7 @@ class DirectMessage {
 
   factory DirectMessage.fromJson(Map<String, dynamic> json) {
     return DirectMessage(
-      id: (json['id'] as num).toInt(),
+      id: (json['id'] as num?)?.toInt() ?? 0,
       text: json['message'] as String? ?? '',
       sentBy: (json['sentBy'] as String? ?? '').toUpperCase(),
       sentAt: DateTime.tryParse(json['sentAt'] as String? ?? ''),
@@ -82,7 +81,6 @@ class MessageService {
   static final String _baseUrl = ApiConfig.baseUrl;
   static const _timeout = Duration(seconds: 10);
 
-  /// Everyone the user has messaged with. role is the user's own role.
   static Future<List<Conversation>> fetchConversations({
     required int userId,
     required String role,
@@ -100,8 +98,6 @@ class MessageService {
     return list.map((e) => Conversation.fromJson(e as Map<String, dynamic>)).toList();
   }
 
-  /// All messages between a sitter and a homeowner, oldest first.
-  /// Opening a thread marks the other person's messages as read.
   static Future<List<DirectMessage>> fetchThread({
     required int sitterId,
     required int homeownerId,
@@ -124,7 +120,6 @@ class MessageService {
     return list.map((e) => DirectMessage.fromJson(e as Map<String, dynamic>)).toList();
   }
 
-  /// Sends a message and returns the saved message. Throws if it fails.
   static Future<DirectMessage> sendMessage({
     required int sitterId,
     required int homeownerId,
