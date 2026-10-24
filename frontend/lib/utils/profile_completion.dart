@@ -2,7 +2,6 @@ import 'package:flutter/foundation.dart';
 
 import '../services/auth_services.dart';
 import '../services/profile_service.dart';
-import '../services/sitter_service.dart';
 
 /// What the signed-in user still has to fill in on their profile before they can use the rest
 /// of the app, e.g. ['your phone number', 'at least one pet']. Empty when the profile is complete.
@@ -44,12 +43,15 @@ Future<List<String>> _missingForHomeowner(int userId) async {
 }
 
 Future<List<String>> _missingForSitter(int userId) async {
-  final details = await SitterService().getSitterDetails(sitterId: userId);
+  final details = await ProfileService().fetchSitterProfile(userId: userId);
   if (details['success'] != true) return const [];
 
   return [
     if (_blank(details['name'])) 'your name',
     if (_blank(details['phone'])) 'your phone number',
+    // The area has to be picked from the suggestions so its location is saved.
+    if (_blank(details['serviceArea']) || details['latitude'] == null || details['longitude'] == null)
+      'your area of service',
     if (_blank(details['experience'])) 'an About me',
     if (((details['services'] as List?) ?? []).isEmpty) 'at least one service with a price',
     if (((details['petPreferences'] as List?) ?? []).isEmpty) 'the pets you look after',
