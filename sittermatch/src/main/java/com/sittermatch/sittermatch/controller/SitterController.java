@@ -3,7 +3,6 @@ package com.sittermatch.sittermatch.controller;
 import com.sittermatch.sittermatch.dto.SitterReviewHomeownerRequest;
 import com.sittermatch.sittermatch.dto.SitterReviewPetRequest;
 import com.sittermatch.sittermatch.dto.SitterSendMessageRequest;
-import com.sittermatch.sittermatch.dto.SubmitSitterVerificationRequest;
 import com.sittermatch.sittermatch.dto.sitterDetails.SitterDetailsResponse;
 import com.sittermatch.sittermatch.dto.sitterDetails.SitterListResponse;
 import com.sittermatch.sittermatch.model.Booking;
@@ -11,7 +10,7 @@ import com.sittermatch.sittermatch.model.Listing;
 import com.sittermatch.sittermatch.model.Message;
 import com.sittermatch.sittermatch.model.PetReview;
 import com.sittermatch.sittermatch.model.Review;
-import com.sittermatch.sittermatch.model.SitterCheck;
+import com.sittermatch.sittermatch.services.SitterLocationService;
 import com.sittermatch.sittermatch.services.SitterService;
 
 import org.springframework.http.ResponseEntity;
@@ -26,18 +25,20 @@ import java.util.List;
 public class SitterController {
 
     private final SitterService sitterService;
+    private final SitterLocationService sitterLocationService;
 
-    public SitterController(SitterService sitterService) {
+    public SitterController(SitterService sitterService, SitterLocationService sitterLocationService) {
         this.sitterService = sitterService;
+        this.sitterLocationService = sitterLocationService;
     }
 
+    // GET /api/sitters/{homeownerId}/get-sitters?distanceKm=… (defaults to 40 km when omitted)
+    // An empty list is a normal result (no sitters in range), so it returns 200, not 404.
     @GetMapping("/{homeownerId}/get-sitters")
-    public ResponseEntity<List<SitterListResponse>> getSitters(@PathVariable int homeownerId) {
-        List<SitterListResponse> sitters = sitterService.getSitters(homeownerId);
-        if (sitters == null || sitters.isEmpty()) {
-            return ResponseEntity.notFound().build();
-        }
-        return ResponseEntity.ok(sitters);
+    public ResponseEntity<List<SitterListResponse>> getSitters(
+            @PathVariable int homeownerId,
+            @RequestParam(required = false) Double distanceKm) {
+        return ResponseEntity.ok(sitterLocationService.findNearbySitters(homeownerId, distanceKm));
     }
 
     @GetMapping("/{sitterId}/get-sitter-details")
@@ -48,19 +49,6 @@ public class SitterController {
         }
         return ResponseEntity.ok(sitterDetails);
     }
-    
-    // @PostMapping("/{sitterId}/verification")
-    // public ResponseEntity<SitterCheck> submitVerification(
-    //     @PathVariable Integer sitterId,
-    //     @RequestBody SubmitSitterVerificationRequest request) {
-    //         SitterCheck check = sitterService.submitVerification(
-    //             sitterId,
-    //             request.type(),
-    //             request.idPhotoUrl(),
-    //             request.references()
-    //         );
-    //         return ResponseEntity.ok(check);
-    //     }
 
         //Discovery and Listing Interaction
         @GetMapping("/listings/nearby")
