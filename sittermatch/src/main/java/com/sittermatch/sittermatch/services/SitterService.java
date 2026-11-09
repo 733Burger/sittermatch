@@ -4,12 +4,9 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 import com.sittermatch.sittermatch.model.Listing;
 import com.sittermatch.sittermatch.dto.sitterDetails.SitterDetailsResponse;
-import com.sittermatch.sittermatch.dto.sitterDetails.SitterListResponse;
 import com.sittermatch.sittermatch.dto.sitterDetails.SitterDetailsResponse.ServiceProjection;
 import com.sittermatch.sittermatch.model.Booking;
 import com.sittermatch.sittermatch.model.Homeowner;
@@ -25,12 +22,12 @@ import com.sittermatch.sittermatch.repository.MessageRepository;
 import com.sittermatch.sittermatch.repository.PetRepository;
 import com.sittermatch.sittermatch.repository.PetReviewRepository;
 import com.sittermatch.sittermatch.repository.ReviewRepository;
-import com.sittermatch.sittermatch.repository.SavedSitterRepository;
 import com.sittermatch.sittermatch.repository.SitterRepository;
 import jakarta.transaction.Transactional;
 
 @Service
 public class SitterService {
+
     private final SitterRepository sitterRepository;
     private final ListingRepository listingRepository;
     private final BookingRepository bookingRepository;
@@ -39,13 +36,11 @@ public class SitterService {
     private final ReviewRepository reviewRepository;
     private final HomeownerRepository homeownerRepository;
     private final PetRepository petRepository;
-    private final SavedSitterRepository savedSitterRepository;
 
     public SitterService(SitterRepository sitterRepository, ListingRepository listingRepository,
             BookingRepository bookingRepository, MessageRepository messageRepository,
             PetReviewRepository petReviewRepository, ReviewRepository reviewRepository,
-            HomeownerRepository homeownerRepository, PetRepository petRepository,
-            SavedSitterRepository savedSitterRepository) {
+            HomeownerRepository homeownerRepository, PetRepository petRepository) {
         this.sitterRepository = sitterRepository;
         this.listingRepository = listingRepository;
         this.bookingRepository = bookingRepository;
@@ -54,7 +49,6 @@ public class SitterService {
         this.reviewRepository = reviewRepository;
         this.homeownerRepository = homeownerRepository;
         this.petRepository = petRepository;
-        this.savedSitterRepository = savedSitterRepository;
     }
 
     public SitterDetailsResponse getSitterDetails(int sitterId) {
@@ -72,38 +66,6 @@ public class SitterService {
         List<ServiceProjection> sitterServices = sitterRepository.findSitterServices(sitterId);
 
         return SitterDetailsResponse.getResponse(sitterDetails, sitterPetPreferences, sitterServices);
-    }
-
-    public List<SitterListResponse> getSitters(int homeownerId) {
-        if (homeownerId <= 0) {
-            return List.of();
-        }
-
-        Set<Integer> savedSitterIds = savedSitterRepository
-                .findByHomeownerId(homeownerId)
-                .stream()
-                .map(savedSitter -> savedSitter.getSitterId())
-                .collect(Collectors.toSet());
-
-        return sitterRepository
-                .findAll()
-                .stream()
-                .map(sitter -> toSitterListResponse(sitter, savedSitterIds.contains(sitter.getId())))
-                .toList();
-    }
-
-    private SitterListResponse toSitterListResponse(Sitter sitter, boolean isSaved) {
-        var sitterUserDetails = sitter.getUser();
-        return new SitterListResponse(
-                sitter.getId(),
-                (sitterUserDetails != null) ? sitterUserDetails.getName() : null,
-                sitter.getRating(),
-                sitter.getTotalReviews(),
-                sitter.getDayRate(),
-                sitter.getNightRate(),
-                sitter.getIsVerified(),
-                isSaved,
-                sitter.getSuburb());
     }
 
     public List<Listing> findNearbyListings(String suburb) {

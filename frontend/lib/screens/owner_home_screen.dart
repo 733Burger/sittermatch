@@ -366,6 +366,16 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 12),
+                  if (_sitters.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 24),
+                      child: Center(
+                        child: Text(
+                          'No sitters within 40 km of your home yet.',
+                          style: TextStyle(color: Colors.black54),
+                        ),
+                      ),
+                    ),
                   for (final sitter in _sitters)
                     SitterCard(
                       sitter: sitter,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../services/auth_services.dart';
 import 'login_screen.dart';
 import '../theme/app_colors.dart';
@@ -10,6 +11,52 @@ class SignupScreen extends StatefulWidget {
 
   @override
   State<SignupScreen> createState() => _SignupScreenState();
+}
+
+/// Keeps the phone field to 10 digits and shows them grouped as "063 111 1111".
+class _SaPhoneInputFormatter extends TextInputFormatter {
+  static const int _maxDigits = 10;
+  static final RegExp _nonDigits = RegExp(r'\D');
+
+  static String digitsOf(String text) => text.replaceAll(_nonDigits, '');
+
+  static String _format(String digits) {
+    final buffer = StringBuffer();
+    for (var i = 0; i < digits.length; i++) {
+      if (i == 3 || i == 6) buffer.write(' ');
+      buffer.write(digits[i]);
+    }
+    return buffer.toString();
+  }
+
+  @override
+  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
+    final oldDigits = digitsOf(oldValue.text);
+    var digits = digitsOf(newValue.text);
+    final cursor = newValue.selection.end.clamp(0, newValue.text.length);
+    var digitsBeforeCursor = digitsOf(newValue.text.substring(0, cursor)).length;
+
+    // Backspacing over a separator space removes the digit before it instead.
+    if (digits == oldDigits &&
+        newValue.text.length < oldValue.text.length &&
+        digitsBeforeCursor > 0) {
+      digits = digits.substring(0, digitsBeforeCursor - 1) + digits.substring(digitsBeforeCursor);
+      digitsBeforeCursor--;
+    }
+
+    if (digits.length > _maxDigits) {
+      // Typing into a full number is ignored; a long paste is trimmed to fit.
+      if (oldDigits.length >= _maxDigits) return oldValue;
+      digits = digits.substring(0, _maxDigits);
+    }
+    if (digitsBeforeCursor > digits.length) digitsBeforeCursor = digits.length;
+
+    final offset = digitsBeforeCursor + (digitsBeforeCursor > 3 ? 1 : 0) + (digitsBeforeCursor > 6 ? 1 : 0);
+    return TextEditingValue(
+      text: _format(digits),
+      selection: TextSelection.collapsed(offset: offset),
+    );
+  }
 }
 
 class _SignupScreenState extends State<SignupScreen> {
@@ -27,6 +74,13 @@ class _SignupScreenState extends State<SignupScreen> {
   bool _hideConfirmPassword = true;
   String? _errorMessage;
 
+  // Regex for South African phone number formatting
+  static final RegExp _saPhoneRegex = RegExp(r'^0[1-8][0-9]{8}$');
+  static final RegExp _emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
+
+  // Profile editing caps full names at 100 characters, so each half stays well under that.
+  static const int _maxNamePartLength = 50;
+
   @override
   void dispose() {
     _firstNameController.dispose();
@@ -43,7 +97,18 @@ class _SignupScreenState extends State<SignupScreen> {
     return displayRole.toUpperCase() == 'SITTER' ? 'SITTER' : 'HOMEOWNER';
   }
 
+  String? _validateNamePart(String? value, String label) {
+    final text = value?.trim() ?? '';
+    if (text.isEmpty) return '$label is required';
+    if (text.length > _maxNamePartLength) {
+      return '$label must be under $_maxNamePartLength characters';
+    }
+    return null;
+  }
+
   Future<void> _handleSignup() async {
+    // Ignore repeat submits (e.g. pressing enter on the keyboard) while a request is in flight.
+    if (_loading) return;
     if (!_formKey.currentState!.validate()) return;
 
     // Clear focus from keyboard 
@@ -58,7 +123,8 @@ class _SignupScreenState extends State<SignupScreen> {
       final result = await _authService.signup(
         fullName: '${_firstNameController.text.trim()} ${_lastNameController.text.trim()}',
         email: _emailController.text.trim(),
-        phoneNumber: _phoneController.text.trim(),
+        // The spaces are display-only; store the plain digits.
+        phoneNumber: _SaPhoneInputFormatter.digitsOf(_phoneController.text),
         password: _passwordController.text,
         role: _getBackendRole(widget.selectedRole),
       );
@@ -66,10 +132,10 @@ class _SignupScreenState extends State<SignupScreen> {
       if (!mounted) return;
       setState(() => _loading = false);
 
-      if (result != null && result['success'] == true) {
+      if (result['success'] == true) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(result['message'] ?? 'Account created successfully! Please log in.'),
+            content: Text(result['message']?.toString() ?? 'Account created successfully! Please log in.'),
             backgroundColor: Colors.green,
           ),
         );
@@ -82,7 +148,7 @@ class _SignupScreenState extends State<SignupScreen> {
         );
       } else {
         setState(() {
-          _errorMessage = result?['message'] ?? 'Signup failed. Please try again.';
+          _errorMessage = result['message']?.toString() ?? 'Signup failed. Please try again.';
         });
       }
     } catch (e) {
@@ -222,9 +288,7 @@ class _SignupScreenState extends State<SignupScreen> {
                                         borderSide: BorderSide.none,
                                       ),
                                     ),
-                                    validator: (v) => (v == null || v.trim().isEmpty)
-                                        ? 'First name is required'
-                                        : null,
+                                    validator: (v) => _validateNamePart(v, 'First name'),
                                   ),
                                 ],
                               ),
@@ -256,9 +320,7 @@ class _SignupScreenState extends State<SignupScreen> {
                                         borderSide: BorderSide.none,
                                       ),
                                     ),
-                                    validator: (v) => (v == null || v.trim().isEmpty)
-                                        ? 'Second name is required'
-                                        : null,
+                                    validator: (v) => _validateNamePart(v, 'Last name'),
                                   ),
                                 ],
                               ),
@@ -292,8 +354,9 @@ class _SignupScreenState extends State<SignupScreen> {
                             ),
                           ),
                           validator: (v) {
-                            if (v == null || v.trim().isEmpty) return 'Email is required';
-                            if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(v.trim())) {
+                            final email = v?.trim() ?? '';
+                            if (email.isEmpty) return 'Email is required';
+                            if (email.length > 255 || !_emailRegex.hasMatch(email)) {
                               return 'Enter a valid email';
                             }
                             return null;
@@ -315,6 +378,8 @@ class _SignupScreenState extends State<SignupScreen> {
                           controller: _phoneController,
                           keyboardType: TextInputType.phone,
                           textInputAction: TextInputAction.next,
+                          // Digits only, capped at 10, displayed as "063 111 1111".
+                          inputFormatters: [_SaPhoneInputFormatter()],
                           decoration: InputDecoration(
                             hintText: 'Enter phone number...',
                             hintStyle: const TextStyle(color: subtextColor, fontSize: 14),
@@ -326,9 +391,10 @@ class _SignupScreenState extends State<SignupScreen> {
                             ),
                           ),
                           validator: (v) {
-                            if (v == null || v.trim().isEmpty) return 'Phone number is required';
-                            if (!RegExp(r'^[0-9+\-\s()]{7,15}$').hasMatch(v.trim())) {
-                              return 'Enter a valid phone number (7 to 15 digits)';
+                            final phone = _SaPhoneInputFormatter.digitsOf(v ?? '');
+                            if (phone.isEmpty) return 'Phone number is required';
+                            if (!_saPhoneRegex.hasMatch(phone)) {
+                              return 'Enter a valid 10-digit SA number, e.g. 063 111 1111';
                             }
                             return null;
                           },
@@ -366,9 +432,14 @@ class _SignupScreenState extends State<SignupScreen> {
                               borderSide: BorderSide.none,
                             ),
                           ),
-                          validator: (v) => (v == null || v.length < 8)
-                              ? 'Password must be at least 8 characters'
-                              : null,
+                          validator: (v) {
+                            if (v == null || v.length < 8) {
+                              return 'Password must be at least 8 characters';
+                            }
+                            // BCrypt only uses the first 72 bytes, so longer passwords would be silently truncated.
+                            if (v.length > 72) return 'Password must be 72 characters or fewer';
+                            return null;
+                          },
                         ),
                         const SizedBox(height: 14),
 

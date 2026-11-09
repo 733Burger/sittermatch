@@ -7,6 +7,8 @@ class SitterListing {
   final double nightRate;
   final String? imageUrl;
   final bool isSaved;
+  // Distance from the homeowner's home in km; null if either location is unknown.
+  final double? distanceKm;
   // final List<String> completedChecks;
 
   const SitterListing({
@@ -18,6 +20,7 @@ class SitterListing {
     required this.nightRate,
     this.imageUrl,
     this.isSaved = false,
+    this.distanceKm,
     // required this.completedChecks,
   });
 
@@ -34,6 +37,7 @@ class SitterListing {
       nightRate: (json['nightRate'] as num?)?.toDouble() ?? 0.0,
       imageUrl: 'https://i.pravatar.cc/150?u=$id',// fake for now
       isSaved: json['isSaved'] as bool? ?? false,
+      distanceKm: (json['distanceKm'] as num?)?.toDouble(),
       // completedChecks: [
       //   if (json['isVerified'] == true) 'Verified',
       //   ...serviceTypes.take(2),

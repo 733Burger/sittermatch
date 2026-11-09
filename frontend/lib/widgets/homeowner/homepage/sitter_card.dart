@@ -195,7 +195,9 @@ class _SitterDetails extends StatelessWidget {
             const SizedBox(width: 4),
             Expanded(
               child: Text(
-                sitter.suburb,
+                sitter.distanceKm == null
+                    ? sitter.suburb
+                    : '${sitter.suburb} · ${sitter.distanceKm!.toStringAsFixed(1)} km away',
                 style: const TextStyle(color: Colors.black54, fontSize: 12),
               ),
             ),

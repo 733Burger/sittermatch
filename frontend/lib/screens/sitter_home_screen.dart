@@ -6,7 +6,6 @@ import '../services/sitter_service.dart';
 import '../theme/app_colors.dart';
 import '../utils/profile_completion.dart';
 import 'bookings_dashboard_screen.dart';
-import 'direct_chat_screen.dart';
 import 'jobs_dashboard_screen.dart';
 import 'messages_screen.dart';
 import 'owner_home_screen.dart';

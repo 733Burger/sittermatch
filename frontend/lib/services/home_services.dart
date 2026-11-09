@@ -52,17 +52,19 @@ class HomeService {
     }
   }
 
-  Future<Map<String, dynamic>> fetchSitters() async {
+  // The backend uses the homeowner's saved home address and returns sitters
+  // within distanceKm, nearest first. A distanceKm of 1000 or more means any distance.
+  Future<Map<String, dynamic>> fetchSitters({double distanceKm = 40}) async {
     final homeownerId = await _authService.getUserId();
     try {
       final response = await http.get(
-            Uri.parse('$_baseUrl/api/sitters/$homeownerId/get-sitters'),
+            Uri.parse('$_baseUrl/api/sitters/$homeownerId/get-sitters')
+                .replace(queryParameters: {'distanceKm': distanceKm.toString()}),
             headers: {'Content-Type': 'application/json'},
           ).timeout(_timeout);
 
-      final sitters = jsonDecode(response.body) as List<dynamic>;
-      
       if (response.statusCode == 200) {
+        final sitters = jsonDecode(response.body) as List<dynamic>;
         return {
           'success': true,
           'message': 'Sitters retrieved successfully',

@@ -9,7 +9,8 @@ public record SitterListResponse (
     Double nightRate,
     Boolean isVerified,
     Boolean isSaved,
-    String suburb
+    String suburb,
+    Double distanceKm
 ) {
     public static SitterListResponse failure(String message) {
         return new SitterListResponse(
@@ -21,6 +22,7 @@ public record SitterListResponse (
             null,
             false,
             false,
+            null,
             null
         );
     }
