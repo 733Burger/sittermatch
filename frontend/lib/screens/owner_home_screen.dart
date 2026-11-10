@@ -123,6 +123,24 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
     }
   }
 
+  // Fetches the verification checks so the page doesn't have to reload.
+  Future<void> _refreshChecks() async {
+    try {
+      final verificationCheck = await _homeService.fetchChecks();
+      if (!mounted) return;
+
+      if (verificationCheck['success'] == false) {
+        _showSnack(verificationCheck['message']?.toString() ?? 'Could not load checks');
+        return;
+      }
+
+      setState(() => _checks = OwnerChecks.fromJson(verificationCheck));
+    } catch (e) {
+      if (!mounted) return;
+      _showSnack('Could not refresh checks');
+    }
+  }
+
   Future<void> _toggleSaved(SitterListing sitter) async {
     final bool wasSaved = _savedSitterIds.contains(sitter.id);
 
@@ -243,6 +261,7 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
   void _openIdentityCheckDialog() {
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (_) => IdentityCheckDialog(
         email: _email,
         homeService: _homeService,
@@ -251,7 +270,7 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
           if (!mounted) return;
           setState(() => _idPhotoPath = photoPath);
           _showSnack('ID Photo uploaded successfully! Status set to Pending.');
-          _loadData();
+          _refreshChecks();
         },
         onMessage: _showMessageIfMounted,
       ),
@@ -261,6 +280,7 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
   void _openAddressCheckDialog() {
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (_) => AddressCheckDialog(
         initialAddress: _checks.addressCheck.subtitle,
         email: _email,
@@ -268,7 +288,7 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
         onSaved: () {
           if (!mounted) return;
           _showSnack('Home address saved! Status set to Pending.');
-          _loadData();
+          _refreshChecks();
         },
         onMessage: _showMessageIfMounted,
       ),
@@ -278,6 +298,7 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
   void _openEmergencyContactDialog() {
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (_) => EmergencyContactDialog(
         initialName: _checks.emergencyContactName,
         initialPhone: _checks.emergencyContactNumber,
@@ -286,7 +307,7 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
         onSaved: () {
           if (!mounted) return;
           _showSnack('Emergency contact saved! Status set to Pending.');
-          _loadData();
+          _refreshChecks();
         },
         onMessage: _showMessageIfMounted,
       ),

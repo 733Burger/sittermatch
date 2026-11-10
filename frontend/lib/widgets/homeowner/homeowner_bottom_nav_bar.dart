@@ -38,11 +38,7 @@ class OwnerBottomNavBar extends StatelessWidget {
           label: 'BOOKINGS',
         ),
         BottomNavigationBarItem(
-          icon: Badge(
-            label: Text('3'),
-            backgroundColor: AppColors.primaryRust,
-            child: Icon(Icons.chat_bubble_outline),
-          ),
+          icon: Icon(Icons.chat_bubble_outline),
           label: 'MESSAGES',
         ),
         BottomNavigationBarItem(

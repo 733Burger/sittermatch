@@ -1,15 +1,14 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
-
 import '../models/saved_sitter_model.dart';
-
 import '../services/saved_sitter_service.dart';
 import '../services/auth_services.dart';
-
 import 'direct_chat_screen.dart';
 import 'bookings_dashboard_screen.dart';
 import 'booking_flow_screen.dart';
+import 'messages_screen.dart';
+import 'owner_profile_screen.dart';
 import 'sitter_detail_screen.dart';
 
 class SavedSittersScreen extends StatefulWidget {
@@ -26,6 +25,12 @@ class _SavedSittersScreenState extends State<SavedSittersScreen> {
   final Set<int> _removedIds = {};
   List<SavedSitterModel> _sitters = [];
   bool _isLoading = true;
+  bool _sortByRating = false;
+
+  List<SavedSitterModel> get _visibleSitters {
+    if (!_sortByRating) return _sitters;
+    return [..._sitters]..sort((a, b) => b.rating.compareTo(a.rating));
+  }
 
   @override
   void initState() {
@@ -33,8 +38,8 @@ class _SavedSittersScreenState extends State<SavedSittersScreen> {
     _loadData();
   }
 
-  Future<void> _loadData() async {
-    setState(() => _isLoading = true);
+  Future<void> _loadData({bool silent = false}) async {
+    if (!silent) setState(() => _isLoading = true);
 
     try {
       final savedSitters = await _savedSitterService.fetchSavedSitters();
@@ -87,7 +92,14 @@ class _SavedSittersScreenState extends State<SavedSittersScreen> {
       if (!mounted) return;
 
       if (result['success'] == true) {
-        _showSnack('${sitter.name} removed from Saved Sitters.');
+        _showSnack(
+          '${sitter.name} removed from Saved Sitters.',
+          action: SnackBarAction(
+            label: 'UNDO',
+            textColor: AppColors.lightRustBg,
+            onPressed: () => _resaveSitter(sitter, homeownerId, savedSitterIndex),
+          ),
+        );
       } else {
         setState(() => _sitters.insert(savedSitterIndex, sitter));
         _removedIds.remove(sitter.id);
@@ -97,12 +109,37 @@ class _SavedSittersScreenState extends State<SavedSittersScreen> {
       debugPrint('Error unsaving sitter: $e');
       if (!mounted) return;
       setState(() => _sitters.insert(savedSitterIndex, sitter));
+      _removedIds.remove(sitter.id);
       _showSnack('Network error occurred.');
     }
   }
 
-  void _showSnack(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  Future<void> _resaveSitter(SavedSitterModel sitter, int homeownerId, int index) async {
+    try {
+      final result = await _savedSitterService.toggleSavedSitter(
+        homeownerId: homeownerId,
+        sitterId: sitter.id,
+        isCurrentlySaved: false,
+      );
+      if (!mounted) return;
+
+      if (result['success'] == true) {
+        setState(() => _sitters.insert(index.clamp(0, _sitters.length), sitter));
+        _removedIds.remove(sitter.id);
+      } else {
+        _showSnack('Could not restore ${sitter.name}. Please try again.');
+      }
+    } catch (e) {
+      debugPrint('Error re-saving sitter: $e');
+      if (!mounted) return;
+      _showSnack('Network error occurred.');
+    }
+  }
+
+  void _showSnack(String message, {SnackBarAction? action}) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message), action: action));
   }
 
   @override
@@ -138,22 +175,33 @@ class _SavedSittersScreenState extends State<SavedSittersScreen> {
         ),
         body: _isLoading
             ? const Center(child: CircularProgressIndicator(color: AppColors.primaryRust))
-            : ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
-                  _buildHeader(_sitters.length),
-                  const SizedBox(height: 16),
-                  _buildFilters(),
-                  const SizedBox(height: 16),
-                  if (_sitters.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 32),
-                      child: Center(child: Text('No saved sitters yet.')),
-                    )
-                  else
-                    ..._sitters.map((sitter) => _buildSitterCard(sitter)),
-                  _buildSecurityFooter(),
-                ],
+            : RefreshIndicator(
+                color: AppColors.primaryRust,
+                onRefresh: () => _loadData(silent: true),
+                child: ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.all(16),
+                  children: [
+                    _buildHeader(_sitters.length),
+                    const SizedBox(height: 16),
+                    _buildFilters(),
+                    const SizedBox(height: 16),
+                    if (_sitters.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 32),
+                        child: Center(
+                          child: Text(
+                            'No saved sitters yet.\nTap the bookmark on a sitter to save them here.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: Colors.black54, height: 1.4),
+                          ),
+                        ),
+                      )
+                    else
+                      ..._visibleSitters.map((sitter) => _buildSitterCard(sitter)),
+                    _buildSecurityFooter(),
+                  ],
+                ),
               ),
         bottomNavigationBar: _buildBottomNav(context),
       ),
@@ -218,24 +266,30 @@ class _SavedSittersScreenState extends State<SavedSittersScreen> {
   Widget _buildFilters() {
     return Row(
       children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          decoration: BoxDecoration(color: Colors.black87, borderRadius: BorderRadius.circular(20)),
-          child: const Text('All Active', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        ),
+        _buildFilterChip('All Active', selected: !_sortByRating, onTap: () => setState(() => _sortByRating = false)),
         const SizedBox(width: 8),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          decoration: BoxDecoration(color: Colors.grey.shade200, borderRadius: BorderRadius.circular(20)),
-          child: const Text('High Rating', style: TextStyle(color: Colors.black87)),
-        ),
-        const Spacer(),
-        TextButton.icon(
-          onPressed: () {},
-          icon: const Icon(Icons.tune, color: Colors.black54, size: 16),
-          label: const Text('Filter', style: TextStyle(color: Colors.black87)),
-        )
+        _buildFilterChip('High Rating', selected: _sortByRating, onTap: () => setState(() => _sortByRating = true)),
       ],
+    );
+  }
+
+  Widget _buildFilterChip(String label, {required bool selected, required VoidCallback onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected ? Colors.black87 : Colors.grey.shade200,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: selected ? Colors.white : Colors.black87,
+            fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+          ),
+        ),
+      ),
     );
   }
 
@@ -312,24 +366,6 @@ class _SavedSittersScreenState extends State<SavedSittersScreen> {
                                 ),
                               ),
                               const SizedBox(width: 8),
-                              RichText(
-                                text: TextSpan(
-                                  children: [
-                                    TextSpan(
-                                      text: 'R${sitter.dayRate.toStringAsFixed(0)}',
-                                      style: const TextStyle(
-                                        color: Colors.black,
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    const TextSpan(
-                                      text: ' / day',
-                                      style: TextStyle(color: Colors.black54, fontSize: 12),
-                                    ),
-                                  ],
-                                ),
-                              ),
                             ],
                           ),
                           const SizedBox(height: 4),
@@ -378,7 +414,9 @@ class _SavedSittersScreenState extends State<SavedSittersScreen> {
                         onPressed: () {
                           Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (_) => const DirectChatScreen()),
+                            MaterialPageRoute(
+                              builder: (_) => DirectChatScreen(partnerId: sitter.id, partnerName: sitter.name),
+                            ),
                           );
                         },
                         icon: const Icon(Icons.chat_bubble_outline, color: Colors.white, size: 16),
@@ -418,6 +456,7 @@ class _SavedSittersScreenState extends State<SavedSittersScreen> {
                       ),
                       child: IconButton(
                         icon: const Icon(Icons.bookmark, color: AppColors.primaryRust),
+                        tooltip: 'Remove from saved',
                         onPressed: () => _unsaveSitter(sitter),
                       ),
                     ),
@@ -466,10 +505,18 @@ class _SavedSittersScreenState extends State<SavedSittersScreen> {
       selectedFontSize: 12,
       unselectedFontSize: 12,
       onTap: (index) {
-        if (index == 1) {
-          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const BookingsDashboardScreen()));
+        if (index == 0) {
+          Navigator.maybePop(context, _removedIds);
+        } else if (index == 1) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const BookingsDashboardScreen()),
+            result: _removedIds,
+          );
         } else if (index == 2) {
-          Navigator.push(context, MaterialPageRoute(builder: (context) => const DirectChatScreen()));
+          Navigator.push(context, MaterialPageRoute(builder: (context) => const MessagesScreen()));
+        } else if (index == 3) {
+          Navigator.push(context, MaterialPageRoute(builder: (context) => const OwnerProfileScreen()));
         }
       },
       items: const [
