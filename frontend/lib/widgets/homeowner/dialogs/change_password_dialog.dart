@@ -101,7 +101,7 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const _DialogHeader(
+                const ProfileDialogHeader(
                   icon: Icons.lock_outline,
                   title: 'Change password',
                   subtitle: 'Choose a new password with at least 8 characters.',
@@ -161,7 +161,7 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
                 ),
                 if (_errorText != null) ...[
                   const SizedBox(height: 14),
-                  _DialogError(message: _errorText!),
+                  ProfileDialogError(message: _errorText!),
                 ],
                 const SizedBox(height: 18),
                 ProfileSaveButton(
@@ -195,79 +195,6 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
           size: 20,
           color: AppColors.primaryRust,
         ),
-      ),
-    );
-  }
-}
-
-class _DialogHeader extends StatelessWidget {
-  const _DialogHeader({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            color: AppColors.lightRustBg,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Icon(icon, color: AppColors.primaryRust, size: 22),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.darkText,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                subtitle,
-                style: const TextStyle(fontSize: 12, color: Colors.black54, height: 1.35),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _DialogError extends StatelessWidget {
-  const _DialogError({required this.message});
-
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFDECEC),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Text(
-        message,
-        style: const TextStyle(color: Color(0xFFB42318), fontSize: 12, height: 1.35),
       ),
     );
   }

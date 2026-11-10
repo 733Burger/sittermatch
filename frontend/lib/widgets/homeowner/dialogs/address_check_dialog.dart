@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../services/home_services.dart';
+import '../profile/profile_styles.dart';
 
 class AddressCheckDialog extends StatefulWidget {
   const AddressCheckDialog({
@@ -25,6 +26,7 @@ class AddressCheckDialog extends StatefulWidget {
 class _AddressCheckDialogState extends State<AddressCheckDialog> {
   late final TextEditingController _controller;
   bool _submitting = false;
+  String? _errorText;
 
   @override
   void initState() {
@@ -46,7 +48,15 @@ class _AddressCheckDialogState extends State<AddressCheckDialog> {
     }
 
     final address = _controller.text.trim();
-    setState(() => _submitting = true);
+    if (address.isEmpty) {
+      setState(() => _errorText = 'Enter your home address.');
+      return;
+    }
+
+    setState(() {
+      _submitting = true;
+      _errorText = null;
+    });
 
     try {
       final result = await widget.homeService.submitResidenceCheck(
@@ -59,49 +69,51 @@ class _AddressCheckDialogState extends State<AddressCheckDialog> {
         Navigator.pop(context);
         widget.onSaved();
       } else {
-        setState(() => _submitting = false);
-        widget.onMessage(result['message']?.toString() ?? 'Save failed.');
+        setState(() {
+          _submitting = false;
+          _errorText = result['message']?.toString() ?? 'Save failed.';
+        });
       }
     } catch (e) {
       if (!mounted) return;
-      setState(() => _submitting = false);
-      widget.onMessage('Save failed.');
+      setState(() {
+        _submitting = false;
+        _errorText = 'Save failed.';
+      });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Home Address Verification'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('Confirm or enter your home physical address:'),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _controller,
-            enabled: !_submitting,
-            decoration: const InputDecoration(
-              labelText: 'Home Address',
-              border: OutlineInputBorder(),
-            ),
-          ),
+    return ProfileDialogShell(
+      children: [
+        const ProfileDialogHeader(
+          icon: Icons.home_outlined,
+          title: 'Home address',
+          subtitle: 'Confirm or enter the physical address of your home.',
+        ),
+        const SizedBox(height: 20),
+        const ProfileFieldLabel('Home address'),
+        TextField(
+          controller: _controller,
+          enabled: !_submitting,
+          minLines: 1,
+          maxLines: 3,
+          keyboardType: TextInputType.streetAddress,
+          textCapitalization: TextCapitalization.words,
+          decoration: profileFieldDecoration(null, hint: 'e.g. 12 Oak Street, Rondebosch'),
+        ),
+        if (_errorText != null) ...[
+          const SizedBox(height: 14),
+          ProfileDialogError(message: _errorText!),
         ],
-      ),
-      actions: [
-        TextButton(
-          onPressed: _submitting ? null : () => Navigator.pop(context),
-          child: const Text('Cancel'),
-        ),
-        ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.black87,
-            foregroundColor: Colors.white,
-          ),
+        const SizedBox(height: 18),
+        ProfileSaveButton(
+          label: 'Save & confirm',
+          saving: _submitting,
           onPressed: _submitting ? null : _submit,
-          child: const Text('Save & Confirm'),
         ),
+        ProfileDialogCancelButton(enabled: !_submitting),
       ],
     );
   }

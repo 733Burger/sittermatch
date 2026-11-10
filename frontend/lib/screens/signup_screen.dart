@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import '../services/auth_services.dart';
 import 'login_screen.dart';
 import '../theme/app_colors.dart';
+import '../utils/sa_phone.dart';
 
 class SignupScreen extends StatefulWidget {
   final String selectedRole;
@@ -13,51 +13,6 @@ class SignupScreen extends StatefulWidget {
   State<SignupScreen> createState() => _SignupScreenState();
 }
 
-/// Keeps the phone field to 10 digits and shows them grouped as "063 111 1111".
-class _SaPhoneInputFormatter extends TextInputFormatter {
-  static const int _maxDigits = 10;
-  static final RegExp _nonDigits = RegExp(r'\D');
-
-  static String digitsOf(String text) => text.replaceAll(_nonDigits, '');
-
-  static String _format(String digits) {
-    final buffer = StringBuffer();
-    for (var i = 0; i < digits.length; i++) {
-      if (i == 3 || i == 6) buffer.write(' ');
-      buffer.write(digits[i]);
-    }
-    return buffer.toString();
-  }
-
-  @override
-  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
-    final oldDigits = digitsOf(oldValue.text);
-    var digits = digitsOf(newValue.text);
-    final cursor = newValue.selection.end.clamp(0, newValue.text.length);
-    var digitsBeforeCursor = digitsOf(newValue.text.substring(0, cursor)).length;
-
-    // Backspacing over a separator space removes the digit before it instead.
-    if (digits == oldDigits &&
-        newValue.text.length < oldValue.text.length &&
-        digitsBeforeCursor > 0) {
-      digits = digits.substring(0, digitsBeforeCursor - 1) + digits.substring(digitsBeforeCursor);
-      digitsBeforeCursor--;
-    }
-
-    if (digits.length > _maxDigits) {
-      // Typing into a full number is ignored; a long paste is trimmed to fit.
-      if (oldDigits.length >= _maxDigits) return oldValue;
-      digits = digits.substring(0, _maxDigits);
-    }
-    if (digitsBeforeCursor > digits.length) digitsBeforeCursor = digits.length;
-
-    final offset = digitsBeforeCursor + (digitsBeforeCursor > 3 ? 1 : 0) + (digitsBeforeCursor > 6 ? 1 : 0);
-    return TextEditingValue(
-      text: _format(digits),
-      selection: TextSelection.collapsed(offset: offset),
-    );
-  }
-}
 
 class _SignupScreenState extends State<SignupScreen> {
   final _formKey = GlobalKey<FormState>();
@@ -74,8 +29,6 @@ class _SignupScreenState extends State<SignupScreen> {
   bool _hideConfirmPassword = true;
   String? _errorMessage;
 
-  // Regex for South African phone number formatting
-  static final RegExp _saPhoneRegex = RegExp(r'^0[1-8][0-9]{8}$');
   static final RegExp _emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
 
   // Profile editing caps full names at 100 characters, so each half stays well under that.
@@ -124,7 +77,7 @@ class _SignupScreenState extends State<SignupScreen> {
         fullName: '${_firstNameController.text.trim()} ${_lastNameController.text.trim()}',
         email: _emailController.text.trim(),
         // The spaces are display-only; store the plain digits.
-        phoneNumber: _SaPhoneInputFormatter.digitsOf(_phoneController.text),
+        phoneNumber: SaPhoneInputFormatter.digitsOf(_phoneController.text),
         password: _passwordController.text,
         role: _getBackendRole(widget.selectedRole),
       );
@@ -379,7 +332,7 @@ class _SignupScreenState extends State<SignupScreen> {
                           keyboardType: TextInputType.phone,
                           textInputAction: TextInputAction.next,
                           // Digits only, capped at 10, displayed as "063 111 1111".
-                          inputFormatters: [_SaPhoneInputFormatter()],
+                          inputFormatters: [SaPhoneInputFormatter()],
                           decoration: InputDecoration(
                             hintText: 'Enter phone number...',
                             hintStyle: const TextStyle(color: subtextColor, fontSize: 14),
@@ -391,9 +344,9 @@ class _SignupScreenState extends State<SignupScreen> {
                             ),
                           ),
                           validator: (v) {
-                            final phone = _SaPhoneInputFormatter.digitsOf(v ?? '');
+                            final phone = SaPhoneInputFormatter.digitsOf(v ?? '');
                             if (phone.isEmpty) return 'Phone number is required';
-                            if (!_saPhoneRegex.hasMatch(phone)) {
+                            if (!saPhoneRegex.hasMatch(phone)) {
                               return 'Enter a valid 10-digit SA number, e.g. 063 111 1111';
                             }
                             return null;
