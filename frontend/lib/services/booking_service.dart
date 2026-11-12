@@ -82,13 +82,29 @@ class BookingService {
       'notes': notes,
     };
 
-    final res = _check(await http.post(
+    final res = await http.post(
       uri,
       headers: _jsonHeaders,
       body: jsonEncode(payload),
-    ));
+    );
+    debugPrint('FRONTEND LOG: POST $uri -> ${res.statusCode}');
+
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      // Show the API's own message (e.g. "Check-out must be after check-in.") instead of raw JSON.
+      throw Exception(_errorMessage(res.body) ?? 'Could not send the booking. Please try again.');
+    }
 
     return jsonDecode(res.body) as Map<String, dynamic>;
+  }
+
+  static String? _errorMessage(String body) {
+    try {
+      final decoded = jsonDecode(body);
+      if (decoded is Map && decoded['message'] is String && decoded['message'].toString().isNotEmpty) {
+        return decoded['message'] as String;
+      }
+    } catch (_) {}
+    return null;
   }
 
   /// Retained for backward compatibility

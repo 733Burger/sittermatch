@@ -23,7 +23,7 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
   late Future<BookingDraftModel> _draftFuture;
   final TextEditingController _instructionsController = TextEditingController();
 
-  // State for interactive Pickers
+  // State for interactive Date Pickers
   DateTime _checkInDate = DateTime.now();
   DateTime _checkOutDate = DateTime.now().add(const Duration(days: 1));
   TimeOfDay _checkInTime = const TimeOfDay(hour: 9, minute: 0);
@@ -34,7 +34,7 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
   bool _feedDog = false;
   bool _walkDog = false;
 
-  // Submission state
+  // Submission state of the Booking
   bool _isSubmitting = false;
 
   @override
@@ -49,12 +49,14 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
     super.dispose();
   }
 
-  // Pickers Logic
+  // Booking Picking Logic
   Future<void> _selectDate(BuildContext context, bool isCheckIn) async {
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: isCheckIn ? _checkInDate : _checkOutDate,
-      firstDate: DateTime.now(),
+
+      // The check-out date can't be picked before the check-in date.
+      firstDate: DateUtils.dateOnly(isCheckIn ? DateTime.now() : _checkInDate),
       lastDate: DateTime(2030),
       builder: (context, child) {
         return Theme(
@@ -148,24 +150,39 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
       return;
     }
 
+    // Homeowners with pets must say which ones the sitter is looking after.
+    if (draft.companions.isNotEmpty && !draft.companions.any((pet) => pet.isSelected)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Select at least one pet.'), backgroundColor: Colors.red),
+      );
+      return;
+    }
+
+    final startDateTime = DateTime(
+      _checkInDate.year,
+      _checkInDate.month,
+      _checkInDate.day,
+      _checkInTime.hour,
+      _checkInTime.minute,
+    );
+    final endDateTime = DateTime(
+      _checkOutDate.year,
+      _checkOutDate.month,
+      _checkOutDate.day,
+      _checkOutTime.hour,
+      _checkOutTime.minute,
+    );
+
+    if (!endDateTime.isAfter(startDateTime)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Check-out must be after check-in.'), backgroundColor: Colors.red),
+      );
+      return;
+    }
+
     setState(() => _isSubmitting = true);
 
     try {
-      final startDateTime = DateTime(
-        _checkInDate.year,
-        _checkInDate.month,
-        _checkInDate.day,
-        _checkInTime.hour,
-        _checkInTime.minute,
-      );
-      final endDateTime = DateTime(
-        _checkOutDate.year,
-        _checkOutDate.month,
-        _checkOutDate.day,
-        _checkOutTime.hour,
-        _checkOutTime.minute,
-      );
-
       // Every ticked service goes in, e.g. "Drop-in Feeding & Walk Dog".
       final serviceType = [
         if (_stayNight) 'Stay Night',
@@ -200,7 +217,7 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error creating booking: $e'),
+          content: Text(e.toString().replaceFirst('Exception: ', '')),
           backgroundColor: Colors.red,
         ),
       );
