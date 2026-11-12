@@ -7,6 +7,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.sittermatch.sittermatch.dto.sitterDetails.SitterListResponse;
 import com.sittermatch.sittermatch.model.Homeowner;
@@ -37,6 +38,7 @@ public class SitterLocationService {
     //Finds sitters near the homeowner's saved home address, nearest first.
     //If the homeowner has no saved coordinates yet, every sitter is returned
     //(the old behaviour) so the home page is never empty for new accounts.
+    @Transactional(readOnly = true)
     public List<SitterListResponse> findNearbySitters(int homeownerId, Double requestedRadiusKm) {
         if (homeownerId <= 0) {
             return List.of();
@@ -106,6 +108,9 @@ public class SitterLocationService {
                 sitter.getIsVerified(),
                 isSaved,
                 sitter.getSuburb(),
-                distanceKm);
+                distanceKm,
+                // Sent so the home screen filter chips can match on what the sitter offers.
+                sitter.getServices().stream().map(service -> service.getServiceType()).toList(),
+                List.copyOf(sitter.getPetPreferences()));
     }
 }

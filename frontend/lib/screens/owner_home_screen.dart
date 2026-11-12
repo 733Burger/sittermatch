@@ -34,13 +34,17 @@ class OwnerHomeScreen extends StatefulWidget {
 }
 
 class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
-  static const List<String> _filterTags = [
-    'All',
-    'ID Verified',
-    'Pet Type',
-    'Date Available',
-    'Medication Admin',
-  ];
+  // Each chip keeps the sitters that match it; 'All' keeps everyone.
+  static final Map<String, bool Function(SitterListing)> _filters = {
+    'All': (_) => true,
+    'ID Verified': (sitter) => sitter.isVerified,
+    'Overnight Stay': (sitter) => sitter.serviceTypes.contains('STAY_OVER_NIGHT'),
+    'Dog Walking': (sitter) => sitter.serviceTypes.contains('WALK_PET'),
+    'Feeding': (sitter) => sitter.serviceTypes.contains('FEED_PET'),
+    'Dogs': (sitter) => sitter.petTypes.any((pet) => pet.contains('DOG')),
+    'Cats': (sitter) => sitter.petTypes.contains('CAT'),
+  };
+  static final List<String> _filterTags = _filters.keys.toList();
 
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final HomeService _homeService = HomeService();
@@ -60,6 +64,7 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
   @override
   void initState() {
     super.initState();
+    _searchController.addListener(() => setState(() {}));
     _requireCompleteProfile();
     _loadData();
   }
@@ -78,6 +83,18 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  // Sitters matching the search text (name or suburb) and the selected chip.
+  List<SitterListing> get _visibleSitters {
+    final query = _searchController.text.trim().toLowerCase();
+    final matchesFilter = _filters[_selectedFilter]!;
+    return _sitters.where((sitter) {
+      final matchesQuery = query.isEmpty ||
+          sitter.name.toLowerCase().contains(query) ||
+          sitter.suburb.toLowerCase().contains(query);
+      return matchesQuery && matchesFilter(sitter);
+    }).toList();
   }
 
   // Methods
@@ -387,17 +404,19 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 12),
-                  if (_sitters.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 24),
+                  if (_visibleSitters.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 24),
                       child: Center(
                         child: Text(
-                          'No sitters within 40 km of your home yet.',
-                          style: TextStyle(color: Colors.black54),
+                          _sitters.isEmpty
+                              ? 'No sitters within 40 km of your home yet.'
+                              : 'No sitters match your search.',
+                          style: const TextStyle(color: Colors.black54),
                         ),
                       ),
                     ),
-                  for (final sitter in _sitters)
+                  for (final sitter in _visibleSitters)
                     SitterCard(
                       sitter: sitter,
                       isSaved: _savedSitterIds.contains(sitter.id),

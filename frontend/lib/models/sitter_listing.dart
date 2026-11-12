@@ -7,9 +7,10 @@ class SitterListing {
   final double nightRate;
   final String? imageUrl;
   final bool isSaved;
-  // Distance from the homeowner's home in km; null if either location is unknown.
   final double? distanceKm;
-  // final List<String> completedChecks;
+  final bool isVerified;
+  final List<String> serviceTypes;
+  final List<String> petTypes;
 
   const SitterListing({
     required this.id,
@@ -21,12 +22,13 @@ class SitterListing {
     this.imageUrl,
     this.isSaved = false,
     this.distanceKm,
+    this.isVerified = false,
+    this.serviceTypes = const [],
+    this.petTypes = const [],
     // required this.completedChecks,
   });
 
   factory SitterListing.fromJson(Map<String, dynamic> json) {
-    // final serviceTypes = (json['serviceTypes'] as List?) ?.map((e) => e.toString()).toList() ?? <String>[];
-    // final petTypes = (json['petTypes'] as List?) ?.map((e) => e.toString()).toList() ?? <String>[];
     final id = (json['id'] as num?)?.toInt() ?? 0;
     return SitterListing(
       id: id,
@@ -38,13 +40,14 @@ class SitterListing {
       imageUrl: 'https://i.pravatar.cc/150?u=$id',// fake for now
       isSaved: json['isSaved'] as bool? ?? false,
       distanceKm: (json['distanceKm'] as num?)?.toDouble(),
-      // completedChecks: [
-      //   if (json['isVerified'] == true) 'Verified',
-      //   ...serviceTypes.take(2),
-      //   ...petTypes.take(1),
-      // ],
+      isVerified: json['isVerified'] as bool? ?? false,
+      serviceTypes: _stringList(json['serviceTypes']),
+      petTypes: _stringList(json['petTypes']),
     );
   }
+
+  static List<String> _stringList(Object? raw) =>
+      raw is List ? raw.map((item) => item.toString()).toList() : const [];
 
   static List<SitterListing> listFromJson(Object? raw) {
     if (raw is! List) return [];

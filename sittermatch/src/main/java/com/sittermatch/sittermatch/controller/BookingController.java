@@ -44,13 +44,21 @@ public class BookingController {
     }
 
     @PostMapping("/create")
-    public ResponseEntity<BookingResponse> createBooking(@RequestBody BookingCreateRequest request) {
-        return ResponseEntity.ok(bookingService.createBooking(request));
+    public ResponseEntity<?> createBooking(@RequestBody BookingCreateRequest request) {
+        try {
+            return ResponseEntity.ok(bookingService.createBooking(request));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(java.util.Map.of("message", e.getMessage()));
+        }
     }
 
     @PostMapping("/dispatch")
-    public ResponseEntity<BookingResponse> dispatchBooking(@RequestBody BookingCreateRequest request) {
-        return ResponseEntity.ok(bookingService.createBooking(request));
+    public ResponseEntity<?> dispatchBooking(@RequestBody BookingCreateRequest request) {
+        try {
+            return ResponseEntity.ok(bookingService.createBooking(request));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(java.util.Map.of("message", e.getMessage()));
+        }
     }
 
     @PatchMapping("/{id}/status")
