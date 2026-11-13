@@ -21,7 +21,7 @@ class ProfilePetCard extends StatelessWidget {
     final hasReview = pet.review != null && pet.review!.trim().isNotEmpty;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(16),
       decoration: profileCardDecoration(),
       child: Column(
@@ -156,79 +156,25 @@ class ProfilePetCard extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: _PetActionButton(
+                child: ProfileActionButton(
                   icon: Icons.edit_outlined,
                   label: 'Edit',
-                  foreground: AppColors.primaryRust,
-                  iconColor: AppColors.primaryRust,
+                  color: AppColors.primaryRust,
                   onPressed: onEdit,
                 ),
               ),
               const SizedBox(width: 10),
               Expanded(
-                child: _PetActionButton(
+                child: ProfileActionButton(
                   icon: Icons.delete_outline,
                   label: 'Delete',
-                  foreground: const Color(0xFFD32F2F),
-                  iconColor: const Color(0xFFD32F2F),
+                  color: profileDeleteRed,
                   onPressed: onDelete,
                 ),
               ),
             ],
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _PetActionButton extends StatelessWidget {
-  const _PetActionButton({
-    required this.icon,
-    required this.label,
-    required this.foreground,
-    required this.iconColor,
-    required this.onPressed,
-  });
-
-  final IconData icon;
-  final String label;
-  final Color foreground;
-  final Color iconColor;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: OutlinedButton.icon(
-        onPressed: onPressed,
-        icon: Icon(
-          icon,
-          size: 17,
-          color: Colors.white,
-        ),
-        label: Text(
-          label,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: Colors.white,
-          ),
-        ),
-        style: OutlinedButton.styleFrom(
-          backgroundColor: iconColor,
-          foregroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          side: BorderSide(
-            color: iconColor,
-            width: 1,
-          ),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-          minimumSize: const Size(0, 44),
-          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        ),
       ),
     );
   }

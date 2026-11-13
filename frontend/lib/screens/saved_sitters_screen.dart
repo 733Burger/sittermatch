@@ -136,6 +136,17 @@ class _SavedSittersScreenState extends State<SavedSittersScreen> {
     }
   }
 
+  // A sitter un-bookmarked on their profile drops off this list, and off the home page's bookmarks.
+  Future<void> _openSitter(SavedSitterModel sitter) async {
+    final saved = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (_) => SitterDetailScreen(sitterId: sitter.id)),
+    );
+    if (!mounted || saved != false) return;
+    setState(() => _sitters.removeWhere((item) => item.id == sitter.id));
+    _removedIds.add(sitter.id);
+  }
+
   void _showSnack(String message, {SnackBarAction? action}) {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
@@ -304,14 +315,7 @@ class _SavedSittersScreenState extends State<SavedSittersScreen> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         child: InkWell(
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => SitterDetailScreen(sitterId: sitter.id),
-              ),
-            );
-          },
+          onTap: () => _openSitter(sitter),
           borderRadius: BorderRadius.circular(16),
           child: Container(
             padding: const EdgeInsets.all(16),

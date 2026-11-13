@@ -24,18 +24,21 @@ class SitterActionBar extends StatelessWidget {
       ),
       child: Row(
         children: [
-          InkWell(
-            onTap: onToggleFavorite,
-            borderRadius: BorderRadius.circular(8),
-            child: Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppColors.background,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(
-                isFavorite ? Icons.favorite : Icons.favorite_border,
-                color: isFavorite ? AppColors.primaryRust : AppColors.darkText,
+          Tooltip(
+            message: isFavorite ? 'Remove from saved' : 'Save sitter',
+            child: InkWell(
+              onTap: onToggleFavorite,
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.background,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  isFavorite ? Icons.bookmark : Icons.bookmark_border,
+                  color: isFavorite ? AppColors.primaryRust : Colors.grey,
+                ),
               ),
             ),
           ),

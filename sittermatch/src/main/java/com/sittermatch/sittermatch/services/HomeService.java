@@ -17,9 +17,10 @@ import com.sittermatch.sittermatch.model.VerificationStatus;
 import com.sittermatch.sittermatch.repository.HomeownerRepository;
 import com.sittermatch.sittermatch.repository.HomeownerVerificationRepository;
 
+import static com.sittermatch.sittermatch.services.VerificationCheckRules.*;
+
 @Service
 public class HomeService {
-    private static final long MAX_BYTES = 5L * 1024 * 1024;
     private final HomeownerRepository homeownerRepository;
     private final HomeownerVerificationRepository homeownerVerificationRepository;
 
@@ -35,7 +36,7 @@ public class HomeService {
         }
         String cleanEmail = email.trim();
 
-        if (idPhoto == null || idPhoto.isEmpty() || idPhoto.getSize() > MAX_BYTES) {
+        if (idPhoto == null || idPhoto.isEmpty() || idPhoto.getSize() > MAX_ID_PHOTO_BYTES) {
             return IdentityCheckSubmitResponse.failure("ID photo must be a JPG, PNG, or WEBP under 5 MB.");
         }
 
@@ -51,11 +52,11 @@ public class HomeService {
             return IdentityCheckSubmitResponse.failure("Could not read the uploaded photo.");
         }
         
-        if (bytes.length == 0 || bytes.length > MAX_BYTES) {
+        if (bytes.length == 0 || bytes.length > MAX_ID_PHOTO_BYTES) {
             return IdentityCheckSubmitResponse.failure("ID photo must be a JPG, PNG, or WEBP under 5 MB.");
         }
 
-        String extension = extensionFor(bytes);
+        String extension = idPhotoExtension(bytes);
         if (extension == null) {
             return IdentityCheckSubmitResponse.failure("ID photo must be a JPG, PNG, or WEBP.");
         }
@@ -70,32 +71,6 @@ public class HomeService {
         return new IdentityCheckSubmitResponse(
                 true,
                 "ID Photo uploaded successfully");
-    }
-
-    private String extensionFor(byte[] bytes) {
-        if (bytes.length >= 3
-                && (bytes[0] & 0xFF) == 0xFF
-                && (bytes[1] & 0xFF) == 0xD8
-                && (bytes[2] & 0xFF) == 0xFF) {
-            return "jpg";
-        }
-        if (bytes.length >= 8
-                && (bytes[0] & 0xFF) == 0x89
-                && bytes[1] == 0x50
-                && bytes[2] == 0x4E
-                && bytes[3] == 0x47
-                && bytes[4] == 0x0D
-                && bytes[5] == 0x0A
-                && bytes[6] == 0x1A
-                && bytes[7] == 0x0A) {
-            return "png";
-        }
-        if (bytes.length >= 12
-                && bytes[0] == 'R' && bytes[1] == 'I' && bytes[2] == 'F' && bytes[3] == 'F'
-                && bytes[8] == 'W' && bytes[9] == 'E' && bytes[10] == 'B' && bytes[11] == 'P') {
-            return "webp";
-        }
-        return null;
     }
 
     public ResidenceCheckResponse submitResidenceCheck(String email, String address) {
@@ -133,12 +108,12 @@ public class HomeService {
         }
 
         String cleanName = name == null ? "" : name.trim();
-        if (cleanName.isBlank() || cleanName.length() > 100) {
+        if (!isValidEmergencyName(cleanName)) {
             return EmergencyCheckResponse.failure("Enter an emergency contact name under 100 characters.");
         }
 
         String cleanPhone = phoneNumber == null ? "" : phoneNumber.trim();
-        if (cleanPhone.isBlank() || cleanPhone.length() > 20 || !cleanPhone.matches("[0-9+()\\- ]+")) {
+        if (!isValidEmergencyPhone(cleanPhone)) {
             return EmergencyCheckResponse.failure("Enter a phone number under 20 characters.");
         }
 
@@ -182,57 +157,14 @@ public class HomeService {
 
             return new HomeownerCheckResponse(
                 true,
-                CheckTile.of(tileStatus(check.getIdStatus()), getIdSubtitle(check)),
-                CheckTile.of(tileStatus(check.getResidenceStatus()), getResidenceSubtitle(check)),
-                CheckTile.of(tileStatus(check.getEmergencyStatus()), getEmergencySubtitle(name, phone)),
+                CheckTile.of(tileStatus(check.getIdStatus()), idSubtitle(check.getIdStatus())),
+                CheckTile.of(tileStatus(check.getResidenceStatus()), residenceSubtitle(check.getResidenceAddress())),
+                CheckTile.of(tileStatus(check.getEmergencyStatus()), emergencySubtitle(name, phone)),
                 name,
                 phone,
                 verificationCount,
                 check.getOverallStatus().name()
             );
         }
-    }
-    //helper class for getVerificationChecks
-    private static String emptyIfNull(String string) {
-        return (string == null) ? "" : string;
-    }
-    //helper class for getVerificationChecks
-    private String tileStatus(VerificationStatus status) {
-        return switch (status) {
-            case PENDING -> "pending";
-            case APPROVED -> "completed";
-            case REJECTED -> "rejected";
-            case INCOMPLETE -> "incomplete";
-        };
-    }
-    //helper class for getVerificationChecks
-    private String getIdSubtitle(HomeownerVerification check) {
-        return switch (check.getIdStatus()) {
-            case PENDING -> "ID uploaded";
-            case APPROVED -> "ID verified";
-            case REJECTED -> "ID rejected";
-            case INCOMPLETE -> "No ID uploaded";
-        };
-    }
-    //helper class for getVerificationChecks
-    private String getResidenceSubtitle(HomeownerVerification check) {
-        String address = check.getResidenceAddress();
-        return (address == null || address.isBlank()) ? "No address provided" : address;
-    }
-    //helper class for getVerificationChecks
-    private String getEmergencySubtitle(String name, String phone) {
-        if (name.isBlank() && phone.isBlank()) {
-            return "No Emergency Contact Uploaded";
-        }
-
-        if (name.isBlank()) {
-            return "No contact name - " + phone;
-        }
-
-        if (phone.isBlank()) {
-            return name + " - No contact details provided";
-        }
-
-        return name + " - " + phone;
     }
 }

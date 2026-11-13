@@ -68,12 +68,7 @@ class _AdminChecksScreenState extends State<AdminChecksScreen> {
       return;
     }
     if (!mounted) return;
-    
-    // FIX: Wrap _reload() inside setState so the UI updates immediately
-    setState(() {
-      _future = AdminService.fetchPendingChecks();
-    });
-    
+    _reload();
     _showSnack('${check.checkType} approved for ${check.userName}.');
   }
 
@@ -122,12 +117,7 @@ class _AdminChecksScreenState extends State<AdminChecksScreen> {
                 return;
               }
               if (!mounted) return;
-              
-              // FIX: Wrap _reload() inside setState here too
-              setState(() {
-                _future = AdminService.fetchPendingChecks();
-              });
-              
+              _reload();
               _showSnack('Check rejected.');
             },
             child: const Text('Reject', style: TextStyle(color: Colors.red)),

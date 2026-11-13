@@ -3,6 +3,14 @@ import 'package:flutter/services.dart';
 // Regex for South African phone number formats
 final RegExp saPhoneRegex = RegExp(r'^0[1-8][0-9]{8}$');
 
+// Shows a stored number as "063 111 1111". A +27 number is shown in its local 0 form;
+// anything that isn't a valid SA number is returned unchanged.
+String formatSaPhoneForDisplay(String raw) {
+  var digits = SaPhoneInputFormatter.digitsOf(raw);
+  if (digits.length == 11 && digits.startsWith('27')) digits = '0${digits.substring(2)}';
+  return saPhoneRegex.hasMatch(digits) ? SaPhoneInputFormatter.format(digits) : raw.trim();
+}
+
 // Locks the phone field to 10 digits and shows them grouped as "063 111 1111".
 class SaPhoneInputFormatter extends TextInputFormatter {
   static const int _maxDigits = 10;

@@ -7,8 +7,9 @@ import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../storage/preference_keys.dart';
 import '../config/api_config.dart';
+import 'verification_check_service.dart';
 
-class HomeService {
+class HomeService implements VerificationCheckService {
   final AuthService _authService = AuthService();
 
   final String _baseUrl = ApiConfig.baseUrl;
@@ -21,6 +22,7 @@ class HomeService {
     return prefs.getString(PreferenceKeys.userEmail);
   }
 
+  @override
   Future<Map<String, dynamic>> fetchChecks() async {
     final homeownerId = await _authService.getUserId();
     try {
@@ -86,6 +88,7 @@ class HomeService {
     }
   }
 
+  @override
   Future<Map<String, dynamic>> submitIdentityCheck({
     required String email,
     required Uint8List bytes,
@@ -133,6 +136,7 @@ class HomeService {
     }
   }
 
+  @override
   Future<Map<String, dynamic>> submitResidenceCheck({
     required String email,
     required String address,
@@ -167,6 +171,7 @@ class HomeService {
     }
   }
 
+  @override
   Future<Map<String, dynamic>> submitEmergencyCheck({
     required String email,
     required String name,

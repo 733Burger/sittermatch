@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../services/home_services.dart';
+import '../../../services/verification_check_service.dart';
 import '../../../utils/sa_phone.dart';
 import '../profile/profile_styles.dart';
 
@@ -10,7 +10,7 @@ class EmergencyContactDialog extends StatefulWidget {
     required this.initialName,
     required this.initialPhone,
     required this.email,
-    required this.homeService,
+    required this.checkService,
     required this.onSaved,
     required this.onMessage,
   });
@@ -18,7 +18,7 @@ class EmergencyContactDialog extends StatefulWidget {
   final String initialName;
   final String initialPhone;
   final String email;
-  final HomeService homeService;
+  final VerificationCheckService checkService;
   final VoidCallback onSaved;
   final void Function(String message) onMessage;
 
@@ -70,7 +70,7 @@ class _EmergencyContactDialogState extends State<EmergencyContactDialog> {
     });
 
     try {
-      final result = await widget.homeService.submitEmergencyCheck(
+      final result = await widget.checkService.submitEmergencyCheck(
         email: widget.email,
         name: name,
         phoneNumber: phone,

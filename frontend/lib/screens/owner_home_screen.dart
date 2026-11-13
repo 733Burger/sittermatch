@@ -57,7 +57,6 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
   List<SitterListing> _sitters = [];
   final Set<int> _savedSitterIds = {};
 
-  String? _idPhotoPath;
   String _selectedFilter = _filterTags.first;
   bool _isLoading = true;
 
@@ -235,6 +234,21 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
     if (refreshOnReturn) _loadData(silent: true);
   }
 
+  // The profile pops with the sitter's saved state, so its bookmark matches this card's.
+  Future<void> _openSitter(SitterListing sitter) async {
+    final saved = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => SitterDetailScreen(sitterId: sitter.id)),
+    );
+    if (!mounted || saved == null) return;
+    setState(() {
+      if (saved) {
+        _savedSitterIds.add(sitter.id);
+      } else {
+        _savedSitterIds.remove(sitter.id);
+      }
+    });
+  }
+
   void _comingSoon(String title) {
     _closeDrawerIfOpen();
     _showSnack('$title is coming soon');
@@ -281,11 +295,9 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
       barrierDismissible: false,
       builder: (_) => IdentityCheckDialog(
         email: _email,
-        homeService: _homeService,
-        hasSelectedPhoto: _idPhotoPath != null,
-        onUploaded: (photoPath) {
+        checkService: _homeService,
+        onUploaded: () {
           if (!mounted) return;
-          setState(() => _idPhotoPath = photoPath);
           _showSnack('ID Photo uploaded successfully! Status set to Pending.');
           _refreshChecks();
         },
@@ -301,7 +313,7 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
       builder: (_) => AddressCheckDialog(
         initialAddress: _checks.addressCheck.subtitle,
         email: _email,
-        homeService: _homeService,
+        checkService: _homeService,
         onSaved: () {
           if (!mounted) return;
           _showSnack('Home address saved! Status set to Pending.');
@@ -320,7 +332,7 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
         initialName: _checks.emergencyContactName,
         initialPhone: _checks.emergencyContactNumber,
         email: _email,
-        homeService: _homeService,
+        checkService: _homeService,
         onSaved: () {
           if (!mounted) return;
           _showSnack('Emergency contact saved! Status set to Pending.');
@@ -420,7 +432,7 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
                     SitterCard(
                       sitter: sitter,
                       isSaved: _savedSitterIds.contains(sitter.id),
-                      onTap: () => _open(SitterDetailScreen(sitterId: sitter.id)),
+                      onTap: () => _openSitter(sitter),
                       onMessage: () => _open(DirectChatScreen(
                         partnerId: sitter.id,
                         partnerName: sitter.name,

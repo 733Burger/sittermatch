@@ -1,3 +1,6 @@
+// Placeholder sitter photo until real profile photos exist; the same face shows on every screen.
+String sitterPhotoUrl(int sitterId) => 'https://i.pravatar.cc/150?u=$sitterId';
+
 class SitterListing {
   final int id;
   final String name;
@@ -37,7 +40,7 @@ class SitterListing {
       rating: (json['rating'] as num?)?.toDouble() ?? 0.0,
       totalReviews: (json['totalReviews'] as num?)?.toInt() ?? 0,
       nightRate: (json['nightRate'] as num?)?.toDouble() ?? 0.0,
-      imageUrl: 'https://i.pravatar.cc/150?u=$id',// fake for now
+      imageUrl: sitterPhotoUrl(id),
       isSaved: json['isSaved'] as bool? ?? false,
       distanceKm: (json['distanceKm'] as num?)?.toDouble(),
       isVerified: json['isVerified'] as bool? ?? false,
