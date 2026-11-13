@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../models/task_model.dart';
 import '../../../services/task_service.dart';
 import '../../../theme/app_colors.dart';
+import 'profile_pets_section.dart';
 import 'profile_styles.dart';
 
 /// The homeowner's stay checklist. Sitters tick these tasks off each day of a booking.
@@ -56,6 +57,7 @@ class _ProfileTasksCardState extends State<ProfileTasksCard> {
 
     final saved = await showDialog<bool>(
       context: context,
+      barrierDismissible: false,
       builder: (_) => _TaskDialog(homeownerId: id, task: task),
     );
     if (saved != true) return;
@@ -94,86 +96,91 @@ class _ProfileTasksCardState extends State<ProfileTasksCard> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: profileCardDecoration(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Expanded(
-                child: Text(
-                  'Stay checklist',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.darkText),
-                ),
-              ),
-              TextButton.icon(
-                onPressed: widget.homeownerId == null ? null : () => _showTaskDialog(),
-                icon: const Icon(Icons.add, size: 18, color: AppColors.primaryRust),
-                label: const Text('Add task',
-                    style: TextStyle(color: AppColors.primaryRust, fontWeight: FontWeight.bold, fontSize: 13)),
-              ),
-            ],
-          ),
-          const Text(
-            'Your sitter ticks these off each day of a stay, and you can see what was done.',
-            style: TextStyle(fontSize: 12, color: Colors.black54),
-          ),
-          const SizedBox(height: 12),
-          if (_loading)
-            const Center(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ProfileSectionHeader(
+          title: 'Stay checklist',
+          actionLabel: 'Add task',
+          onAction: widget.homeownerId == null ? null : () => _showTaskDialog(),
+        ),
+        const Text(
+          'Your sitter ticks these off each day of a stay, and you can see what was done.',
+          style: TextStyle(fontSize: 12, color: Colors.black54, height: 1.35),
+        ),
+        const SizedBox(height: 8),
+        if (_loading)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 12),
+            child: Center(
               child: SizedBox(
                 width: 20,
                 height: 20,
                 child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primaryRust),
               ),
-            )
-          else if (_tasks.isEmpty)
-            const Text(
-              'No tasks yet. Add things like feeding times, walks or watering plants.',
-              style: TextStyle(fontSize: 12, color: Colors.black54),
-            )
-          else
-            ..._tasks.map(_buildTaskTile),
-        ],
-      ),
+            ),
+          )
+        else if (_tasks.isEmpty)
+          const ProfileEmptyCard('No tasks yet. Add things like feeding times, walks or watering plants.')
+        else
+          Container(
+            width: double.infinity,
+            decoration: profileCardDecoration(),
+            clipBehavior: Clip.antiAlias,
+            child: Material(
+              color: Colors.transparent,
+              child: Column(
+                children: [
+                  for (var i = 0; i < _tasks.length; i++) ...[
+                    if (i > 0) Divider(height: 1, indent: 48, color: Colors.grey.shade200),
+                    _buildTaskRow(_tasks[i]),
+                  ],
+                ],
+              ),
+            ),
+          ),
+      ],
     );
   }
 
-  Widget _buildTaskTile(StayTask task) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.only(left: 12),
-      decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(12)),
+  Widget _buildTaskRow(StayTask task) {
+    final note = task.note?.trim() ?? '';
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 10, 4, 10),
       child: Row(
+        crossAxisAlignment: note.isEmpty ? CrossAxisAlignment.center : CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.check_box_outlined, size: 18, color: AppColors.primaryRust),
-          const SizedBox(width: 10),
+          const Padding(
+            padding: EdgeInsets.only(top: 1),
+            child: Icon(Icons.check_box_outlined, size: 20, color: AppColors.primaryRust),
+          ),
+          const SizedBox(width: 14),
           Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(task.title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                  if (task.note != null && task.note!.isNotEmpty)
-                    Text(task.note!, style: const TextStyle(fontSize: 11, color: Colors.black54)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  task.title,
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.darkText),
+                ),
+                if (note.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(note, style: const TextStyle(fontSize: 12, color: Colors.black54, height: 1.3)),
                 ],
-              ),
+              ],
             ),
           ),
           IconButton(
             tooltip: 'Edit',
             visualDensity: VisualDensity.compact,
-            icon: const Icon(Icons.edit_outlined, size: 18, color: AppColors.darkText),
+            icon: const Icon(Icons.edit_outlined, size: 18, color: AppColors.primaryRust),
             onPressed: () => _showTaskDialog(task: task),
           ),
           IconButton(
             tooltip: 'Delete',
             visualDensity: VisualDensity.compact,
-            icon: const Icon(Icons.delete_outline, size: 18, color: Colors.red),
+            icon: const Icon(Icons.delete_outline, size: 18, color: profileDeleteRed),
             onPressed: () => _delete(task),
           ),
         ],
@@ -239,46 +246,52 @@ class _TaskDialogState extends State<_TaskDialog> {
   Widget build(BuildContext context) {
     final isNew = widget.task == null;
 
-    return AlertDialog(
-      backgroundColor: Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      title: Text(isNew ? 'Add a task' : 'Edit task', style: const TextStyle(fontWeight: FontWeight.bold)),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          TextField(
-            controller: _titleCtrl,
-            autofocus: true,
-            maxLength: 100,
-            textCapitalization: TextCapitalization.sentences,
-            decoration: InputDecoration(
-              labelText: 'Task',
-              hintText: 'e.g. Morning feed',
-              errorText: _error,
-              border: const OutlineInputBorder(),
-            ),
-          ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _noteCtrl,
-            maxLength: 255,
-            maxLines: 2,
-            textCapitalization: TextCapitalization.sentences,
-            decoration: const InputDecoration(
-              labelText: 'Details (optional)',
-              hintText: 'e.g. 1 cup of kibble each',
-              border: OutlineInputBorder(),
-            ),
-          ),
-        ],
-      ),
-      actions: [
-        TextButton(onPressed: _saving ? null : () => Navigator.pop(context, false), child: const Text('Cancel')),
-        ElevatedButton(
-          style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryRust, foregroundColor: Colors.white),
-          onPressed: _saving ? null : _save,
-          child: Text(isNew ? 'Add task' : 'Save'),
+    return ProfileDialogShell(
+      children: [
+        ProfileDialogHeader(
+          icon: Icons.checklist_rounded,
+          title: isNew ? 'Add a task' : 'Edit task',
+          subtitle: 'Something your sitter should do each day of the stay.',
         ),
+        const SizedBox(height: 20),
+        const ProfileFieldLabel('Task'),
+        TextField(
+          controller: _titleCtrl,
+          enabled: !_saving,
+          autofocus: true,
+          maxLength: 100,
+          textInputAction: TextInputAction.next,
+          textCapitalization: TextCapitalization.sentences,
+          decoration: profileFieldDecoration(null, hint: 'e.g. Morning feed').copyWith(counterText: ''),
+        ),
+        const SizedBox(height: 16),
+        const Text(
+          'Details',
+          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.darkText),
+        ),
+        const SizedBox(height: 2),
+        const Text(
+          'Optional. Amounts, times or where things are kept.',
+          style: TextStyle(fontSize: 12, color: Colors.black54, height: 1.35),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _noteCtrl,
+          enabled: !_saving,
+          minLines: 1,
+          maxLines: 3,
+          maxLength: 255,
+          textCapitalization: TextCapitalization.sentences,
+          decoration: profileFieldDecoration(null, hint: 'e.g. 1 cup of kibble each').copyWith(counterText: ''),
+        ),
+        if (_error != null) ...[const SizedBox(height: 14), ProfileDialogError(message: _error!)],
+        const SizedBox(height: 18),
+        ProfileSaveButton(
+          label: isNew ? 'Add task' : 'Save changes',
+          saving: _saving,
+          onPressed: _saving ? null : _save,
+        ),
+        ProfileDialogCancelButton(enabled: !_saving),
       ],
     );
   }

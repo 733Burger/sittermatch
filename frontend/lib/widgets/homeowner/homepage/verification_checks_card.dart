@@ -11,9 +11,13 @@ class VerificationChecksCard extends StatefulWidget {
     required this.onIdentityTap,
     required this.onAddressTap,
     required this.onEmergencyContactTap,
+    this.readySubtitle = 'You’re ready to book sitters',
   });
 
   final OwnerChecks checks;
+
+  /// Shown under the title once every check is approved.
+  final String readySubtitle;
   final VoidCallback onIdentityTap;
   final VoidCallback onAddressTap;
   final VoidCallback onEmergencyContactTap;
@@ -44,7 +48,7 @@ class _VerificationChecksCardState extends State<VerificationChecksCard> {
     final total = checks.totalChecks;
     switch (checks.verificationStatus) {
       case VerificationStatus.approved:
-        return 'You’re ready to book sitters';
+        return widget.readySubtitle;
       case VerificationStatus.pending:
         return '$done of $total submitted — Waiting for admin review';
       case VerificationStatus.rejected:

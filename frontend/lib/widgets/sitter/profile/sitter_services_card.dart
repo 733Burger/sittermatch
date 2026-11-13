@@ -37,8 +37,17 @@ class SitterServicesCard extends StatelessWidget {
     'Feed Pet': Icons.restaurant_outlined,
   };
 
+  // Sentence-case display names for the service keys.
+  static const Map<String, String> _serviceLabels = {
+    'Stay Over Night': 'Stay over night',
+    'Walk Pet': 'Walk pet',
+    'Feed Pet': 'Feed pet',
+  };
+
   @override
   Widget build(BuildContext context) {
+    final selected = selectedServices.keys.where((service) => selectedServices[service]!).toList();
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -46,177 +55,120 @@ class SitterServicesCard extends StatelessWidget {
       child: Form(
         key: formKey,
         child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Services offered & pricing',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: AppColors.darkText,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Services offered & pricing',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.darkText),
             ),
-          ),
-          const SizedBox(height: 2),
-          const Text(
-            'Select one or more. At least one is required.',
-            style: TextStyle(fontSize: 12, color: Colors.black54, height: 1.35),
-          ),
-          const SizedBox(height: 14),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: selectedServices.keys.map((service) {
-              final isSelected = selectedServices[service]!;
-              return ChoiceChip(
-                avatar: Icon(
-                  _serviceIcons[service],
-                  size: 18,
-                  color: isSelected ? Colors.white : AppColors.primaryRust,
-                ),
-                label: Text(service),
-                selected: isSelected,
-                showCheckmark: false,
-                selectedColor: AppColors.primaryRust,
-                backgroundColor: AppColors.expandButtonBg,
-                side: BorderSide.none,
-                labelStyle: TextStyle(
-                  color: isSelected ? Colors.white : AppColors.darkText,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 12,
-                ),
-                onSelected: (_) => onToggle(service),
-              );
-            }).toList(),
-          ),
-          if (selectedServices['Stay Over Night']!)
-            _ServiceBlock(
-              icon: Icons.nights_stay_outlined,
-              title: 'Stay over night',
-              children: [
-                const ProfileFieldLabel('Price per night'),
-                TextFormField(
-                  controller: overnightRateController,
-                  keyboardType: TextInputType.number,
-                  decoration: _priceDecoration(),
-                  validator: validatePrice,
-                ),
-              ],
+            const SizedBox(height: 2),
+            const Text(
+              "Select one or more and set your price. Stay over night and Feed pet can't be combined.",
+              style: TextStyle(fontSize: 12, color: Colors.black54, height: 1.35),
             ),
-          if (selectedServices['Walk Pet']!)
-            _ServiceBlock(
-              icon: Icons.directions_walk,
-              title: 'Walk pet',
-              children: [
-                Row(
+            const SizedBox(height: 20),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: selectedServices.keys.map((service) {
+                final isSelected = selectedServices[service]!;
+                return ChoiceChip(
+                  avatar: Icon(
+                    _serviceIcons[service],
+                    size: 18,
+                    color: isSelected ? Colors.white : AppColors.primaryRust,
+                  ),
+                  label: Text(_serviceLabels[service] ?? service),
+                  selected: isSelected,
+                  showCheckmark: false,
+                  selectedColor: AppColors.primaryRust,
+                  backgroundColor: AppColors.expandButtonBg,
+                  side: BorderSide.none,
+                  labelStyle: TextStyle(
+                    color: isSelected ? Colors.white : AppColors.darkText,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
+                  onSelected: (_) => onToggle(service),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 8),
+            for (final service in selected)
+              Padding(
+                padding: const EdgeInsets.only(top: 10),
+                child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    Padding(
+                      padding: const EdgeInsets.only(top: 12),
+                      child: Icon(_serviceIcons[service], color: AppColors.primaryRust, size: 18),
+                    ),
+                    const SizedBox(width: 10),
                     Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const ProfileFieldLabel('Price per walk'),
-                          TextFormField(
-                            controller: walkRateController,
-                            keyboardType: TextInputType.number,
-                            decoration: _priceDecoration(),
-                            validator: validatePrice,
-                          ),
-                        ],
+                      flex: 4,
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 12),
+                        child: Text(
+                          _serviceLabels[service] ?? service,
+                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.darkText),
+                        ),
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const ProfileFieldLabel('Walk length'),
-                          TextFormField(
-                            controller: walkDurationController,
-                            keyboardType: TextInputType.number,
-                            decoration: profileFieldDecoration(null, hint: '0', icon: null)
-                                .copyWith(suffixText: 'min'),
-                            validator: validateMinutes,
-                          ),
-                        ],
-                      ),
-                    ),
+                    Expanded(flex: 6, child: _fieldsFor(service)),
                   ],
                 ),
-              ],
-            ),
-          if (selectedServices['Feed Pet']!)
-            _ServiceBlock(
-              icon: Icons.restaurant_outlined,
-              title: 'Feed pet',
-              children: [
-                const ProfileFieldLabel('Price per feeding visit'),
-                TextFormField(
-                  controller: feedRateController,
-                  keyboardType: TextInputType.number,
-                  decoration: _priceDecoration(),
-                  validator: validatePrice,
-                ),
-              ],
-            ),
-          const SizedBox(height: 16),
-          ProfileSaveButton(
-            label: 'Save services',
-            saving: saving,
-            onPressed: saving ? null : onSave,
-          ),
-        ],
+              ),
+            const SizedBox(height: 16),
+            ProfileSaveButton(label: 'Save services', saving: saving, onPressed: saving ? null : onSave),
+          ],
         ),
       ),
     );
   }
 
-  InputDecoration _priceDecoration() {
-    return profileFieldDecoration(null, hint: '0').copyWith(prefixText: 'R ');
-  }
-}
-
-class _ServiceBlock extends StatelessWidget {
-  const _ServiceBlock({
-    required this.icon,
-    required this.title,
-    required this.children,
-  });
-
-  final IconData icon;
-  final String title;
-  final List<Widget> children;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(top: 16),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.background,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, color: AppColors.primaryRust, size: 18),
-              const SizedBox(width: 8),
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.darkText,
-                ),
+  Widget _fieldsFor(String service) {
+    switch (service) {
+      case 'Walk Pet':
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: _priceField(walkRateController, '/ walk')),
+            const SizedBox(width: 8),
+            SizedBox(
+              width: 76,
+              child: TextFormField(
+                controller: walkDurationController,
+                keyboardType: TextInputType.number,
+                decoration: _compactDecoration(hint: '0', suffix: 'min'),
+                validator: validateMinutes,
               ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          ...children,
-        ],
-      ),
+            ),
+          ],
+        );
+      case 'Feed Pet':
+        return _priceField(feedRateController, '/ visit');
+      default:
+        return _priceField(overnightRateController, '/ night');
+    }
+  }
+
+  Widget _priceField(TextEditingController controller, String unit) {
+    return TextFormField(
+      controller: controller,
+      keyboardType: TextInputType.number,
+      decoration: _compactDecoration(hint: '0', prefix: 'R ', suffix: unit),
+      validator: validatePrice,
+    );
+  }
+
+  InputDecoration _compactDecoration({required String hint, String? prefix, String? suffix}) {
+    return profileFieldDecoration(null, hint: hint).copyWith(
+      isDense: true,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      prefixText: prefix,
+      suffixText: suffix,
+      suffixStyle: const TextStyle(fontSize: 12, color: Colors.black54),
     );
   }
 }

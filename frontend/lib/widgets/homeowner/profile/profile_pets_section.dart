@@ -3,30 +3,43 @@ import 'package:flutter/material.dart';
 import '../../../theme/app_colors.dart';
 import 'profile_styles.dart';
 
-class ProfilePetsHeader extends StatelessWidget {
-  const ProfilePetsHeader({super.key, required this.onAdd});
+/// Section title with an "Add …" action on the right, e.g. "My pets" / "Stay checklist".
+class ProfileSectionHeader extends StatelessWidget {
+  const ProfileSectionHeader({
+    super.key,
+    required this.title,
+    required this.actionLabel,
+    required this.onAction,
+  });
 
-  final VoidCallback onAdd;
+  final String title;
+  final String actionLabel;
+  final VoidCallback? onAction;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        const Text(
-          'My pets',
-          style: TextStyle(
+        Text(
+          title,
+          style: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,
             color: AppColors.darkText,
           ),
         ),
         TextButton.icon(
-          onPressed: onAdd,
+          onPressed: onAction,
+          style: TextButton.styleFrom(
+            visualDensity: VisualDensity.compact,
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+          ),
           icon: const Icon(Icons.add_circle_outline, color: AppColors.primaryRust, size: 18),
-          label: const Text(
-            'Add pet',
-            style: TextStyle(color: AppColors.primaryRust, fontWeight: FontWeight.bold),
+          label: Text(
+            actionLabel,
+            style: const TextStyle(color: AppColors.primaryRust, fontWeight: FontWeight.bold),
           ),
         ),
       ],
@@ -34,20 +47,23 @@ class ProfilePetsHeader extends StatelessWidget {
   }
 }
 
-class ProfileEmptyPets extends StatelessWidget {
-  const ProfileEmptyPets({super.key});
+/// Centred placeholder card shown when a profile list has nothing in it yet.
+class ProfileEmptyCard extends StatelessWidget {
+  const ProfileEmptyCard(this.message, {super.key});
+
+  final String message;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(20),
       decoration: profileCardDecoration(),
-      child: const Text(
-        'No pets added yet. Add your pets so sitters know who they will be looking after.',
+      child: Text(
+        message,
         textAlign: TextAlign.center,
-        style: TextStyle(fontSize: 12, color: Colors.black54),
+        style: const TextStyle(fontSize: 12, color: Colors.black54),
       ),
     );
   }

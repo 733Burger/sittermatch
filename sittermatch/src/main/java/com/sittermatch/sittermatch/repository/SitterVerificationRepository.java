@@ -20,10 +20,16 @@ public interface SitterVerificationRepository extends JpaRepository<SitterVerifi
             + "OR v.emergencyStatus = :status")
     List<SitterVerification> findAwaitingReview(@Param("status") VerificationStatus status);
 
-    @Query("SELECT " +
-           "(CASE WHEN v.idStatus = 'APPROVED' THEN 1 ELSE 0 END) + " +
-           "(CASE WHEN v.residenceStatus = 'APPROVED' THEN 1 ELSE 0 END) + " +
-           "(CASE WHEN v.emergencyStatus = 'APPROVED' THEN 1 ELSE 0 END) " +
-           "FROM SitterVerification v WHERE v.sitter.id = :sitterId")
+    // How many of the three checks have been filled in, counted the same way as for homeowners.
+    @Query(
+    value = "SELECT "
+        + "(CASE WHEN id_photo IS NOT NULL THEN 1 ELSE 0 END) "
+        + "+ (CASE WHEN residence_address IS NOT NULL AND residence_address <> '' THEN 1 ELSE 0 END) "
+        + "+ (CASE WHEN emergency_contact_name IS NOT NULL AND emergency_contact_name <> '' "
+        + "AND emergency_contact_phone_number IS NOT NULL AND emergency_contact_phone_number <> '' THEN 1 ELSE 0 END) "
+        + "FROM sitter_verifications "
+        + "WHERE sitter_id = :sitterId",
+    nativeQuery = true
+    )
     Integer countVerificationSections(@Param("sitterId") Integer sitterId);
 }

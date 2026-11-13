@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 
 import '../../../../models/sitter_details_model.dart';
 import '../../../../theme/app_colors.dart';
+import '../../../utils/sa_phone.dart';
 import 'sitter_detail_card.dart';
 
 class SitterHeaderCard extends StatelessWidget {
-  const SitterHeaderCard({super.key, required this.details});
+  const SitterHeaderCard({super.key, required this.details, this.photoUrl});
 
   final SitterDetails details;
+  final String? photoUrl;
 
   String get _initial {
     final name = details.name.trim();
@@ -26,6 +28,9 @@ class SitterHeaderCard extends StatelessWidget {
               CircleAvatar(
                 radius: 48,
                 backgroundColor: AppColors.lightRustBg,
+                // The initial shows underneath until the photo loads, or if it fails to.
+                foregroundImage: photoUrl == null ? null : NetworkImage(photoUrl!),
+                onForegroundImageError: photoUrl == null ? null : (_, _) {},
                 child: Text(
                   _initial,
                   style: const TextStyle(
@@ -70,7 +75,7 @@ class SitterHeaderCard extends StatelessWidget {
           if (details.phoneNumber.isNotEmpty) ...[
             const SizedBox(height: 4),
             Text(
-              details.phoneNumber,
+              formatSaPhoneForDisplay(details.phoneNumber),
               style: const TextStyle(fontSize: 13, color: Colors.black54),
             ),
           ],

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../services/home_services.dart';
+import '../../../services/verification_check_service.dart';
 import '../profile/profile_styles.dart';
 
 class AddressCheckDialog extends StatefulWidget {
@@ -8,14 +8,14 @@ class AddressCheckDialog extends StatefulWidget {
     super.key,
     required this.initialAddress,
     required this.email,
-    required this.homeService,
+    required this.checkService,
     required this.onSaved,
     required this.onMessage,
   });
 
   final String initialAddress;
   final String email;
-  final HomeService homeService;
+  final VerificationCheckService checkService;
   final VoidCallback onSaved;
   final void Function(String message) onMessage;
 
@@ -59,7 +59,7 @@ class _AddressCheckDialogState extends State<AddressCheckDialog> {
     });
 
     try {
-      final result = await widget.homeService.submitResidenceCheck(
+      final result = await widget.checkService.submitResidenceCheck(
         email: widget.email,
         address: address,
       );

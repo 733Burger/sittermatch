@@ -219,6 +219,45 @@ class ProfileDialogCancelButton extends StatelessWidget {
   }
 }
 
+/// Solid full-width card action, e.g. the Edit / Delete pair under a pet or task.
+class ProfileActionButton extends StatelessWidget {
+  const ProfileActionButton({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton.icon(
+      onPressed: onPressed,
+      icon: Icon(icon, size: 17, color: Colors.white),
+      label: Text(
+        label,
+        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white),
+      ),
+      style: OutlinedButton.styleFrom(
+        backgroundColor: color,
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        side: BorderSide(color: color, width: 1),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        minimumSize: const Size(0, 44),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      ),
+    );
+  }
+}
+
+const Color profileDeleteRed = Color(0xFFD32F2F);
+
 class ProfileTag extends StatelessWidget {
   const ProfileTag(this.text, {super.key});
 

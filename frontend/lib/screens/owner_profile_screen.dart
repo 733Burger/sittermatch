@@ -578,11 +578,17 @@ class _OwnerProfileScreenState extends State<OwnerProfileScreen> {
               addressValidator: _validateAddress,
               onAddressSave: _saveAddressDetails,
             ),
-            const SizedBox(height: 24),
-            ProfilePetsHeader(onAdd: () => _showPetDialog()),
-            const SizedBox(height: 12),
+            const SizedBox(height: 20),
+            ProfileSectionHeader(
+              title: 'My pets',
+              actionLabel: 'Add pet',
+              onAction: () => _showPetDialog(),
+            ),
+            const SizedBox(height: 8),
             if (_pets.isEmpty)
-              const ProfileEmptyPets()
+              const ProfileEmptyCard(
+                'No pets added yet. Add your pets so sitters know who they will be looking after.',
+              )
             else
               ..._pets.map(
                 (pet) => ProfilePetCard(
@@ -591,9 +597,9 @@ class _OwnerProfileScreenState extends State<OwnerProfileScreen> {
                   onDelete: () => _confirmDeletePet(pet),
                 ),
               ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
             ProfileTasksCard(homeownerId: _homeownerId, onMessage: _showMessageIfMounted),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
             ProfileReviewsCard(
               reviews: _ownerReviews,
               averageRating: _averageRating,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../models/booking_model.dart';
 import '../../../models/sitter_details_model.dart';
 import '../../../theme/app_colors.dart';
 import 'sitter_detail_card.dart';
@@ -21,7 +22,11 @@ class SitterServicesCard extends StatelessWidget {
             'Prices are in rand (R).',
             style: TextStyle(fontSize: 12, color: Colors.black54),
           ),
-          for (final service in services) _ServiceRow(service: service),
+          const SizedBox(height: 6),
+          for (var i = 0; i < services.length; i++) ...[
+            if (i > 0) Divider(height: 1, indent: 34, color: Colors.grey.shade200),
+            _ServiceRow(service: services[i]),
+          ],
         ],
       ),
     );
@@ -33,31 +38,39 @@ class _ServiceRow extends StatelessWidget {
 
   final SitterServiceItem service;
 
+  static const Map<ServiceKind, IconData> _icons = {
+    ServiceKind.night: Icons.nights_stay_outlined,
+    ServiceKind.visit: Icons.restaurant_outlined,
+    ServiceKind.walk: Icons.directions_walk,
+  };
+
+  /// The service code from the backend, e.g. STAY_OVER_NIGHT, as one known service.
+  ServiceKind? get _kind {
+    final kinds = servicesForBookingType(service.serviceType);
+    return kinds.length == 1 ? kinds.first : null;
+  }
+
+  /// "Overnight stay" for STAY_OVER_NIGHT; an unknown code is shown as "Some code".
+  String get _label {
+    final kind = _kind;
+    if (kind != null) return bookingServiceLabels[kind]!;
+    final words = service.serviceType.replaceAll('_', ' ').trim().toLowerCase();
+    return words.isEmpty ? 'Service' : words[0].toUpperCase() + words.substring(1);
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(top: 10),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.background,
-        borderRadius: BorderRadius.circular(12),
-      ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
       child: Row(
         children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(_serviceIcon(service.serviceType), color: AppColors.primaryRust, size: 20),
-          ),
-          const SizedBox(width: 12),
+          Icon(_icons[_kind] ?? Icons.pets, color: AppColors.primaryRust, size: 20),
+          const SizedBox(width: 14),
           Expanded(
             child: Text(
-              service.serviceType,
+              _label,
               style: const TextStyle(
-                fontWeight: FontWeight.bold,
+                fontWeight: FontWeight.w600,
                 color: AppColors.darkText,
                 fontSize: 14,
               ),
@@ -68,27 +81,11 @@ class _ServiceRow extends StatelessWidget {
             style: const TextStyle(
               fontWeight: FontWeight.bold,
               color: AppColors.primaryRust,
-              fontSize: 16,
+              fontSize: 14,
             ),
           ),
         ],
       ),
     );
-  }
-
-  IconData _serviceIcon(String serviceType) {
-    switch (serviceType.toLowerCase()) {
-      case 'stay over night':
-      case 'overnight sitting':
-        return Icons.nights_stay_outlined;
-      case 'walk dog':
-      case 'dog walking':
-        return Icons.directions_walk;
-      case 'feed dog':
-      case 'drop-in visit':
-        return Icons.restaurant_outlined;
-      default:
-        return Icons.pets;
-    }
   }
 }

@@ -477,13 +477,25 @@ class _SitterProfileScreenState extends State<SitterProfileScreen> {
     });
   }
 
+  // A sitter staying over already feeds the pets, so these two can't both be offered.
+  static const Map<String, String> _exclusiveServices = {
+    'Stay Over Night': 'Feed Pet',
+    'Feed Pet': 'Stay Over Night',
+  };
+
   void _toggleService(String key) {
     final count = _selectedServices.values.where((selected) => selected).length;
     if (_selectedServices[key]! && count == 1) {
       _showSnack('At least one service type must be selected.');
       return;
     }
-    setState(() => _selectedServices[key] = !_selectedServices[key]!);
+
+    final turningOn = !_selectedServices[key]!;
+    final other = _exclusiveServices[key];
+    setState(() {
+      _selectedServices[key] = turningOn;
+      if (turningOn && other != null) _selectedServices[other] = false;
+    });
   }
 
   String? _validatePrice(String? value) {
