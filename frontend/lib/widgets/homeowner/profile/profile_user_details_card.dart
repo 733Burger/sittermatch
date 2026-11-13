@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../theme/app_colors.dart';
+import '../../../utils/sa_phone.dart';
 import 'profile_styles.dart';
 
 class ProfileUserDetailsCard extends StatelessWidget {
@@ -74,11 +75,18 @@ class ProfileUserDetailsCard extends StatelessWidget {
             TextFormField(
               controller: phoneController,
               keyboardType: TextInputType.phone,
-              maxLength: 20,
+              // Same as sign up: 10 digits shown as "063 111 1111".
+              inputFormatters: [SaPhoneInputFormatter()],
               decoration: profileFieldDecoration(null, icon: Icons.phone_outlined)
-                  .copyWith(counterText: ''),
-              validator: (val) =>
-                  val == null || val.trim().isEmpty ? 'Phone number is required' : null,
+                  .copyWith(hintText: '063 111 1111'),
+              validator: (val) {
+                final phone = SaPhoneInputFormatter.digitsOf(val ?? '');
+                if (phone.isEmpty) return 'Phone number is required';
+                if (!saPhoneRegex.hasMatch(phone)) {
+                  return 'Enter a valid 10-digit SA number, e.g. 063 111 1111';
+                }
+                return null;
+              },
             ),
             const SizedBox(height: 20),
             SizedBox(

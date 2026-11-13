@@ -311,7 +311,9 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> {
       context: context,
       barrierDismissible: false,
       builder: (_) => AddressCheckDialog(
-        initialAddress: _checks.addressCheck.subtitle,
+        // With no address saved yet the subtitle is the "No address provided" label, not an
+        // address, so start the field empty (same as the sitter home page).
+        initialAddress: _checks.addressCheck.status == CheckStatus.incomplete ? '' : _checks.addressCheck.subtitle,
         email: _email,
         checkService: _homeService,
         onSaved: () {

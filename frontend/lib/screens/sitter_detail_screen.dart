@@ -11,7 +11,6 @@ import '../widgets/homeowner/sitter_detail/sitter_about_card.dart';
 import '../widgets/homeowner/sitter_detail/sitter_action_bar.dart';
 import '../widgets/homeowner/sitter_detail/sitter_header_card.dart';
 import '../widgets/homeowner/sitter_detail/sitter_pets_card.dart';
-import '../widgets/homeowner/sitter_detail/sitter_reviews_card.dart';
 import '../widgets/homeowner/sitter_detail/sitter_services_card.dart';
 import 'bookings_dashboard_screen.dart';
 import 'direct_chat_screen.dart';
@@ -228,11 +227,6 @@ class _SitterDetailScreenState extends State<SitterDetailScreen> {
           SitterPetsCard(petPreferences: _details.petPreferences),
           const SizedBox(height: 16),
           SitterServicesCard(services: _details.services),
-          const SizedBox(height: 16),
-          SitterReviewsCard(
-            rating: _details.rating,
-            reviewCount: _details.totalReviews,
-          ),
           const SizedBox(height: 16),
         ],
       ),

@@ -261,7 +261,7 @@ class BookingService {
           final breed = (pet['breed'] ?? '').toString();
           final age = pet['age'];
           final details = [
-            if (species.isNotEmpty) species,
+            if (species.isNotEmpty) petTypeLabel(species),
             if (breed.isNotEmpty) breed,
             if (age != null) 'Age $age',
           ].join(' · ');
@@ -345,6 +345,7 @@ class BookingService {
       sitterId: (json['sitterId'] as num?)?.toInt(),
       homeownerId: (json['homeownerId'] as num?)?.toInt(),
       homeownerName: json['homeownerName'] as String?,
+      area: (json['area'] as String?)?.trim().isNotEmpty == true ? (json['area'] as String).trim() : null,
       startDate: DateTime.tryParse(startRaw),
       endDate: DateTime.tryParse(endRaw),
       homeownerNotes: json['notes']?.toString().isNotEmpty == true ? json['notes'].toString() : null,

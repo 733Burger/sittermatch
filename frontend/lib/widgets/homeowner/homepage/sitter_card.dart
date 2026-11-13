@@ -151,38 +151,14 @@ class _SitterDetails extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Flexible(
-              child: Text(
-                sitter.name,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            RichText(
-              text: TextSpan(
-                children: [
-                  TextSpan(
-                    text: 'R${sitter.nightRate.toStringAsFixed(0)}',
-                    style: const TextStyle(
-                      color: Colors.black,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const TextSpan(
-                    text: ' / nt',
-                    style: TextStyle(color: Colors.black54, fontSize: 12),
-                  ),
-                ],
-              ),
-            ),
-          ],
+        Text(
+          sitter.name,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         const SizedBox(height: 4),
         Row(
@@ -198,25 +174,7 @@ class _SitterDetails extends StatelessWidget {
                 sitter.distanceKm == null
                     ? sitter.suburb
                     : '${sitter.suburb} · ${sitter.distanceKm!.toStringAsFixed(1)} km away',
-                style: const TextStyle(color: Colors.black54, fontSize: 12),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 4),
-        Row(
-          children: [
-            const Icon(
-              Icons.star_rounded,
-              color: AppColors.primaryRust,
-              size: 14,
-            ),
-            const SizedBox(width: 4),
-            Text(
-              '${sitter.rating} (${sitter.totalReviews})',
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
+                style: const TextStyle(color: Colors.black54, fontSize: 14),
               ),
             ),
           ],

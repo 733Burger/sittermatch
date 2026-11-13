@@ -79,22 +79,6 @@ class SitterHeaderCard extends StatelessWidget {
               style: const TextStyle(fontSize: 13, color: Colors.black54),
             ),
           ],
-          const SizedBox(height: 8),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.star_rounded, color: AppColors.primaryRust, size: 18),
-              const SizedBox(width: 4),
-              Text(
-                details.rating.toStringAsFixed(2),
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-              ),
-              Text(
-                ' (${details.totalReviews} reviews)',
-                style: const TextStyle(fontSize: 12, color: Colors.black54),
-              ),
-            ],
-          ),
         ],
       ),
     );

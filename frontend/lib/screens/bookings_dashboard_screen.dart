@@ -3,6 +3,7 @@ import '../models/booking_model.dart';
 import '../services/auth_services.dart';
 import '../services/booking_service.dart';
 import '../theme/app_colors.dart';
+import '../widgets/homeowner/profile/profile_styles.dart';
 import 'accepted_booking_screen.dart';
 import 'booking_flow_screen.dart';
 import 'booking_offers_screen.dart';
@@ -29,12 +30,18 @@ class _BookingsDashboardScreenState extends State<BookingsDashboardScreen> {
     _loadBookings();
   }
 
-  Future<void> _loadBookings() async {
-    final userId = await AuthService().getUserId();
+  // Assigns the future straight away so build() never reads it before it is set.
+  void _loadBookings() {
+    final future = _fetchBookings();
     if (!mounted) return;
     setState(() {
-      _bookingsFuture = BookingService.fetchDashboardBookings(homeownerId: userId);
+      _bookingsFuture = future;
     });
+  }
+
+  Future<List<BookingModel>> _fetchBookings() async {
+    final userId = await AuthService().getUserId();
+    return BookingService.fetchDashboardBookings(homeownerId: userId);
   }
 
   // Reloads when the user comes back, since the screen may have changed the booking.
@@ -65,30 +72,23 @@ class _BookingsDashboardScreenState extends State<BookingsDashboardScreen> {
   }
 
   // Cancelling deletes the booking. A declined booking is removed the same way.
-  void _confirmCancel(BookingModel booking) {
+  Future<void> _confirmCancel(BookingModel booking) async {
     final declined = _getUiStatus(booking) == 'declined';
-    showDialog(
+    final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(declined ? 'Remove this booking?' : 'Cancel this booking?'),
-        content: Text(declined
+      builder: (_) => ProfileConfirmDialog(
+        title: declined ? 'Remove this booking?' : 'Cancel this booking?',
+        message: declined
             ? 'This removes "${booking.title}" from your bookings.'
-            : 'This cancels and deletes "${booking.title}". It cannot be undone.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Keep booking'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              _deleteBooking(booking, declined ? 'Booking removed.' : 'Booking cancelled and deleted.');
-            },
-            child: Text(declined ? 'Remove' : 'Cancel booking', style: const TextStyle(color: Colors.red)),
-          ),
-        ],
+            : 'This cancels and deletes "${booking.title}". It cannot be undone.',
+        cancelLabel: 'Keep booking',
+        confirmLabel: declined ? 'Remove' : 'Cancel booking',
+        confirmColor: Colors.red,
       ),
     );
+    if (confirmed == true) {
+      _deleteBooking(booking, declined ? 'Booking removed.' : 'Booking cancelled and deleted.');
+    }
   }
 
   Future<void> _deleteBooking(BookingModel booking, String doneMessage) async {
@@ -106,6 +106,15 @@ class _BookingsDashboardScreenState extends State<BookingsDashboardScreen> {
       if (!mounted) return;
       _showSnack('Could not cancel the booking: ${e.toString().replaceFirst('Exception: ', '')}');
     }
+  }
+
+  // "Date: 2026-11-14 – 2026-11-17". The status badge already shows the status.
+  String _dateLine(BookingModel booking) {
+    final start = booking.startDate;
+    final end = booking.endDate;
+    if (start == null || end == null) return 'Date: To be confirmed';
+    String day(DateTime d) => d.toIso8601String().split('T').first;
+    return 'Date: ${day(start)} – ${day(end)}';
   }
 
   String _getUiStatus(BookingModel booking) {
@@ -371,15 +380,16 @@ class _BookingsDashboardScreenState extends State<BookingsDashboardScreen> {
   }
 
   Widget _buildCancelButton(BookingModel booking, {String label = 'Cancel Booking'}) {
-    return OutlinedButton.icon(
+    // Same shape and text as Message Sitter / View Offers, in red.
+    return ElevatedButton.icon(
       onPressed: () => _confirmCancel(booking),
-      style: OutlinedButton.styleFrom(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.red,
         padding: const EdgeInsets.symmetric(vertical: 12),
-        side: const BorderSide(color: Colors.red),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
-      icon: const Icon(Icons.cancel_outlined, color: Colors.red, size: 16),
-      label: Text(label, style: const TextStyle(color: Colors.red, fontSize: 12)),
+      icon: const Icon(Icons.cancel_outlined, color: Colors.white, size: 16),
+      label: Text(label, style: const TextStyle(color: Colors.white, fontSize: 12)),
     );
   }
 
@@ -421,7 +431,7 @@ class _BookingsDashboardScreenState extends State<BookingsDashboardScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        booking.subtitle,
+                        _dateLine(booking),
                         style: TextStyle(
                           fontSize: 12,
                           color: AppColors.darkText.withValues(alpha: 0.8),

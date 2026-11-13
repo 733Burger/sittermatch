@@ -3,6 +3,7 @@ package com.sittermatch.sittermatch.services;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
@@ -13,12 +14,14 @@ import com.sittermatch.sittermatch.dto.SitterProfileResponse;
 import com.sittermatch.sittermatch.dto.SitterProfileUpdateRequest;
 import com.sittermatch.sittermatch.dto.UpdateProfileRequest;
 import com.sittermatch.sittermatch.dto.profile.PetUpdateResult;
+import com.sittermatch.sittermatch.dto.profile.PublicHomeownerProfileResponse;
 import com.sittermatch.sittermatch.dto.profile.ServiceUpdateResult;
 import com.sittermatch.sittermatch.model.Homeowner;
 import com.sittermatch.sittermatch.model.Sitter;
 import com.sittermatch.sittermatch.model.SitterServices;
 import com.sittermatch.sittermatch.model.User;
 import com.sittermatch.sittermatch.repository.HomeownerRepository;
+import com.sittermatch.sittermatch.repository.PetRepository;
 import com.sittermatch.sittermatch.repository.SitterRepository;
 import com.sittermatch.sittermatch.repository.UserRepository;
 
@@ -30,6 +33,7 @@ public class ProfileService {
     private final HomeownerRepository homeownerRepository;
     private final SitterRepository sitterRepository;
     private final UserRepository userRepository;
+    private final PetRepository petRepository;
 
     private static final Set<String> ALLOWED_SERVICES = Set.of("STAY_OVER_NIGHT", "WALK_PET", "FEED_PET");
     private static final Set<String> ALLOWED_PETS = Set.of("LARGE DOG", "SMALL DOG", "CAT", "BIRD", "REPTILE",
@@ -38,11 +42,35 @@ public class ProfileService {
     public ProfileService(PlacesService placesService,
                         HomeownerRepository homeownerRepository,
                         SitterRepository sitterRepository,
-                        UserRepository userRepository) {
+                        UserRepository userRepository,
+                        PetRepository petRepository) {
         this.placesService = placesService;
         this.homeownerRepository = homeownerRepository;
         this.sitterRepository = sitterRepository;
         this.userRepository = userRepository;
+        this.petRepository = petRepository;
+    }
+
+    // What a sitter sees on a homeowner's profile. Leaves out the street address, coordinates,
+    // email and phone, which only the homeowner themselves gets from getProfile.
+    public PublicHomeownerProfileResponse getPublicHomeownerProfile(Integer homeownerId) {
+        Optional<Homeowner> found = homeownerRepository.findById(homeownerId);
+        if (found.isEmpty()) {
+            return PublicHomeownerProfileResponse.failure("Homeowner not found");
+        }
+        Homeowner homeowner = found.get();
+        String name = homeowner.getUser() != null ? homeowner.getUser().getName() : "Homeowner";
+        List<PublicHomeownerProfileResponse.PublicPet> pets = petRepository.findByHomeownerId(homeownerId).stream()
+                .map(p -> new PublicHomeownerProfileResponse.PublicPet(p.getName(), p.getSpecies(), p.getBreed(), p.getAge()))
+                .toList();
+        return new PublicHomeownerProfileResponse(
+                true,
+                "Profile loaded",
+                name,
+                homeowner.getSuburb(),
+                homeowner.getCity(),
+                homeowner.getRequirements(),
+                pets);
     }
 
     // Homeowner profile

@@ -40,6 +40,8 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('Remove this review?'),
         content: Text(
           'The review from ${review.reviewerName} will not be shown on '

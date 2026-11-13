@@ -4,7 +4,6 @@ import '../theme/app_colors.dart';
 import '../models/booking_draft_model.dart';
 import '../services/auth_services.dart';
 import '../services/booking_service.dart';
-import '../services/profile_service.dart';
 import 'saved_sitters_screen.dart';
 import 'bookings_dashboard_screen.dart';
 import 'direct_chat_screen.dart';
@@ -116,15 +115,8 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
     if (userId == null) {
       throw Exception('Sign in again before creating a booking.');
     }
-    final draft = await BookingService.getBookingDraft(userId);
-
-    // Start the notes with the house sitting requirements from the homeowner's profile.
-    final profile = await ProfileService().fetchProfile(userId: userId);
-    final requirements = (profile['requirements'] ?? '').toString().trim();
-    if (requirements.isNotEmpty && _instructionsController.text.trim().isEmpty) {
-      _instructionsController.text = requirements;
-    }
-    return draft;
+    // The additional notes start out empty. A booking saved without notes shows a placeholder where it is viewed.
+    return BookingService.getBookingDraft(userId);
   }
 
   // Handle booking dispatch
@@ -341,19 +333,21 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
                         const SizedBox(height: 4),
                         GestureDetector(
                           onTap: () => _selectTime(context, true),
-                          child: Text('From ${_checkInTime.format(context)}', style: const TextStyle(fontSize: 12, color: AppColors.primaryRust, fontWeight: FontWeight.bold, decoration: TextDecoration.underline)),
+                          child: Text('From ${_checkInTime.format(context)}', style: const TextStyle(fontSize: 12, color: AppColors.primaryRust, fontWeight: FontWeight.bold)),
                         ),
                       ],
                     ),
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(color: AppColors.lightRustBg, borderRadius: BorderRadius.circular(20)),
+                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                  decoration: BoxDecoration(color: AppColors.lightRustBg, borderRadius: BorderRadius.circular(24)),
                   child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.arrow_forward, color: AppColors.primaryRust, size: 16),
-                      Text('$nights Nights', style: const TextStyle(color: AppColors.primaryRust, fontSize: 10, fontWeight: FontWeight.bold)),
+                      const Icon(Icons.arrow_forward_rounded, color: AppColors.primaryRust, size: 22),
+                      const SizedBox(height: 2),
+                      Text(nights == 1 ? '1 Night' : '$nights Nights', style: const TextStyle(color: AppColors.primaryRust, fontSize: 12, fontWeight: FontWeight.bold)),
                     ],
                   ),
                 ),
@@ -369,7 +363,7 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
                         const SizedBox(height: 4),
                         GestureDetector(
                           onTap: () => _selectTime(context, false),
-                          child: Text('Until ${_checkOutTime.format(context)}', style: const TextStyle(fontSize: 12, color: AppColors.primaryRust, fontWeight: FontWeight.bold, decoration: TextDecoration.underline)),
+                          child: Text('Until ${_checkOutTime.format(context)}', style: const TextStyle(fontSize: 12, color: AppColors.primaryRust, fontWeight: FontWeight.bold)),
                         ),
                       ],
                     ),
@@ -498,88 +492,79 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
           ),
           const SizedBox(height: 4),
           const Text('Tap to select your registered companions', style: TextStyle(fontSize: 12, color: Colors.grey)),
-          const SizedBox(height: 16),
+          const SizedBox(height: 8),
           if (draft.companions.isEmpty)
-            const Text(
-              'No pets on your profile yet.',
-              style: TextStyle(fontSize: 13, color: Colors.black54),
+            const Padding(
+              padding: EdgeInsets.only(top: 8),
+              child: Text(
+                'No pets on your profile yet.',
+                style: TextStyle(fontSize: 13, color: Colors.black54),
+              ),
             )
           else
-            for (final pet in draft.companions)
+            for (var i = 0; i < draft.companions.length; i++) ...[
+              if (i > 0) Divider(height: 1, color: Colors.grey.shade200),
               _buildPetOption(
-                title: pet.category,
-                details: pet.details,
-                isSelected: pet.isSelected,
-                onTap: () => setState(() => pet.isSelected = !pet.isSelected),
+                title: draft.companions[i].category,
+                details: draft.companions[i].details,
+                isSelected: draft.companions[i].isSelected,
+                onTap: () => setState(() => draft.companions[i].isSelected = !draft.companions[i].isSelected),
               ),
+            ],
         ],
       ),
     );
   }
 
+  // One pet as a plain list row: small avatar, name and details, then a tick.
   Widget _buildPetOption({
     required String title,
     required String details,
     required bool isSelected,
     required VoidCallback onTap,
   }) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: isSelected ? AppColors.lightRustBg : Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: isSelected ? AppColors.primaryRust : Colors.grey.shade200,
-              width: isSelected ? 1.5 : 1,
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 18,
+              backgroundColor: isSelected ? AppColors.primaryRust : AppColors.lightRustBg,
+              child: Icon(
+                Icons.pets,
+                color: isSelected ? Colors.white : AppColors.primaryRust,
+                size: 18,
+              ),
             ),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 60,
-                height: 60,
-                decoration: BoxDecoration(
-                  color: isSelected ? AppColors.primaryRust : AppColors.lightRustBg,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  Icons.pets,
-                  color: isSelected ? Colors.white : AppColors.primaryRust,
-                  size: 28,
-                ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.darkText),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    details,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 12, color: Colors.black54),
+                  ),
+                ],
               ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.darkText),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      details,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 12, color: Colors.black54),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Icon(
-                isSelected ? Icons.check_circle : Icons.circle_outlined,
-                color: isSelected ? AppColors.primaryRust : Colors.grey.shade400,
-                size: 26,
-              ),
-            ],
-          ),
+            ),
+            const SizedBox(width: 8),
+            Icon(
+              isSelected ? Icons.check_circle : Icons.circle_outlined,
+              color: isSelected ? AppColors.primaryRust : Colors.grey.shade400,
+              size: 22,
+            ),
+          ],
         ),
       ),
     );
@@ -602,11 +587,16 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
           const SizedBox(height: 12),
           TextField(
             controller: _instructionsController,
-            maxLines: 4,
+            minLines: 1,
+            maxLines: 8,
+            keyboardType: TextInputType.multiline,
+            textCapitalization: TextCapitalization.sentences,
             style: const TextStyle(fontSize: 13),
             decoration: InputDecoration(
               filled: true,
               fillColor: AppColors.background,
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               hintText: 'Add feeding times, security codes, or extra details...',
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
             ),

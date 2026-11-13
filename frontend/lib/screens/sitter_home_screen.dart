@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/screens/login_screen.dart';
 
+import '../models/booking_model.dart';
 import '../models/homeowner_checks_model.dart';
 import '../services/auth_services.dart';
 import '../services/sitter_verification_service.dart';
@@ -10,6 +11,7 @@ import '../widgets/homeowner/dialogs/address_check_dialog.dart';
 import '../widgets/homeowner/dialogs/emergency_contact_dialog.dart';
 import '../widgets/homeowner/dialogs/identity_check_dialog.dart';
 import '../widgets/homeowner/homepage/verification_checks_card.dart';
+import '../widgets/sitter/sitter_job_card.dart';
 import 'bookings_dashboard_screen.dart';
 import 'jobs_dashboard_screen.dart';
 import 'messages_screen.dart';
@@ -24,7 +26,7 @@ class SitterHomeScreen extends StatefulWidget {
   State<SitterHomeScreen> createState() => _SitterHomeScreenState();
 }
 
-class _SitterHomeScreenState extends State<SitterHomeScreen> {
+class _SitterHomeScreenState extends State<SitterHomeScreen> with SitterJobActions {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final AuthService _authService = AuthService();
 
@@ -34,37 +36,28 @@ class _SitterHomeScreenState extends State<SitterHomeScreen> {
   final SitterVerificationService _checkService = SitterVerificationService();
   OwnerChecks _checks = const OwnerChecks();
 
-  // THE hard coded data
-  // We can change these names, pets, and prices to whatever you want
-  final List<Map<String, dynamic>> hardCodedBookings = const [
-    {
-      'ownerName': 'Kayla M.',
-      'petDetails': 'Luna (Golden Retriever)',
-      'location': 'Bedfordview, Gauteng',
-      'dates': '28 Oct - 31 Oct',
-      'pay': 'R450 / night',
-    },
-    {
-      'ownerName': 'Jamie T.',
-      'petDetails': 'Cleo (Domestic Shorthair)',
-      'location': 'Oakdene, Johannesburg',
-      'dates': '02 Nov - 05 Nov',
-      'pay': 'R350 / night',
-    },
-    {
-      'ownerName': 'Catia D.',
-      'petDetails': 'Milo (French Bulldog)',
-      'location': 'Germiston, Gauteng',
-      'dates': '10 Nov - 12 Nov',
-      'pay': 'R400 / night',
-    },
-  ];
+  // Open bookings (no sitter chosen yet) this sitter hasn't offered on or declined.
+  // Once they send an offer, the booking moves to their Jobs.
+  late Future<List<BookingModel>> _requestsFuture;
 
   @override
   void initState() {
     super.initState();
     _requireCompleteProfile();
     _loadUserData();
+    reloadJobs();
+  }
+
+  @override
+  void reloadJobs() {
+    setState(() {
+      _requestsFuture = fetchSitterBookings().then((all) => all.where(isOpenRequest).toList());
+    });
+  }
+
+  Future<void> _refreshAll() async {
+    reloadJobs();
+    await Future.wait([_refreshChecks(), _requestsFuture.catchError((_) => <BookingModel>[])]);
   }
 
   // New sitters fill in their profile before they can use the rest of the app.
@@ -103,9 +96,11 @@ class _SitterHomeScreenState extends State<SitterHomeScreen> {
     if (_scaffoldKey.currentState?.isDrawerOpen ?? false) Navigator.pop(context);
   }
 
-  void _open(Widget screen) {
+  // Reloads the open requests on return, e.g. after withdrawing an offer from Jobs.
+  Future<void> _open(Widget screen) async {
     _closeDrawerIfOpen();
-    Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
+    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
+    if (mounted) reloadJobs();
   }
 
   void _showSnack(String message) {
@@ -251,10 +246,10 @@ class _SitterHomeScreenState extends State<SitterHomeScreen> {
           ],
         ),
       ),
-      // Pull down to pick up a check an admin has just approved or rejected.
+      // Pull down to pick up new requests, or a check an admin has just approved or rejected.
       body: RefreshIndicator(
         color: AppColors.primaryRust,
-        onRefresh: _refreshChecks,
+        onRefresh: _refreshAll,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.all(16),
@@ -269,15 +264,11 @@ class _SitterHomeScreenState extends State<SitterHomeScreen> {
                 readySubtitle: 'You’re ready to take bookings',
               ),
 
-              // THE OPEN BOOKINGS LIST
-              const SizedBox(height: 32),
-              const Text('Open Bookings Near You', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 16),
-
-              // This loop generates a beautiful card for each item in the hardCodedBookings list
-              ...hardCodedBookings.map((booking) => _buildBookingCard(booking)),
-
+              // Same layout as "Available Sitters Nearby" on the homeowner home page.
               const SizedBox(height: 24),
+              const Text('Open Requests Nearby', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 12),
+              _buildOpenRequests(),
             ],
           ),
         ),
@@ -305,87 +296,37 @@ class _SitterHomeScreenState extends State<SitterHomeScreen> {
     );
   }
 
-  // this will create the layout for the hard-coded Open Bookings cards
-  Widget _buildBookingCard(Map<String, dynamic> booking) {
-    return Card(
-      elevation: 2,
-      margin: const EdgeInsets.only(bottom: 16.0),
-      color: Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(booking['ownerName'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: AppColors.primaryRust.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    booking['pay'],
-                    style: const TextStyle(color: AppColors.primaryRust, fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            _buildInfoRow(Icons.pets, booking['petDetails']),
-            const SizedBox(height: 8),
-            _buildInfoRow(Icons.location_on_outlined, booking['location']),
-            const SizedBox(height: 8),
-            _buildInfoRow(Icons.calendar_today_outlined, booking['dates']),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () {},
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      foregroundColor: AppColors.primaryRust,
-                      side: const BorderSide(color: AppColors.primaryRust),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    ),
-                    child: const Text('View Details'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () {},
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primaryRust,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    ),
-                    child: const Text(
-                      'Apply Now',
-                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
+  // The open requests, using the same card and buttons as Jobs.
+  Widget _buildOpenRequests() {
+    if (jobActionBusy) return _buildListMessage(null);
+
+    return FutureBuilder<List<BookingModel>>(
+      future: _requestsFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) return _buildListMessage(null);
+        if (snapshot.hasError) {
+          return _buildListMessage('Could not load open requests. Pull down to try again.');
+        }
+        final requests = snapshot.data ?? [];
+        if (requests.isEmpty) {
+          return _buildListMessage('No open requests within 40 km of your work area yet.');
+        }
+        // Cards stacked directly under the heading, like the sitter cards on the homeowner home page.
+        return Column(children: requests.map(buildJobCard).toList());
+      },
     );
   }
 
-  // Creates the icon and text rows for the booking cards
-  Widget _buildInfoRow(IconData icon, String text) {
-    return Row(
-      children: [
-        Icon(icon, size: 20, color: Colors.grey[600]),
-        const SizedBox(width: 12),
-        Text(text, style: TextStyle(color: Colors.grey[800], fontSize: 15)),
-      ],
+  // A spinner while loading (message null), or a line of grey text. No card, same as the
+  // homeowner home page's "No sitters within 40 km" message.
+  Widget _buildListMessage(String? message) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 24),
+      child: Center(
+        child: message == null
+            ? const CircularProgressIndicator(color: AppColors.primaryRust)
+            : Text(message, textAlign: TextAlign.center, style: const TextStyle(color: Colors.black54)),
+      ),
     );
   }
 }

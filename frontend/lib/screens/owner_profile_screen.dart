@@ -2,15 +2,13 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../models/owner_review.dart';
 import '../models/pet_model.dart';
-import '../models/review_model.dart';
 import '../services/auth_services.dart';
 import '../services/places_service.dart';
 import '../services/profile_service.dart';
-import '../services/review_service.dart';
 import '../theme/app_colors.dart';
 import '../utils/profile_completion.dart';
+import '../utils/sa_phone.dart';
 import '../widgets/homeowner/dialogs/change_password_dialog.dart';
 import '../widgets/homeowner/dialogs/pet_form_dialog.dart';
 import '../widgets/homeowner/homeowner_bottom_nav_bar.dart';
@@ -18,9 +16,7 @@ import '../widgets/homeowner/profile/profile_address_card.dart';
 import '../widgets/homeowner/profile/profile_gate_banner.dart';
 import '../widgets/homeowner/profile/profile_header_card.dart';
 import '../widgets/homeowner/profile/profile_pet_card.dart';
-import '../widgets/homeowner/profile/profile_pet_reviews_card.dart';
 import '../widgets/homeowner/profile/profile_pets_section.dart';
-import '../widgets/homeowner/profile/profile_reviews_card.dart';
 import '../widgets/homeowner/profile/profile_tasks_card.dart';
 import '../widgets/homeowner/profile/profile_user_details_card.dart';
 import 'bookings_dashboard_screen.dart';
@@ -69,8 +65,6 @@ class _OwnerProfileScreenState extends State<OwnerProfileScreen> {
   final TextEditingController _requirementsController = TextEditingController();
 
   final List<PetModel> _pets = [];
-  final List<OwnerReview> _ownerReviews = [];
-  List<PetReview> _petReviews = [];
 
   // What the saved profile still needs before the rest of the app unlocks.
   List<String> _missing = [];
@@ -115,46 +109,11 @@ class _OwnerProfileScreenState extends State<OwnerProfileScreen> {
     return _addressLookupMessage;
   }
 
-  double get _averageRating {
-    if (_ownerReviews.isEmpty) return 0;
-    final total = _ownerReviews.fold<double>(0, (sum, review) => sum + review.rating);
-    return total / _ownerReviews.length;
-  }
-
   @override
   void initState() {
     super.initState();
     _loadProfile();
     _loadPets();
-    _loadReviews();
-  }
-
-  // Reviews sitters wrote about this homeowner, once an admin has approved them.
-  Future<void> _loadReviews() async {
-    final userId = await AuthService().getUserId();
-    if (!mounted || userId == null) return;
-    try {
-      final reviews = await ReviewService.fetchHomeownerReviews(userId);
-      if (!mounted) return;
-      setState(() {
-        _ownerReviews
-          ..clear()
-          ..addAll(reviews.map((r) => OwnerReview(
-                sitterName: r.reviewerName,
-                rating: r.rating.toDouble(),
-                comment: r.comment,
-                date: r.dateLabel,
-              )));
-      });
-    } catch (e) {
-      debugPrint('Error loading reviews: $e');
-    }
-    try {
-      final petReviews = await ReviewService.fetchHomeownerPetReviews(userId);
-      if (mounted) setState(() => _petReviews = petReviews);
-    } catch (e) {
-      debugPrint('Error loading pet reviews: $e');
-    }
   }
 
   @override
@@ -197,7 +156,7 @@ class _OwnerProfileScreenState extends State<OwnerProfileScreen> {
 
       _nameController.text = _userName;
       _emailController.text = _userEmail;
-      _phoneController.text = _userPhone;
+      _phoneController.text = formatSaPhoneForDisplay(_userPhone);
       _addressController.text = _savedAddress;
       _requirementsController.text = _savedRequirements;
     });
@@ -235,7 +194,7 @@ class _OwnerProfileScreenState extends State<OwnerProfileScreen> {
     final saved = await _submitProfile(
       name: _nameController.text.trim(),
       email: _emailController.text.trim(),
-      phone: _phoneController.text.trim(),
+      phone: SaPhoneInputFormatter.digitsOf(_phoneController.text),
       address: _savedAddress,
       requirements: _savedRequirements,
     );
@@ -548,8 +507,6 @@ class _OwnerProfileScreenState extends State<OwnerProfileScreen> {
               name: _userName,
               email: _userEmail,
               phone: _userPhone,
-              reviewCount: _ownerReviews.length,
-              averageRating: _averageRating,
               onPhotoTap: _showPhotoComingSoon,
             ),
             const SizedBox(height: 16),
@@ -599,13 +556,6 @@ class _OwnerProfileScreenState extends State<OwnerProfileScreen> {
               ),
             const SizedBox(height: 10),
             ProfileTasksCard(homeownerId: _homeownerId, onMessage: _showMessageIfMounted),
-            const SizedBox(height: 10),
-            ProfileReviewsCard(
-              reviews: _ownerReviews,
-              averageRating: _averageRating,
-            ),
-            const SizedBox(height: 12),
-            ProfilePetReviewsCard(reviews: _petReviews),
             const SizedBox(height: 24),
           ],
         ),

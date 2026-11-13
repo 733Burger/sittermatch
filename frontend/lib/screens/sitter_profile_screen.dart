@@ -14,12 +14,12 @@ import '../widgets/homeowner/profile/profile_user_details_card.dart';
 import '../widgets/sitter/profile/sitter_about_card.dart';
 import '../widgets/sitter/profile/sitter_area_card.dart';
 import '../widgets/sitter/profile/sitter_preferences_card.dart';
-import '../widgets/sitter/profile/sitter_reviews_card.dart';
 import '../widgets/sitter/profile/sitter_services_card.dart';
 import '../widgets/sitter/sitter_bottom_nav_bar.dart';
 import 'jobs_dashboard_screen.dart';
 import 'messages_screen.dart';
 import '../utils/profile_completion.dart';
+import '../utils/sa_phone.dart';
 import 'sitter_home_screen.dart';
 
 class SitterProfileScreen extends StatefulWidget {
@@ -44,8 +44,6 @@ class _SitterProfileScreenState extends State<SitterProfileScreen> {
   String _savedArea = '';
   double? _savedLatitude;
   double? _savedLongitude;
-  double _rating = 0;
-  int _totalReviews = 0;
 
   bool _savingUser = false;
   bool _savingArea = false;
@@ -178,15 +176,13 @@ class _SitterProfileScreenState extends State<SitterProfileScreen> {
       _sitterName = (result['name'] ?? '').toString();
       _sitterEmail = (result['email'] ?? '').toString();
       _sitterPhone = (result['phone'] ?? '').toString();
-      _rating = (result['rating'] as num?)?.toDouble() ?? 0;
-      _totalReviews = (result['totalReviews'] as num?)?.toInt() ?? 0;
       _savedArea = (result['serviceArea'] ?? '').toString().trim();
       _savedLatitude = (result['latitude'] as num?)?.toDouble();
       _savedLongitude = (result['longitude'] as num?)?.toDouble();
 
       _nameController.text = _sitterName;
       _emailController.text = _sitterEmail;
-      _phoneController.text = _sitterPhone;
+      _phoneController.text = formatSaPhoneForDisplay(_sitterPhone);
       _aboutController.text = (result['experience'] ?? '').toString();
       _areaController.text = _savedArea;
 
@@ -234,7 +230,7 @@ class _SitterProfileScreenState extends State<SitterProfileScreen> {
     final saved = await _submitProfile(
       name: _nameController.text.trim(),
       email: _emailController.text.trim(),
-      phone: _phoneController.text.trim(),
+      phone: SaPhoneInputFormatter.digitsOf(_phoneController.text),
     );
     if (!mounted) return;
 
@@ -597,8 +593,6 @@ class _SitterProfileScreenState extends State<SitterProfileScreen> {
               name: _sitterName,
               email: _sitterEmail,
               phone: _sitterPhone,
-              reviewCount: _totalReviews,
-              averageRating: _rating,
               onPhotoTap: _showPhotoComingSoon,
               tag: 'SITTER',
             ),
@@ -654,11 +648,6 @@ class _SitterProfileScreenState extends State<SitterProfileScreen> {
               onSave: _saveServices,
               validatePrice: _validatePrice,
               validateMinutes: _validateMinutes,
-            ),
-            const SizedBox(height: 16),
-            SitterReviewsCard(
-              reviewCount: _totalReviews,
-              averageRating: _rating,
             ),
             const SizedBox(height: 24),
           ],

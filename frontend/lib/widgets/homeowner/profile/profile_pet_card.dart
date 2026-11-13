@@ -18,8 +18,6 @@ class ProfilePetCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hasReview = pet.review != null && pet.review!.trim().isNotEmpty;
-
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(16),
@@ -83,52 +81,6 @@ class ProfilePetCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              const Icon(
-                Icons.emoji_emotions_outlined,
-                color: AppColors.primaryRust,
-                size: 18,
-              ),
-              const SizedBox(width: 6),
-              Text(
-                pet.behaviorScore == null ? 'No behaviour score yet' : 'Behaviour score',
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.darkText,
-                ),
-              ),
-            ],
-          ),
-          if (pet.behaviorScore != null || hasReview) ...[
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                if (pet.behaviorScore != null) ...[
-                  ProfileStars(score: pet.behaviorScore!, size: 16),
-                  const SizedBox(width: 6),
-                  Text(
-                    pet.behaviorScore!.toStringAsFixed(1),
-                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(width: 8),
-                ],
-                if (hasReview)
-                  Expanded(
-                    child: Text(
-                      '"${pet.review!}"',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontStyle: FontStyle.italic,
-                        color: Colors.black54,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ],
           if (pet.careNotes.trim().isNotEmpty) ...[
             const SizedBox(height: 12),
             Container(
