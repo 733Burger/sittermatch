@@ -40,6 +40,8 @@ class BookingModel {
   final int? sitterId;
   final int? homeownerId;
   final String? homeownerName;
+  // The homeowner's suburb and city, e.g. "Sea Point, Cape Town". Never the street address.
+  final String? area;
   final DateTime? startDate;
   final DateTime? endDate;
   final String? homeownerNotes;
@@ -65,6 +67,7 @@ class BookingModel {
     this.sitterId,
     this.homeownerId,
     this.homeownerName,
+    this.area,
     this.startDate,
     this.endDate,
     this.homeownerNotes,

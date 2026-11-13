@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../models/booking_model.dart';
 import '../services/auth_services.dart';
 import '../services/booking_service.dart';
@@ -253,7 +254,7 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
         await BookingService.declineOffer(o.id, sitterId);
       }
       await _loadOffer();
-      _showSnack(accept ? 'Booking accepted.' : 'Offer declined.');
+      _showSnack(accept ? 'Booking accepted.' : 'Booking ignored.');
     } catch (e) {
       _showSnack(e.toString().replaceFirst('Exception: ', ''));
     } finally {
@@ -496,8 +497,12 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
 
   // ---------- Booking offer ----------
 
+  // Same look as the job cards and booking details: status pill, title, a grey details panel
+  // with labelled rows, then the prices and two solid buttons.
   Widget _buildOfferCard() {
     final canEdit = _isHomeowner && _offerOpen;
+    final pets = _offerPets;
+    final notes = _offerNotes;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -510,24 +515,43 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'BOOKING OFFER',
-            style: TextStyle(
-              color: AppColors.primaryRust,
-              fontSize: 10,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 0.5,
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(color: AppColors.lightRustBg, borderRadius: BorderRadius.circular(12)),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.send_outlined, color: AppColors.primaryRust, size: 12),
+                SizedBox(width: 4),
+                Text('BOOKING OFFER',
+                    style: TextStyle(color: AppColors.primaryRust, fontSize: 10, fontWeight: FontWeight.bold)),
+              ],
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 12),
           Text(
             _offer!.bookingType,
             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.darkText),
           ),
-          const SizedBox(height: 8),
-          _buildInfoRow(Icons.calendar_today_outlined, '${_dateRange(_offer!)} · ${_offer!.nights} ${_offer!.nights == 1 ? 'night' : 'nights'}'),
-          const SizedBox(height: 4),
-          if (_offer!.notes.isNotEmpty) _buildInfoRow(Icons.pets, _offer!.notes.replaceAll('\n', ' · ')),
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(12)),
+            child: Column(
+              children: [
+                _buildOfferDetailRow(Icons.calendar_today_outlined, 'DATES', _offerDateLine),
+                if (pets != null) ...[
+                  const SizedBox(height: 10),
+                  _buildOfferDetailRow(Icons.pets, 'PETS', pets),
+                ],
+                if (notes != null) ...[
+                  const SizedBox(height: 10),
+                  _buildOfferDetailRow(Icons.sticky_note_2_outlined, 'NOTES', notes, maxLines: 3),
+                ],
+              ],
+            ),
+          ),
           const SizedBox(height: 14),
           _buildPriceBlock(canEdit),
           const SizedBox(height: 14),
@@ -537,79 +561,103 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
     );
   }
 
-  Widget _buildInfoRow(IconData icon, String text) {
+  // The offer's notes end with a "Pets: a, b" line added when the booking was made.
+  List<String> get _offerNoteLines => _offer!.notes
+      .split('\n')
+      .map((line) => line.trim())
+      .where((line) => line.isNotEmpty)
+      .toList();
+
+  String? get _offerPets {
+    for (final line in _offerNoteLines) {
+      if (line.startsWith('Pets:')) return line.substring('Pets:'.length).trim();
+    }
+    return null;
+  }
+
+  String? get _offerNotes {
+    final notes = _offerNoteLines.where((line) => !line.startsWith('Pets:')).join(' ');
+    return notes.isEmpty ? null : notes;
+  }
+
+  // "Mon 1 Dec – Wed 3 Dec · 2 nights".
+  String get _offerDateLine {
+    final o = _offer!;
+    if (o.start == null || o.end == null) return 'Dates unconfirmed';
+    final format = DateFormat('EEE d MMM');
+    return '${format.format(o.start!)} – ${format.format(o.end!)} · ${o.nights} ${o.nights == 1 ? 'night' : 'nights'}';
+  }
+
+  Widget _buildOfferDetailRow(IconData icon, String label, String value, {int maxLines = 1}) {
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, color: AppColors.primaryRust, size: 14),
-        const SizedBox(width: 8),
+        Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8)),
+          child: Icon(icon, size: 16, color: AppColors.primaryRust),
+        ),
+        const SizedBox(width: 12),
         Expanded(
-          child: Text(
-            text,
-            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black87),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label,
+                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 0.5)),
+              const SizedBox(height: 2),
+              Text(
+                value,
+                maxLines: maxLines,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: AppColors.darkText),
+              ),
+            ],
           ),
         ),
       ],
     );
   }
 
+  // Each service with its price (and a pencil for the homeowner), then the total.
   Widget _buildPriceBlock(bool canEdit) {
-    const labelStyle = TextStyle(
-      fontSize: 10,
-      fontWeight: FontWeight.bold,
-      letterSpacing: 0.5,
-      color: Colors.black54,
-    );
     final total = _total;
     final hasPerUseItems = _offerItems.any((i) => i.quantity == null);
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(12)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('PRICES',
+            style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 0.5)),
+        for (final item in _offerItems) _buildPriceRow(item, canEdit),
+        if (total != null) ...[
+          const SizedBox(height: 4),
+          Divider(height: 1, color: Colors.grey.shade200),
+          const SizedBox(height: 10),
+          Row(
             children: [
-              Expanded(child: Text('SERVICE', style: labelStyle)),
-              Text('PRICE', style: labelStyle),
+              const Expanded(
+                child: Text('Total',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.darkText)),
+              ),
+              Text(
+                _money(total),
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.primaryRust),
+              ),
             ],
           ),
-          const SizedBox(height: 8),
-          const Divider(height: 1),
-          ..._offerItems.map((item) => _buildPriceRow(item, canEdit)),
-          if (total != null) ...[
-            const SizedBox(height: 10),
-            const Divider(height: 1),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                const Expanded(
-                  child: Text('Total', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-                ),
-                Text(
-                  _money(total),
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.primaryRust),
-                ),
-              ],
-            ),
-          ],
-          if (hasPerUseItems) ...[
-            const SizedBox(height: 8),
-            const Text(
-              'Per-walk and per-visit prices are charged each time and are not in the total.',
-              style: TextStyle(fontSize: 10, color: Colors.black54),
-            ),
-          ],
-          if (canEdit) ...[
-            const SizedBox(height: 8),
-            const Text(
-              'Tap the pencil to change a price.',
-              style: TextStyle(fontSize: 10, color: AppColors.primaryRust, fontWeight: FontWeight.w600),
-            ),
-          ],
         ],
-      ),
+        if (hasPerUseItems || canEdit) ...[
+          const SizedBox(height: 6),
+          Text(
+            [
+              if (hasPerUseItems) 'Walks and visits are charged each time, not in the total.',
+              if (canEdit) 'Tap the pencil to change a price.',
+            ].join(' '),
+            style: const TextStyle(fontSize: 11, color: Colors.black54),
+          ),
+        ],
+      ],
     );
   }
 
@@ -617,17 +665,16 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
     final changed = item.price != item.originalPrice;
 
     return Padding(
-      padding: const EdgeInsets.only(top: 10),
+      padding: const EdgeInsets.only(top: 8),
       child: Row(
         children: [
-          const Icon(Icons.check_circle_outline, color: AppColors.primaryRust, size: 14),
-          const SizedBox(width: 6),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(item.service, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                Text(_quantityLabel(item), style: const TextStyle(fontSize: 10, color: Colors.black54)),
+                Text(item.service,
+                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.darkText)),
+                Text(_quantityLabel(item), style: const TextStyle(fontSize: 12, color: Colors.black54)),
               ],
             ),
           ),
@@ -638,15 +685,11 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
               if (changed)
                 Text(
                   _money(item.originalPrice),
-                  style: const TextStyle(
-                    fontSize: 10,
-                    color: Colors.grey,
-                    decoration: TextDecoration.lineThrough,
-                  ),
+                  style: const TextStyle(fontSize: 11, color: Colors.grey, decoration: TextDecoration.lineThrough),
                 ),
               Text(
                 '${_money(item.price)} / ${item.unit}',
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primaryRust),
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.primaryRust),
               ),
             ],
           ),
@@ -662,139 +705,127 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
     );
   }
 
-  String _dateRange(BookingOffer o) {
-    const m = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    String f(DateTime t) => '${m[t.month - 1]} ${t.day}';
-    if (o.start == null || o.end == null) return 'Dates unconfirmed';
-    return '${f(o.start!)} – ${f(o.end!)}';
-  }
-
   Widget _buildOfferActions() {
     if (!_offerOpen) {
-      final accepted = _offer!.status != 'REQUESTED';
-      return Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(color: AppColors.lightRustBg, borderRadius: BorderRadius.circular(10)),
-        child: Row(
-          children: [
-            Icon(accepted ? Icons.check_circle : Icons.cancel_outlined, color: AppColors.primaryRust, size: 18),
-            const SizedBox(width: 8),
-            const Text('Booking accepted',
-                style: TextStyle(color: AppColors.primaryRust, fontSize: 13, fontWeight: FontWeight.bold)),
-          ],
-        ),
-      );
+      return _buildOfferStatus(Icons.check_circle, 'Booking accepted');
     }
 
-    // The sitter has asked to accept; only the homeowner can accept or decline.
+    // The sitter has sent the offer; only the homeowner can accept or ignore it.
     if (!_isHomeowner) {
-      return Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(color: AppColors.lightRustBg, borderRadius: BorderRadius.circular(10)),
-        child: const Text('Waiting for the homeowner to review prices and accept.',
-            style: TextStyle(color: AppColors.primaryRust, fontSize: 12, fontWeight: FontWeight.w600)),
-      );
+      return _buildOfferStatus(Icons.hourglass_empty, 'Waiting for the homeowner to review prices and accept.');
     }
 
     return Row(
       children: [
         Expanded(
-          child: ElevatedButton.icon(
-            onPressed: _offerBusy ? null : _acceptOffer,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primaryRust,
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-            icon: const Icon(Icons.check_circle_outline, color: Colors.white, size: 16),
-            label: const Text(
-              'Accept booking',
-              style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
-            ),
+          child: _buildOfferButton(
+            label: 'Ignore Booking',
+            icon: Icons.block,
+            color: Colors.red,
+            onPressed: _offerBusy ? null : _declineOffer,
           ),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 8),
         Expanded(
-          child: TextButton(
-            onPressed: _offerBusy ? null : _declineOffer,
-            child: const Text(
-              'Ignore / Decline',
-              style: TextStyle(color: AppColors.primaryRust, fontWeight: FontWeight.bold),
-            ),
+          child: _buildOfferButton(
+            label: 'Accept Booking',
+            icon: Icons.check_circle_outline,
+            color: AppColors.primaryRust,
+            onPressed: _offerBusy ? null : _acceptOffer,
           ),
         ),
       ],
     );
   }
 
-  // ---------- Messages ----------
-
-  Widget _buildReceivedMessage(DirectMessage msg) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildOfferStatus(IconData icon, String text) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(color: AppColors.lightRustBg, borderRadius: BorderRadius.circular(8)),
+      child: Row(
         children: [
-          Padding(
-            padding: const EdgeInsets.only(left: 40, bottom: 4),
-            child: Text(
-              '$_partnerFirstName • ${formatChatTime(msg.sentAt)}',
-              style: const TextStyle(fontSize: 10, color: Colors.black54),
-            ),
-          ),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              CircleAvatar(
-                radius: 14,
-                backgroundColor: Colors.grey.shade300,
-                child: const Icon(Icons.person, size: 16, color: Colors.grey),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(color: Colors.grey.shade200, borderRadius: const BorderRadius.only(topLeft: Radius.circular(12), topRight: Radius.circular(12), bottomRight: Radius.circular(12))),
-                  child: Text(msg.text, style: const TextStyle(fontSize: 13)),
-                ),
-              ),
-              const SizedBox(width: 40),
-            ],
+          Icon(icon, color: AppColors.primaryRust, size: 16),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(text,
+                style: const TextStyle(color: AppColors.primaryRust, fontSize: 12, fontWeight: FontWeight.w600)),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildSentMessage(DirectMessage msg) {
+  // Same card button as the jobs and bookings dashboards: solid fill, 12px text.
+  Widget _buildOfferButton({
+    required String label,
+    required IconData icon,
+    required Color color,
+    required VoidCallback? onPressed,
+  }) {
+    return ElevatedButton.icon(
+      onPressed: onPressed,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: color,
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+      icon: Icon(icon, color: Colors.white, size: 16),
+      label: Text(label, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+    );
+  }
+
+  // ---------- Messages ----------
+
+  Widget _buildReceivedMessage(DirectMessage msg) => _buildBubble(msg, mine: false);
+
+  Widget _buildSentMessage(DirectMessage msg) => _buildBubble(msg, mine: true);
+
+  // A chat bubble that hugs its text, up to 75% of the screen, with the tail corner
+  // on the sender's side and the time underneath.
+  Widget _buildBubble(DirectMessage msg, {required bool mine}) {
+    const radius = Radius.circular(18);
+    const tail = Radius.circular(4);
+    final maxWidth = MediaQuery.sizeOf(context).width * 0.75;
+
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.only(bottom: 10),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.end,
+        crossAxisAlignment: mine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.only(right: 40, bottom: 4),
-            child: Text(
-              'You • ${formatChatTime(msg.sentAt)}',
-              style: const TextStyle(fontSize: 10, color: Colors.black54),
-            ),
-          ),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              const SizedBox(width: 40),
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: const BoxDecoration(color: AppColors.primaryRust, borderRadius: BorderRadius.only(topLeft: Radius.circular(12), topRight: Radius.circular(12), bottomLeft: Radius.circular(12))),
-                  child: Text(msg.text, style: const TextStyle(color: Colors.white, fontSize: 13)),
+          ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: maxWidth),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: mine ? AppColors.primaryRust : Colors.white,
+                borderRadius: BorderRadius.only(
+                  topLeft: radius,
+                  topRight: radius,
+                  bottomLeft: mine ? radius : tail,
+                  bottomRight: mine ? tail : radius,
+                ),
+                boxShadow: mine
+                    ? null
+                    : [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4, offset: const Offset(0, 1))],
+              ),
+              child: Text(
+                msg.text,
+                style: TextStyle(
+                  fontSize: 14,
+                  height: 1.3,
+                  color: mine ? Colors.white : AppColors.darkText,
                 ),
               ),
-              const SizedBox(width: 8),
-              const CircleAvatar(radius: 14, backgroundColor: Colors.black87, child: Text('ME', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold))),
-            ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(top: 3, left: 4, right: 4),
+            child: Text(
+              mine ? formatChatTime(msg.sentAt) : '$_partnerFirstName • ${formatChatTime(msg.sentAt)}',
+              style: const TextStyle(fontSize: 10, color: Colors.black45),
+            ),
           ),
         ],
       ),

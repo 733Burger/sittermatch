@@ -12,6 +12,7 @@ public record BookingResponse(
     String sitterName,
     Integer homeownerId,
     String homeownerName,
+    String area,
     String bookingType,
     LocalDateTime startDate,
     LocalDateTime endDate,
@@ -21,9 +22,7 @@ public record BookingResponse(
     BigDecimal pricePerNight,
     BigDecimal pricePerVisit,
     BigDecimal pricePerWalk,
-    // Sitters' offers while the booking is pending. A sitter only sees their own.
     List<BookingOfferResponse> offers,
-    // Whether each side has written a review for this booking (approved or not).
     boolean homeownerReviewed,
     boolean sitterReviewed
 ) {}

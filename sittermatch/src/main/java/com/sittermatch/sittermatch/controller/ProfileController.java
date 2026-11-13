@@ -13,6 +13,7 @@ import com.sittermatch.sittermatch.dto.ProfileResponse;
 import com.sittermatch.sittermatch.dto.SitterProfileResponse;
 import com.sittermatch.sittermatch.dto.SitterProfileUpdateRequest;
 import com.sittermatch.sittermatch.dto.UpdateProfileRequest;
+import com.sittermatch.sittermatch.dto.profile.PublicHomeownerProfileResponse;
 import com.sittermatch.sittermatch.services.ProfileService;
 
 @RestController 
@@ -28,6 +29,17 @@ public class ProfileController {
     @GetMapping("/get-profile/{userId}")
     public ResponseEntity<ProfileResponse> getProfile(@PathVariable Integer userId) {
         ProfileResponse profile = profileService.getProfile(userId);
+        if (!profile.success()) {
+            return ResponseEntity.badRequest().body(profile);
+        }
+        return ResponseEntity.ok(profile);
+    }
+
+    // What sitters see about a homeowner: name, suburb, city, house sitting notes and pets.
+    // No street address, coordinates, email or phone.
+    @GetMapping("/homeowner-public/{homeownerId}")
+    public ResponseEntity<PublicHomeownerProfileResponse> getPublicHomeownerProfile(@PathVariable Integer homeownerId) {
+        PublicHomeownerProfileResponse profile = profileService.getPublicHomeownerProfile(homeownerId);
         if (!profile.success()) {
             return ResponseEntity.badRequest().body(profile);
         }

@@ -69,18 +69,49 @@ public class BookingService {
                 .collect(Collectors.toList());
     }
 
+    // How far a homeowner's home can be from a sitter's work area for the sitter to see their open
+    // request. Matches how far homeowners see sitters by default (SitterLocationService).
+    static final double OPEN_REQUEST_RADIUS_KM = 40.0;
+
     //A sitter's jobs, without the ones they declined or that were cancelled, plus open bookings
-    //(no sitter yet) that they haven't declined. A sitter only sees their own offer, not other sitters'
+    //(no sitter yet) near them that they haven't declined. Open bookings they've already offered on
+    //always show, so they can follow the offer. A sitter only sees their own offer, not other sitters'
     public List<BookingResponse> getBookingsForSitter(Integer sitterId) {
         var own = bookingRepository.findBySitterId(sitterId).stream()
                 .filter(b -> !hasStatus(b, "DECLINED") && !hasStatus(b, "CANCELLED"));
 
+        Sitter sitter = sitterRepository.findById(sitterId).orElse(null);
+        var offeredOn = offerRepository.findBySitterId(sitterId).stream()
+                .map(o -> o.getBooking().getId())
+                .collect(Collectors.toSet());
+
         var open = bookingRepository.findBySitterIsNullAndStatus("PENDING").stream()
-                .filter(b -> !dismissalRepository.existsByBookingIdAndSitterId(b.getId(), sitterId));
+                .filter(b -> !dismissalRepository.existsByBookingIdAndSitterId(b.getId(), sitterId))
+                // Someone who is both a sitter and a homeowner doesn't see their own requests.
+                .filter(b -> homeownerOf(b) == null || !sitterId.equals(homeownerOf(b).getId()))
+                .filter(b -> offeredOn.contains(b.getId()) || isNearby(sitter, homeownerOf(b)));
 
         return java.util.stream.Stream.concat(own, open)
                 .map(b -> mapToDTO(b, sitterId))
                 .collect(Collectors.toList());
+    }
+
+    private static Homeowner homeownerOf(Booking booking) {
+        return booking.getListing() != null ? booking.getListing().getHomeowner() : null;
+    }
+
+    // Whether the homeowner's home is within OPEN_REQUEST_RADIUS_KM of the sitter's work area.
+    // Either side without a saved location can't be placed, so the request isn't shown.
+    private static boolean isNearby(Sitter sitter, Homeowner homeowner) {
+        if (sitter == null || homeowner == null
+                || sitter.getLatitude() == null || sitter.getLongitude() == null
+                || homeowner.getLatitude() == null || homeowner.getLongitude() == null) {
+            return false;
+        }
+        double km = SitterLocationService.haversineKm(
+                sitter.getLatitude().doubleValue(), sitter.getLongitude().doubleValue(),
+                homeowner.getLatitude().doubleValue(), homeowner.getLongitude().doubleValue());
+        return km <= OPEN_REQUEST_RADIUS_KM;
     }
 
     // A sitter declines an open booking. It is also hidden from them but stays open for other sitters.
@@ -436,6 +467,7 @@ public class BookingService {
 
     private String listingPlace(Homeowner owner) {
         String place = owner.getAddress();
+        
         if (place == null || place.isBlank()) {
             return "Home";
         }
@@ -446,6 +478,7 @@ public class BookingService {
 
     private String listingDetails(Homeowner owner) {
         String details = owner.getRequirements();
+
         if (details == null || details.isBlank()) {
             return "Home stay";
         }
@@ -456,6 +489,7 @@ public class BookingService {
 
     private BookingOfferResponse mapOffer(BookingOffer offer) {
         Sitter s = offer.getSitter();
+
         return new BookingOfferResponse(
                 s.getId(),
                 s.getUser() != null ? s.getUser().getName() : "Sitter",
@@ -482,12 +516,15 @@ public class BookingService {
         if (t.contains("NIGHT")) { 
             return "Overnight Stay";
         }
+
         if (t.contains("DROP") || t.contains("VISIT") || t.contains("FEED")) { 
             return "Drop-in Visits";
         }
+        
         if (t.contains("WALK")) { 
             return "Dog Walks";
         }
+
         return "Pet Sitting";
     }
 
@@ -504,10 +541,8 @@ public class BookingService {
         var sitter = booking.getSitter();
 
         // Null while the booking is open, so the app can show "looking for a sitter".
-        String sitterName = sitter == null ? null
-                : sitter.getUser() != null ? sitter.getUser().getName() : "Sitter";
-        String homeownerName = homeowner != null && homeowner.getUser() != null
-                ? homeowner.getUser().getName() : "Homeowner";
+        String sitterName = (sitter == null) ? null : sitter.getUser() != null ? sitter.getUser().getName() : "Sitter";
+        String homeownerName = (homeowner != null && homeowner.getUser() != null) ? homeowner.getUser().getName() : "Homeowner";
         // e.g. "Sarah's Overnight Stay" rather than a listing number.
         String listingTitle = firstName(homeownerName) + "'s " + serviceSummary(booking.getBookingType());
 
@@ -524,6 +559,7 @@ public class BookingService {
                 sitterName,
                 homeowner != null ? homeowner.getId() : null,
                 homeownerName,
+                area(homeowner),
                 booking.getBookingType(),
                 booking.getStartDate(),
                 booking.getEndDate(),
@@ -539,19 +575,41 @@ public class BookingService {
         );
     }
 
+    // "Suburb, City" for the homeowner, or null if they haven't saved an address yet.
+    private static String area(Homeowner homeowner) {
+        if (homeowner == null) { 
+            return null;
+        }
+
+        String suburb = (homeowner.getSuburb() == null) ? "" : homeowner.getSuburb().trim();
+        String city = (homeowner.getCity() == null) ? "" : homeowner.getCity().trim();
+
+        if (suburb.isEmpty()) {
+            return (city.isEmpty()) ? null : city;
+        }
+
+        if (city.isEmpty() || city.equalsIgnoreCase(suburb)) {
+            return suburb;
+        }
+
+        return suburb + ", " + city;
+    }
+
     //The booking as one sitter's offer shows it in chat: that sitter, their prices and the status
     //REQUESTED, which the chat reads as "waiting for the homeowner to accept".
     private BookingResponse mapOfferToDTO(BookingOffer offer) {
-        Booking b = offer.getBooking();
-        BookingResponse base = mapToDTO(b, offer.getSitter().getId());
-        BookingOfferResponse o = mapOffer(offer);
+        Booking booking = offer.getBooking();
+        BookingResponse response = mapToDTO(booking, offer.getSitter().getId());
+        BookingOfferResponse offerResponse = mapOffer(offer);
+        
         return new BookingResponse(
-                base.id(), base.listingId(), base.listingTitle(),
-                o.sitterId(), o.sitterName(),
-                base.homeownerId(), base.homeownerName(),
-                base.bookingType(), base.startDate(), base.endDate(), base.notes(),
-                "REQUESTED", base.confirmedAt(),
-                o.pricePerNight(), o.pricePerVisit(), o.pricePerWalk(),
-                base.offers(), base.homeownerReviewed(), base.sitterReviewed());
+                response.id(), response.listingId(), response.listingTitle(),
+                offerResponse.sitterId(), offerResponse.sitterName(),
+                response.homeownerId(), response.homeownerName(), response.area(),
+                response.bookingType(), response.startDate(), response.endDate(), response.notes(),
+                "REQUESTED", response.confirmedAt(),
+                offerResponse.pricePerNight(), offerResponse.pricePerVisit(), offerResponse.pricePerWalk(),
+                response.offers(), response.homeownerReviewed(), response.sitterReviewed()
+        );
     }
 }

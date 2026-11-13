@@ -18,9 +18,17 @@ class ProfileTasksCard extends StatefulWidget {
   State<ProfileTasksCard> createState() => _ProfileTasksCardState();
 }
 
-class _ProfileTasksCardState extends State<ProfileTasksCard> {
+// Kept alive so it isn't thrown away when the profile list scrolls it out of view. The keyboard
+// covering it while the task dialog is open used to do that, and the card that replaced it loaded
+// the list before the new task had saved, so the first task didn't show.
+class _ProfileTasksCardState extends State<ProfileTasksCard> with AutomaticKeepAliveClientMixin {
   List<StayTask> _tasks = [];
   bool _loading = true;
+  // Only the newest load may update the list, so a slow older one can't overwrite it.
+  int _loadId = 0;
+
+  @override
+  bool get wantKeepAlive => true;
 
   @override
   void initState() {
@@ -37,15 +45,16 @@ class _ProfileTasksCardState extends State<ProfileTasksCard> {
   Future<void> _load() async {
     final id = widget.homeownerId;
     if (id == null) return;
+    final loadId = ++_loadId;
     try {
       final tasks = await TaskService.fetchHomeownerTasks(id);
-      if (!mounted) return;
+      if (!mounted || loadId != _loadId) return;
       setState(() {
         _tasks = tasks;
         _loading = false;
       });
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted || loadId != _loadId) return;
       setState(() => _loading = false);
       widget.onMessage('Could not load your stay checklist.');
     }
@@ -96,6 +105,7 @@ class _ProfileTasksCardState extends State<ProfileTasksCard> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // needed for AutomaticKeepAliveClientMixin
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -106,9 +116,9 @@ class _ProfileTasksCardState extends State<ProfileTasksCard> {
         ),
         const Text(
           'Your sitter ticks these off each day of a stay, and you can see what was done.',
-          style: TextStyle(fontSize: 12, color: Colors.black54, height: 1.35),
+          style: TextStyle(fontSize: 13, color: Colors.black54, height: 1.4),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 12),
         if (_loading)
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 12),
@@ -132,7 +142,7 @@ class _ProfileTasksCardState extends State<ProfileTasksCard> {
               child: Column(
                 children: [
                   for (var i = 0; i < _tasks.length; i++) ...[
-                    if (i > 0) Divider(height: 1, indent: 48, color: Colors.grey.shade200),
+                    if (i > 0) Divider(height: 1, indent: 16, color: Colors.grey.shade200),
                     _buildTaskRow(_tasks[i]),
                   ],
                 ],
@@ -147,40 +157,33 @@ class _ProfileTasksCardState extends State<ProfileTasksCard> {
     final note = task.note?.trim() ?? '';
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(14, 10, 4, 10),
+      padding: const EdgeInsets.fromLTRB(16, 16, 6, 16),
       child: Row(
         crossAxisAlignment: note.isEmpty ? CrossAxisAlignment.center : CrossAxisAlignment.start,
         children: [
-          const Padding(
-            padding: EdgeInsets.only(top: 1),
-            child: Icon(Icons.check_box_outlined, size: 20, color: AppColors.primaryRust),
-          ),
-          const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   task.title,
-                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.darkText),
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.darkText),
                 ),
                 if (note.isNotEmpty) ...[
-                  const SizedBox(height: 2),
-                  Text(note, style: const TextStyle(fontSize: 12, color: Colors.black54, height: 1.3)),
+                  const SizedBox(height: 4),
+                  Text(note, style: const TextStyle(fontSize: 14, color: Colors.black54, height: 1.35)),
                 ],
               ],
             ),
           ),
           IconButton(
             tooltip: 'Edit',
-            visualDensity: VisualDensity.compact,
-            icon: const Icon(Icons.edit_outlined, size: 18, color: AppColors.primaryRust),
+            icon: const Icon(Icons.edit_outlined, size: 22, color: AppColors.primaryRust),
             onPressed: () => _showTaskDialog(task: task),
           ),
           IconButton(
             tooltip: 'Delete',
-            visualDensity: VisualDensity.compact,
-            icon: const Icon(Icons.delete_outline, size: 18, color: profileDeleteRed),
+            icon: const Icon(Icons.delete_outline, size: 22, color: profileDeleteRed),
             onPressed: () => _delete(task),
           ),
         ],

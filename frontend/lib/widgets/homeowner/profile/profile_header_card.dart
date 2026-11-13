@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../utils/sa_phone.dart';
+
 import '../../../theme/app_colors.dart';
 import 'profile_styles.dart';
 
@@ -9,8 +11,9 @@ class ProfileHeaderCard extends StatelessWidget {
     required this.name,
     required this.email,
     required this.phone,
-    required this.reviewCount,
-    required this.averageRating,
+    // Leave at 0 to hide the rating line (the sitter profile doesn't show one).
+    this.reviewCount = 0,
+    this.averageRating = 0,
     required this.onPhotoTap,
     this.tag = 'HOMEOWNER',
   });
@@ -96,7 +99,7 @@ class ProfileHeaderCard extends StatelessWidget {
           const SizedBox(height: 10),
           _InfoRow(
             Icons.phone_outlined,
-            phone.isEmpty ? 'No phone number on file' : phone,
+            phone.isEmpty ? 'No phone number on file' : formatSaPhoneForDisplay(phone),
           ),
         ],
       ),

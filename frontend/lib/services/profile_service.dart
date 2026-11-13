@@ -26,6 +26,30 @@ class ProfileService {
   };
 }
 
+/// What a sitter may see about a homeowner: name, suburb, city, house sitting notes and pets.
+/// Never the street address, coordinates, email or phone (those only come from [fetchProfile]).
+Future<Map<String, dynamic>> fetchPublicHomeownerProfile({required int homeownerId}) async {
+  try {
+    final response = await http.get(
+      Uri.parse('$_baseUrl/api/profile/homeowner-public/$homeownerId'),
+      headers: {'Content-Type': 'application/json'},
+    ).timeout(_timeout);
+    final json = jsonDecode(response.body) as Map<String, dynamic>;
+    return {
+      'success': response.statusCode == 200 && json['success'] == true,
+      'message': json['message'],
+      'name': json['name'],
+      'suburb': json['suburb'],
+      'city': json['city'],
+      'requirements': json['requirements'],
+      'pets': (json['pets'] as List?) ?? const [],
+    };
+  } catch (e) {
+    debugPrint('Error fetching homeowner profile: $e');
+    return {'success': false, 'message': 'Network error. Please try again later'};
+  }
+}
+
 Future<Map<String, dynamic>> fetchProfile({required int userId}) async {
   try {
     final response = await http.get(

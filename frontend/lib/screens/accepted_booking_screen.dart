@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../models/booking_model.dart';
 import '../models/pet_model.dart';
@@ -24,7 +25,18 @@ class AcceptedBookingScreen extends StatefulWidget {
   final BookingModel? booking;
   final bool canRespond;
 
-  const AcceptedBookingScreen({super.key, this.booking, this.canRespond = false});
+  /// With [canRespond]: run Send offer / Decline while this screen stays open, so their dialogs
+  /// show over the booking. Each returns true once done, and the screen then closes.
+  final Future<bool> Function()? onSendOffer;
+  final Future<bool> Function()? onDecline;
+
+  const AcceptedBookingScreen({
+    super.key,
+    this.booking,
+    this.canRespond = false,
+    this.onSendOffer,
+    this.onDecline,
+  });
 
   @override
   State<AcceptedBookingScreen> createState() => _AcceptedBookingScreenState();
@@ -35,6 +47,8 @@ class _AcceptedBookingScreenState extends State<AcceptedBookingScreen> {
   bool _isSitter = false;
   int? _myId;
   bool _busy = false;
+  // Send offer / Decline in progress: the buttons are disabled but the booking stays on screen.
+  bool _responding = false;
   List<PetModel> _pets = [];
   List<StayReview> _reviews = [];
   bool _reviewedNow = false;
@@ -152,6 +166,7 @@ class _AcceptedBookingScreenState extends State<AcceptedBookingScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text('Cancel this $noun?'),
         content: Text(_isSitter
@@ -242,20 +257,20 @@ class _AcceptedBookingScreenState extends State<AcceptedBookingScreen> {
       body: _loading || _busy
           ? const Center(child: CircularProgressIndicator(color: AppColors.primaryRust))
           : ListView(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
               children: [
                 _buildSummaryCard(),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
                 _buildPartnerCard(),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
                 _buildPetsCard(),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
                 _buildNotesCard(),
                 if (_isCompleted) ...[
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
                   _buildReviewsSection(),
                 ],
-                const SizedBox(height: 24),
+                const SizedBox(height: 16),
               ],
             ),
       bottomNavigationBar: _loading || _busy ? null : _buildActionBar(),
@@ -282,15 +297,11 @@ class _AcceptedBookingScreenState extends State<AcceptedBookingScreen> {
     return (label: 'PENDING', icon: Icons.hourglass_empty, color: rust);
   }
 
-  static const List<String> _months = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-  ];
-
   String get _dateRange {
     final start = _job?.startDate, end = _job?.endDate;
     if (start == null || end == null) return 'Dates unconfirmed';
-    return '${_months[start.month - 1]} ${start.day} – ${_months[end.month - 1]} ${end.day}';
+    final format = DateFormat('EEE d MMM');
+    return '${format.format(start)} – ${format.format(end)}';
   }
 
   int? get _totalDays {
@@ -313,206 +324,281 @@ class _AcceptedBookingScreenState extends State<AcceptedBookingScreen> {
     return '';
   }
 
+  String get _durationLine {
+    final days = _totalDays;
+    final length = days == null ? '' : '$days ${days == 1 ? 'day' : 'days'}';
+    return [length, _timingLabel].where((part) => part.isNotEmpty).join(' · ');
+  }
+
+  // The booking notes end with a "Pets: a, b" line added when the booking was made.
+  List<String> get _noteLines => (_job?.homeownerNotes ?? '')
+      .split('\n')
+      .map((line) => line.trim())
+      .where((line) => line.isNotEmpty)
+      .toList();
+
+  Set<String> get _bookedPetNames {
+    for (final line in _noteLines) {
+      if (line.startsWith('Pets:')) {
+        return line
+            .substring('Pets:'.length)
+            .split(',')
+            .map((name) => name.trim().toLowerCase())
+            .where((name) => name.isNotEmpty)
+            .toSet();
+      }
+    }
+    return {};
+  }
+
+  // Only the pets on this booking. Older bookings without a pets line show all the homeowner's pets.
+  List<PetModel> get _bookedPets {
+    final names = _bookedPetNames;
+    if (names.isEmpty) return _pets;
+    final booked = _pets.where((pet) => names.contains(pet.name.trim().toLowerCase())).toList();
+    return booked.isEmpty ? _pets : booked;
+  }
+
+  String? get _requirements {
+    final notes = _noteLines.where((line) => !line.startsWith('Pets:')).join('\n');
+    return notes.isEmpty ? null : notes;
+  }
+
+  Widget _buildStatusBadge() {
+    final style = _statusStyle;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: style.color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(style.icon, color: style.color, size: style.icon == Icons.circle ? 8 : 12),
+          const SizedBox(width: 6),
+          Text(style.label, style: TextStyle(color: style.color, fontSize: 10, fontWeight: FontWeight.bold)),
+        ],
+      ),
+    );
+  }
+
+  // One labelled line in a details panel: icon tile, small grey label, value underneath.
+  Widget _buildDetailRow(IconData icon, String label, String value) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8)),
+          child: Icon(icon, size: 16, color: AppColors.primaryRust),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 0.5),
+              ),
+              const SizedBox(height: 2),
+              Text(value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: AppColors.darkText)),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildSummaryCard() {
     final job = _job;
-    final style = _statusStyle;
-    final days = _totalDays;
     final services = servicesForBookingType(job?.rightBadgeText ?? '');
+    final serviceLabels = services.isEmpty
+        ? [job?.rightBadgeText ?? 'Pet sitting']
+        : services.map((s) => bookingServiceLabels[s]!).toList();
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(16),
       decoration: _cardDecoration(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: style.color.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(style.icon, color: style.color, size: style.icon == Icons.circle ? 8 : 12),
-                    const SizedBox(width: 6),
-                    Text(style.label,
-                        style: TextStyle(color: style.color, fontSize: 10, fontWeight: FontWeight.bold)),
-                  ],
-                ),
-              ),
-              if (job?.bookingId != null)
-                Text('ID #${job!.bookingId}',
-                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.black45)),
-            ],
-          ),
-          const SizedBox(height: 14),
+          _buildStatusBadge(),
+          const SizedBox(height: 12),
           Text(job?.title ?? 'Pet Sitting',
               style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.darkText)),
           const SizedBox(height: 10),
-          Row(
-            children: [
-              const Icon(Icons.calendar_today_outlined, color: AppColors.primaryRust, size: 16),
-              const SizedBox(width: 8),
-              Text(_dateRange, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-            ],
-          ),
-          const SizedBox(height: 16),
-          const Divider(height: 1),
-          const SizedBox(height: 16),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(days == null ? '–' : '$days', style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
-              const SizedBox(width: 6),
-              Text(days == 1 ? 'day' : 'days', style: const TextStyle(fontSize: 14, color: Colors.black54)),
-              const Spacer(),
-              if (_timingLabel.isNotEmpty)
-                Text(
-                  _timingLabel,
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primaryRust),
-                ),
-            ],
-          ),
-          const SizedBox(height: 12),
           Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: (services.isEmpty
-                    ? [job?.rightBadgeText ?? 'Pet sitting']
-                    : services.map((s) => bookingServiceLabels[s]!))
+            spacing: 6,
+            runSpacing: 6,
+            children: serviceLabels
                 .map((label) => Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                       decoration: BoxDecoration(
                         color: AppColors.lightRustBg,
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(label,
-                          style: const TextStyle(
-                              fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primaryRust)),
+                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primaryRust)),
                     ))
                 .toList(),
+          ),
+          const SizedBox(height: 14),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(12)),
+            child: Column(
+              children: [
+                if (job?.area != null) ...[
+                  _buildDetailRow(Icons.location_on_outlined, 'AREA', job!.area!),
+                  const SizedBox(height: 12),
+                ],
+                _buildDetailRow(Icons.calendar_today_outlined, 'DATES', _dateRange),
+                if (_durationLine.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  _buildDetailRow(Icons.schedule, 'DURATION', _durationLine),
+                ],
+              ],
+            ),
           ),
         ],
       ),
     );
   }
 
-  // Who the stay is with. Tap to open their profile.
+  // Who the stay is with, with buttons to their profile and to message them.
   Widget _buildPartnerCard() {
     final hasPartner = _partnerId != null;
     // The booking's avatar is the sitter's photo, so only show it to the homeowner.
     final avatarUrl = _isSitter ? null : _job?.avatarUrl;
-    final subtitle = !hasPartner
-        ? 'No sitter yet. Sitters can send you offers.'
-        : _isSitter
-            ? 'Homeowner · View profile'
-            : 'Your sitter · View profile';
+    final roleLabel = !hasPartner ? 'SITTER' : (_isSitter ? 'HOMEOWNER' : 'YOUR SITTER');
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: hasPartner ? _openPartnerProfile : null,
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: _cardDecoration(),
-          child: Row(
-            children: [
-              CircleAvatar(
-                radius: 24,
-                backgroundColor: AppColors.lightRustBg,
-                backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
-                child: avatarUrl == null
-                    ? Icon(!hasPartner ? Icons.search : _isSitter ? Icons.home_outlined : Icons.person,
-                        color: AppColors.primaryRust)
-                    : null,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(hasPartner ? _partnerName : 'Looking for a sitter',
-                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.darkText)),
-                    const SizedBox(height: 2),
-                    Text(subtitle, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
-                  ],
-                ),
-              ),
-              if (hasPartner)
-                IconButton(
-                  style: IconButton.styleFrom(
-                    backgroundColor: AppColors.lightRustBg,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  tooltip: 'Message',
-                  icon: const Icon(Icons.chat_bubble_outline, color: AppColors.primaryRust, size: 20),
-                  onPressed: _openChat,
-                ),
-            ],
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: _cardDecoration(),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 22,
+            backgroundColor: AppColors.lightRustBg,
+            backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
+            child: avatarUrl == null
+                ? Icon(hasPartner ? Icons.person_outline : Icons.search, color: AppColors.primaryRust)
+                : null,
           ),
-        ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  roleLabel,
+                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 0.5),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  hasPartner ? _partnerName : 'Looking for a sitter',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.darkText),
+                ),
+                if (!hasPartner) ...[
+                  const SizedBox(height: 2),
+                  Text('Sitters can send you offers.', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                ],
+              ],
+            ),
+          ),
+          if (hasPartner) ...[
+            const SizedBox(width: 8),
+            ElevatedButton(
+              onPressed: _openPartnerProfile,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primaryRust,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              ),
+              child: const Text('View profile', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            ),
+            const SizedBox(width: 6),
+            IconButton(
+              style: IconButton.styleFrom(
+                backgroundColor: AppColors.lightRustBg,
+                shape: const CircleBorder(),
+              ),
+              tooltip: 'Message',
+              icon: const Icon(Icons.chat_bubble_outline, color: AppColors.primaryRust, size: 18),
+              onPressed: _openChat,
+            ),
+          ],
+        ],
       ),
     );
   }
 
   Widget _buildPetsCard() {
+    final pets = _bookedPets;
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
       decoration: _cardDecoration(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _sectionHeader(Icons.pets, _isSitter ? 'Pets to Care For' : 'Your Pets'),
-          const SizedBox(height: 12),
-          if (_pets.isEmpty)
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(12)),
-              child: const Row(
-                children: [
-                  Icon(Icons.pets_outlined, size: 16, color: AppColors.primaryRust),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: Text('No registered pets found for this homeowner.',
-                        style: TextStyle(fontSize: 12, color: Colors.black54)),
-                  ),
-                ],
-              ),
+          const SizedBox(height: 4),
+          if (pets.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 8),
+              child: Text('No registered pets found for this homeowner.',
+                  style: TextStyle(fontSize: 13, color: Colors.black54)),
             )
           else
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: _pets.map(_buildPetChip).toList(),
-            ),
+            for (var i = 0; i < pets.length; i++) ...[
+              if (i > 0) Divider(height: 1, color: Colors.grey.shade200),
+              _buildPetRow(pets[i]),
+            ],
         ],
       ),
     );
   }
 
-  Widget _buildPetChip(PetModel pet) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: AppColors.background,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade300),
-      ),
+  // One pet as a list row: avatar, name, then type and breed underneath.
+  Widget _buildPetRow(PetModel pet) {
+    final details = [
+      petTypeLabel(pet.species),
+      if (pet.breed.isNotEmpty) pet.breed,
+      if (pet.age > 0) 'Age ${pet.age}',
+    ].join(' · ');
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.pets_outlined, size: 14, color: AppColors.primaryRust),
-          const SizedBox(width: 6),
-          Text(
-            '${pet.name} (${petTypeLabel(pet.species)}${pet.breed.isNotEmpty ? ' - ${pet.breed}' : ''})',
-            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.darkText),
+          const CircleAvatar(
+            radius: 18,
+            backgroundColor: AppColors.lightRustBg,
+            child: Icon(Icons.pets, size: 16, color: AppColors.primaryRust),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(pet.name,
+                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.darkText)),
+                const SizedBox(height: 2),
+                Text(details, style: const TextStyle(fontSize: 12, color: Colors.black54)),
+              ],
+            ),
           ),
         ],
       ),
@@ -520,18 +606,26 @@ class _AcceptedBookingScreenState extends State<AcceptedBookingScreen> {
   }
 
   Widget _buildNotesCard() {
-    final notes = _job?.homeownerNotes ?? 'No special requirements specified.';
+    final notes = _requirements;
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(16),
       decoration: _cardDecoration(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _sectionHeader(Icons.notes_outlined, _isSitter ? "Homeowner's Requirements" : 'Your Requirements'),
-          const SizedBox(height: 10),
-          Text(notes, style: const TextStyle(fontSize: 13, height: 1.5, color: Colors.black87)),
+          const SizedBox(height: 8),
+          Text(
+            notes ?? 'No special requirements.',
+            style: TextStyle(
+              fontSize: 13,
+              height: 1.5,
+              color: notes == null ? Colors.black45 : Colors.black87,
+              fontStyle: notes == null ? FontStyle.italic : FontStyle.normal,
+            ),
+          ),
         ],
       ),
     );
@@ -633,6 +727,23 @@ class _AcceptedBookingScreenState extends State<AcceptedBookingScreen> {
     );
   }
 
+  // Runs Send offer / Decline here so the screen stays behind its dialogs, then closes once it's
+  // done. Without an action it hands the choice back to the caller instead (the old behaviour).
+  Future<void> _respond(Future<bool> Function()? action, BookingResponseChoice choice) async {
+    if (action == null) {
+      Navigator.pop(context, choice);
+      return;
+    }
+    setState(() => _responding = true);
+    final done = await action();
+    if (!mounted) return;
+    if (done) {
+      Navigator.pop(context, true);
+    } else {
+      setState(() => _responding = false);
+    }
+  }
+
   Widget _buildActionBar() {
     final Widget content;
 
@@ -640,10 +751,11 @@ class _AcceptedBookingScreenState extends State<AcceptedBookingScreen> {
       content = Row(
         children: [
           Expanded(
-            child: _outlinedButton(
+            child: _filledButton(
               label: 'Decline',
               icon: Icons.cancel_outlined,
-              onPressed: () => Navigator.pop(context, BookingResponseChoice.decline),
+              color: Colors.red,
+              onPressed: _responding ? null : () => _respond(widget.onDecline, BookingResponseChoice.decline),
             ),
           ),
           const SizedBox(width: 12),
@@ -652,7 +764,7 @@ class _AcceptedBookingScreenState extends State<AcceptedBookingScreen> {
               label: 'Send offer',
               icon: Icons.send_outlined,
               color: Colors.green,
-              onPressed: () => Navigator.pop(context, BookingResponseChoice.sendOffer),
+              onPressed: _responding ? null : () => _respond(widget.onSendOffer, BookingResponseChoice.sendOffer),
             ),
           ),
         ],
@@ -711,7 +823,7 @@ class _AcceptedBookingScreenState extends State<AcceptedBookingScreen> {
   Widget _outlinedButton({
     required String label,
     required IconData icon,
-    required VoidCallback onPressed,
+    required VoidCallback? onPressed,
     Color color = Colors.red,
   }) {
     return OutlinedButton.icon(
@@ -729,7 +841,7 @@ class _AcceptedBookingScreenState extends State<AcceptedBookingScreen> {
   Widget _filledButton({
     required String label,
     required IconData icon,
-    required VoidCallback onPressed,
+    required VoidCallback? onPressed,
     Color color = AppColors.primaryRust,
   }) {
     return ElevatedButton.icon(

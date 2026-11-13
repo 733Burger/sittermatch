@@ -325,11 +325,6 @@ class _PetFormDialogState extends State<PetFormDialog> {
                     hint: 'e.g. Needs medication with dinner.',
                   ).copyWith(counterText: ''),
                 ),
-                const SizedBox(height: 12),
-                const Text(
-                  'Behaviour scores and reviews are added by sitters after a stay.',
-                  style: TextStyle(fontSize: 11, color: Colors.black54),
-                ),
                 if (_saveError != null) ...[
                   const SizedBox(height: 12),
                   Container(

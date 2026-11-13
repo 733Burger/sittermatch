@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/booking_model.dart';
 import '../services/booking_service.dart';
 import '../theme/app_colors.dart';
+import '../widgets/homeowner/profile/profile_styles.dart';
 import 'direct_chat_screen.dart';
 import 'sitter_detail_screen.dart';
 
@@ -50,22 +51,15 @@ class _BookingOffersScreenState extends State<BookingOffersScreen> {
     final others = _offers.length - 1;
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('Accept ${offer.sitterName}?'),
-        content: Text(others > 0
+      builder: (_) => ProfileConfirmDialog(
+        title: 'Accept ${offer.sitterName}?',
+        message: others > 0
             ? '${offer.sitterName} gets this booking at the prices offered. '
                 'The other $others ${others == 1 ? 'offer' : 'offers'} will be removed.'
-            : '${offer.sitterName} gets this booking at the prices offered.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Go back')),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryRust, foregroundColor: Colors.white),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Accept'),
-          ),
-        ],
+            : '${offer.sitterName} gets this booking at the prices offered.',
+        cancelLabel: 'Go back',
+        cancelColor: Colors.grey.shade600,
+        confirmLabel: 'Accept',
       ),
     );
     if (confirmed != true) return;
@@ -186,18 +180,7 @@ class _BookingOffersScreenState extends State<BookingOffersScreen> {
                       Text(offer.sitterName,
                           style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.darkText)),
                       const SizedBox(height: 2),
-                      Row(
-                        children: [
-                          const Icon(Icons.star_rounded, size: 14, color: Colors.amber),
-                          const SizedBox(width: 2),
-                          Text(
-                            offer.reviewCount == 0
-                                ? 'No reviews yet · View profile'
-                                : '${offer.rating.toStringAsFixed(1)} (${offer.reviewCount}) · View profile',
-                            style: const TextStyle(fontSize: 12, color: Colors.black54),
-                          ),
-                        ],
-                      ),
+                      const Text('View profile', style: TextStyle(fontSize: 12, color: Colors.black54)),
                     ],
                   ),
                 ),
@@ -239,13 +222,14 @@ class _BookingOffersScreenState extends State<BookingOffersScreen> {
                 ),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: OutlinedButton(
+                  child: ElevatedButton(
                     onPressed: _busySitterId == null ? () => _decline(offer) : null,
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: Colors.red),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
-                    child: const Text('Decline', style: TextStyle(color: Colors.red, fontSize: 12)),
+                    child: const Text('Decline',
+                        style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
                   ),
                 ),
                 const SizedBox(width: 8),

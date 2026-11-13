@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
 import '../models/saved_sitter_model.dart';
+import '../models/sitter_listing.dart';
 import '../services/saved_sitter_service.dart';
 import '../services/auth_services.dart';
 import 'direct_chat_screen.dart';
@@ -25,12 +26,6 @@ class _SavedSittersScreenState extends State<SavedSittersScreen> {
   final Set<int> _removedIds = {};
   List<SavedSitterModel> _sitters = [];
   bool _isLoading = true;
-  bool _sortByRating = false;
-
-  List<SavedSitterModel> get _visibleSitters {
-    if (!_sortByRating) return _sitters;
-    return [..._sitters]..sort((a, b) => b.rating.compareTo(a.rating));
-  }
 
   @override
   void initState() {
@@ -195,8 +190,6 @@ class _SavedSittersScreenState extends State<SavedSittersScreen> {
                   children: [
                     _buildHeader(_sitters.length),
                     const SizedBox(height: 16),
-                    _buildFilters(),
-                    const SizedBox(height: 16),
                     if (_sitters.isEmpty)
                       const Padding(
                         padding: EdgeInsets.symmetric(vertical: 32),
@@ -209,7 +202,7 @@ class _SavedSittersScreenState extends State<SavedSittersScreen> {
                         ),
                       )
                     else
-                      ..._visibleSitters.map((sitter) => _buildSitterCard(sitter)),
+                      ..._sitters.map((sitter) => _buildSitterCard(sitter)),
                     _buildSecurityFooter(),
                   ],
                 ),
@@ -274,31 +267,14 @@ class _SavedSittersScreenState extends State<SavedSittersScreen> {
     );
   }
 
-  Widget _buildFilters() {
-    return Row(
-      children: [
-        _buildFilterChip('All Active', selected: !_sortByRating, onTap: () => setState(() => _sortByRating = false)),
-        const SizedBox(width: 8),
-        _buildFilterChip('High Rating', selected: _sortByRating, onTap: () => setState(() => _sortByRating = true)),
-      ],
-    );
-  }
-
-  Widget _buildFilterChip(String label, {required bool selected, required VoidCallback onTap}) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: selected ? Colors.black87 : Colors.grey.shade200,
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: selected ? Colors.white : Colors.black87,
-            fontWeight: selected ? FontWeight.bold : FontWeight.normal,
-          ),
+  Widget _buildInitial(String initial) {
+    return Center(
+      child: Text(
+        initial,
+        style: const TextStyle(
+          color: AppColors.primaryRust,
+          fontWeight: FontWeight.bold,
+          fontSize: 22,
         ),
       ),
     );
@@ -332,20 +308,23 @@ class _SavedSittersScreenState extends State<SavedSittersScreen> {
                     Stack(
                       clipBehavior: Clip.none,
                       children: [
-                        Container(
-                          width: 56,
-                          height: 56,
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
+                        // Same photo as the home page cards and the sitter's profile.
+                        // The initial shows while it loads, or if it fails to.
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            width: 56,
+                            height: 56,
+                            alignment: Alignment.center,
                             color: AppColors.lightRustBg,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            initial,
-                            style: const TextStyle(
-                              color: AppColors.primaryRust,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 22,
+                            child: Image.network(
+                              sitterPhotoUrl(sitter.id),
+                              width: 56,
+                              height: 56,
+                              fit: BoxFit.cover,
+                              loadingBuilder: (context, child, progress) =>
+                                  progress == null ? child : _buildInitial(initial),
+                              errorBuilder: (_, _, _) => _buildInitial(initial),
                             ),
                           ),
                         ),
@@ -383,25 +362,6 @@ class _SavedSittersScreenState extends State<SavedSittersScreen> {
                                   style: const TextStyle(color: Colors.black54, fontSize: 12),
                                   overflow: TextOverflow.ellipsis,
                                 ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 6,
-                            crossAxisAlignment: WrapCrossAlignment.center,
-                            children: [
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(Icons.star_rounded, color: AppColors.primaryRust, size: 14),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    '${sitter.rating.toStringAsFixed(1)} (${sitter.reviewCount})',
-                                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-                                  ),
-                                ],
                               ),
                             ],
                           ),

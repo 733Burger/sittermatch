@@ -29,17 +29,23 @@ class ProfileSectionHeader extends StatelessWidget {
             color: AppColors.darkText,
           ),
         ),
-        TextButton.icon(
+        // Solid pill button, e.g. "Add pet" / "Add task".
+        ElevatedButton.icon(
           onPressed: onAction,
-          style: TextButton.styleFrom(
-            visualDensity: VisualDensity.compact,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.primaryRust,
+            foregroundColor: Colors.white,
+            disabledBackgroundColor: Colors.grey.shade300,
+            elevation: 0,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            minimumSize: Size.zero,
             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            padding: const EdgeInsets.symmetric(horizontal: 8),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           ),
-          icon: const Icon(Icons.add_circle_outline, color: AppColors.primaryRust, size: 18),
+          icon: const Icon(Icons.add, size: 18),
           label: Text(
             actionLabel,
-            style: const TextStyle(color: AppColors.primaryRust, fontWeight: FontWeight.bold),
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
           ),
         ),
       ],

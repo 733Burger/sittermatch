@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../models/pet_model.dart';
 import '../../../theme/app_colors.dart';
 import 'sitter_detail_card.dart';
 
@@ -33,7 +34,7 @@ class SitterPetsCard extends StatelessWidget {
                       const Icon(Icons.pets, color: AppColors.primaryRust, size: 14),
                       const SizedBox(width: 6),
                       Text(
-                        pet,
+                        petTypeLabel(pet), // "LARGE DOG" -> "Large dog"
                         style: const TextStyle(
                           color: AppColors.darkText,
                           fontSize: 12,

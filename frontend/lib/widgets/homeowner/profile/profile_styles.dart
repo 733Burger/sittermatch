@@ -129,6 +129,62 @@ class ProfileDialogShell extends StatelessWidget {
   }
 }
 
+/// A yes/no question, e.g. "Cancel this booking?" or "Accept Sitter Sarah?". Same box as the other
+/// dialogs, with a bold title, grey text and two equal solid buttons. Pops true when confirmed.
+class ProfileConfirmDialog extends StatelessWidget {
+  const ProfileConfirmDialog({
+    super.key,
+    required this.title,
+    required this.message,
+    required this.cancelLabel,
+    required this.confirmLabel,
+    this.cancelColor = AppColors.primaryRust,
+    this.confirmColor = AppColors.primaryRust,
+  });
+
+  final String title;
+  final String message;
+  final String cancelLabel;
+  final String confirmLabel;
+  final Color cancelColor;
+  final Color confirmColor;
+
+  Widget _button(BuildContext context, String label, Color color, bool result) {
+    return ElevatedButton(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: color,
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+      onPressed: () => Navigator.pop(context, result),
+      child: Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ProfileDialogShell(
+      children: [
+        Text(
+          title,
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.darkText),
+        ),
+        const SizedBox(height: 6),
+        Text(message, style: const TextStyle(fontSize: 13, color: Colors.black54, height: 1.35)),
+        const SizedBox(height: 22),
+        Row(
+          children: [
+            Expanded(child: _button(context, cancelLabel, cancelColor, false)),
+            const SizedBox(width: 10),
+            Expanded(child: _button(context, confirmLabel, confirmColor, true)),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
 class ProfileDialogHeader extends StatelessWidget {
   const ProfileDialogHeader({
     super.key,
